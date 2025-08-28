@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ELEVÉ- Gestión de Peluquería</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+  
+    <header class="header">
+        <div class="header-content">
+            <div class="logo-section">
+                <div class="logo">
+                    <i class="fas fa-cut"></i>
+                </div>
+                <div class="logo-text">
+                    <h1>ELEVÉ</h1>
+                    <p>Gestión de Peluquería</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-container">
+       
+        <aside class="sidebar">
+            <nav class="nav">
+                <button class="nav-btn active" data-tab="agenda">
+                    <i class="fas fa-calendar"></i>
+                    Agenda
+                </button>
+                <button class="nav-btn" data-tab="financiero">
+                    <i class="fas fa-chart-bar"></i>
+                    Finanzas
+                </button>
+                <button class="nav-btn" data-tab="clientes">
+                    <i class="fas fa-users"></i>
+                    Clientes
+                </button>
+                <button class="nav-btn" data-tab="productos">
+                    <i class="fas fa-box"></i>
+                    Productos
+                </button>
+            </nav>
+        </aside>
+
+        
+        <main class="content">
+           
+            <div id="agenda" class="tab-content active">
+                <div class="page-header">
+                    <div class="page-title">
+                        <h2>Agenda del Día</h2>
+                        <p id="current-date"></p>
+                    </div>
+                    <div class="page-actions">
+                        <input type="date" id="date-picker" class="date-input">
+                        <button class="btn-primary" onclick="openNewAppointmentModal()">
+                            <i class="fas fa-plus"></i>
+                            Nuevo Turno
+                        </button>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon blue">
+                            <i class="fas fa-calendar"></i>
+                        </div>
+                        <div class="stat-info">
+                            <p class="stat-label">Total Citas</p>
+                            <p class="stat-value" id="total-appointments">4</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon green">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stat-info">
+                            <p class="stat-label">Confirmadas</p>
+                            <p class="stat-value" id="confirmed-appointments">2</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon yellow">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="stat-info">
+                            <p class="stat-label">Pendientes</p>
+                            <p class="stat-value" id="pending-appointments">1</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon purple">
+                            <i class="fas fa-dollar-sign"></i>
+                        </div>
+                        <div class="stat-info">
+                            <p class="stat-label">Ingresos Día</p>
+                            <p class="stat-value" id="daily-revenue">$113</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Cronograma del Día</h3>
+                        <p>Vista detallada de todas las citas programadas</p>
+                    </div>
+                    <div class="card-content">
+                        <div id="appointments-list" class="appointments-list">
+                     
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+     
+            <div id="financiero" class="tab-content">
+                <div class="page-header">
+                    <div class="page-title">
+                        <h2>Visión General Financiera</h2>
+                        <p>Análisis de ingresos y rendimiento del negocio</p>
+                    </div>
+                    <div class="page-actions">
+                        <select id="period-selector" class="select-input">
+                            <option value="week">Esta Semana</option>
+                            <option value="month">Este Mes</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="financial-grid">
+                    <div class="financial-card total-revenue">
+                        <div class="financial-header">
+                            <i class="fas fa-dollar-sign"></i>
+                            <span>Ingresos Totales</span>
+                        </div>
+                        <div class="financial-content">
+                            <p class="financial-amount" id="total-revenue">$1,665</p>
+                            <div class="growth-indicator positive">
+                                <span>↗ 10.8%</span>
+                                <small>vs período anterior</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="financial-card services">
+                        <div class="financial-header">
+                            <i class="fas fa-cut"></i>
+                            <span>Servicios de Corte</span>
+                        </div>
+                        <div class="financial-content">
+                            <p class="financial-count" id="services-count">45</p>
+                            <p class="financial-revenue" id="services-revenue">$1,125</p>
+                            <div class="growth-indicator positive">
+                                <span>↗ 12.5%</span>
+                                <small>crecimiento</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="financial-card products">
+                        <div class="financial-header">
+                            <i class="fas fa-box"></i>
+                            <span>Ventas de Productos</span>
+                        </div>
+                        <div class="financial-content">
+                            <p class="financial-count" id="products-count">18</p>
+                            <p class="financial-revenue" id="products-revenue">$540</p>
+                            <div class="growth-indicator positive">
+                                <span>↗ 8.3%</span>
+                                <small>crecimiento</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+    
+                <div class="breakdown-grid">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-cut"></i> Desglose de Servicios</h3>
+                            <p>Rendimiento por tipo de servicio</p>
+                        </div>
+                        <div class="card-content">
+                            <div id="services-breakdown" class="breakdown-list">
+                               
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-box"></i> Ventas de Productos</h3>
+                            <p>Productos más vendidos</p>
+                        </div>
+                        <div class="card-content">
+                            <div id="products-breakdown" class="breakdown-list">
+                            
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+           
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-chart-line"></i> Resumen de Rendimiento</h3>
+                        <p>Métricas clave del período seleccionado</p>
+                    </div>
+                    <div class="card-content">
+                        <div class="performance-grid">
+                            <div class="performance-item">
+                                <p class="performance-label">Promedio por Servicio</p>
+                                <p class="performance-value" id="avg-service">$25</p>
+                            </div>
+                            <div class="performance-item">
+                                <p class="performance-label">Promedio por Producto</p>
+                                <p class="performance-value" id="avg-product">$30</p>
+                            </div>
+                            <div class="performance-item">
+                                <p class="performance-label">Servicios por Día</p>
+                                <p class="performance-value" id="services-per-day">6</p>
+                            </div>
+                            <div class="performance-item">
+                                <p class="performance-label">Ingresos por Día</p>
+                                <p class="performance-value" id="revenue-per-day">$238</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Other tabs (placeholder) -->
+            <div id="clientes" class="tab-content">
+                <div class="page-header">
+                    <h2>Gestión de Clientes</h2>
+                    <p>Próximamente...</p>
+                </div>
+            </div>
+
+            <div id="productos" class="tab-content">
+                <div class="page-header">
+                    <h2>Gestión de Productos</h2>
+                    <p>Próximamente...</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal for New Appointment -->
+    <div id="appointment-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Programar Nuevo Turno</h3>
+                <button class="modal-close" onclick="closeNewAppointmentModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="appointment-form">
+                    <div class="form-group">
+                        <label for="client-name">Cliente</label>
+                        <input type="text" id="client-name" placeholder="Nombre del cliente" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="client-phone">Teléfono</label>
+                        <input type="tel" id="client-phone" placeholder="+1234567890" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="service-type">Servicio</label>
+                        <select id="service-type" required>
+                            <option value="">Seleccionar servicio</option>
+                            <option value="corte-clasico" data-price="18">Corte Clásico - $10000</option>
+                            <option value="corte-barba" data-price="25">Corte + Barba - $12000</option>
+                            <option value="corte-mujer" data-price="30">Corte infantil - $7000</option>
+                            <option value="peinado" data-price="40">Barba - $5000</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="appointment-time">Hora</label>
+                        <select id="appointment-time" required>
+                            <option value="">Seleccionar hora</option>
+                            <option value="08:00">08:00</option>
+                            <option value="08:30">08:30</option>
+                            <option value="09:00">09:00</option>
+                            <option value="09:30">09:30</option>
+                            <option value="10:00">10:00</option>
+                            <option value="10:30">10:30</option>
+                            <option value="11:00">11:00</option>
+                            <option value="11:30">11:30</option>
+                            <option value="12:00">12:00</option>
+                            <option value="12:30">12:30</option>
+                            <option value="13:00">13:00</option>
+                            <option value="13:30">13:30</option>
+                            <option value="14:00">14:00</option>
+                            <option value="14:30">14:30</option>
+                            <option value="15:00">15:00</option>
+                            <option value="15:30">15:30</option>
+                            <option value="16:00">16:00</option>
+                            <option value="16:30">16:30</option>
+                            <option value="17:00">17:00</option>
+                            <option value="17:30">17:30</option>
+                            <option value="18:00">18:00</option>
+                            <option value="18:30">18:30</option>
+                            <option value="19:00">19:00</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeNewAppointmentModal()">Cancelar</button>
+                <button type="submit" form="appointment-form" class="btn-primary">Programar Cita</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
