@@ -10,5 +10,4 @@ rutasApi.post('/api/v1/turnos', controlador.agregarUnTurno);
 rutasApi.put('/api/v1/turnos/:id', controlador.modificarTurno);
 rutasApi.delete('/api/v1/turnos/:id', controlador.eliminarTurno);
 
-
 export default rutasApi;
