@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import rutasApi from './modulos/rutas.mjs';
 import bodyParser from 'body-parser'; 

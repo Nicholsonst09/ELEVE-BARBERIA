@@ -6,9 +6,22 @@ async function obtenerTurnos() {
     try {
         const { data: turnos, error } = await supabaseAdmin
             .from('turnos')
-            // AÑADIR 'categoria' aquí
-            .select('id, nombre, detalle, precio, stock, imagen_url, categoria')
-            .order('id', { ascending: true });
+            .select(`
+                id,
+                cliente_id,
+                empleado_id,
+                servicio_id,
+                fecha,
+                hora_inicio,
+                hora_fin,
+                estado,
+                observaciones,
+                precio,
+                creado,
+                modificado
+                `)
+                .order('fecha', { ascending: true })
+                .order('hora_inicio', { ascending: true });
 
         if (error) {
             throw error;
