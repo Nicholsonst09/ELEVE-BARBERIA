@@ -81,19 +81,31 @@ async function consultarDisponibilidad(fecha, hora_inicio, empleado_id){
 // Función para agregar un turno
 async function agregarTurno(nuevoTurno) {
     try {
-        // AÑADIR 'categoria' aquí
-        const { nombre, detalle, precio, stock, imagen_url, categoria } = nuevoTurno;
+        const { 
+            cliente_id,
+            empleado_id,
+            servicio_id,
+            fecha,
+            hora_inicio,
+            hora_fin,
+            estado,
+            observaciones,
+            precio
+        } = nuevoTurno;
 
         const { data, error } = await supabaseAdmin
             .from('turnos')
             .insert([
                 {
-                    nombre: nombre,
-                    detalle: detalle,
-                    precio: precio,
-                    stock: stock,
-                    imagen_url: imagen_url,
-                    categoria: categoria
+                    cliente_id,
+                    empleado_id,
+                    servicio_id,
+                    fecha,
+                    hora_inicio,
+                    hora_fin,
+                    estado: estado || 'pendiente', //Sería como el valor por defecto si no se especifica
+                    observaciones: observaciones || null,
+                    precio
                 }
             ])
             .select()
