@@ -6,9 +6,22 @@ async function obtenerTurnos() {
     try {
         const { data: turnos, error } = await supabaseAdmin
             .from('turnos')
-            // AÑADIR 'categoria' aquí
-            .select('id, nombre, detalle, precio, stock, imagen_url, categoria')
-            .order('id', { ascending: true });
+            .select(`
+                id,
+                cliente_id,
+                empleado_id,
+                servicio_id,
+                fecha,
+                hora_inicio,
+                hora_fin,
+                estado,
+                observaciones,
+                precio,
+                creado,
+                modificado
+                `)
+                .order('fecha', { ascending: true })
+                .order('hora_inicio', { ascending: true });
 
         if (error) {
             throw error;
@@ -25,7 +38,20 @@ async function obtenerUnTurno(id) {
     try {
         const { data: turno, error } = await supabaseAdmin
             .from('turnos')
-            .select('id, nombre, detalle, precio, stock, imagen_url, categoria')
+            .select(`
+                id,
+                cliente_id,
+                empleado_id,
+                servicio_id,
+                fecha,
+                hora_inicio,
+                hora_fin,
+                estado,
+                observaciones,
+                precio,
+                creado,
+                modificado
+            `)
             .eq('id', id)
             .single();
 
@@ -41,6 +67,16 @@ async function obtenerUnTurno(id) {
         throw error;
     }
 }
+
+//Función para consultar disponbilidad por fecha, hora y empleado
+async function consultarDisponibilidad(fecha, hora_inicio, empleado_id){
+    try{
+        
+    }catch (error) {
+        console.error(`Error al consultar disponibilidad: `, error.message);
+        throw error;
+    }
+} 
 
 // Función para agregar un turno
 async function agregarTurno(nuevoTurno) {
