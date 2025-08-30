@@ -20,8 +20,8 @@ async function obtenerTurnos() {
                 creado,
                 modificado
                 `)
-                .order('fecha', { ascending: true })
-                .order('hora_inicio', { ascending: true });
+            .order('fecha', { ascending: true })
+            .order('hora_inicio', { ascending: true });
 
         if (error) {
             throw error;
@@ -69,31 +69,51 @@ async function obtenerUnTurno(id) {
 }
 
 //Función para consultar disponbilidad por fecha, hora y empleado
-async function consultarDisponibilidad(fecha, hora_inicio, empleado_id){
-    try{
-        
-    }catch (error) {
+async function consultarDisponibilidad(fecha, hora_inicio, empleado_id) {
+    try {
+
+    } catch (error) {
         console.error(`Error al consultar disponibilidad: `, error.message);
         throw error;
     }
-} 
+}
 
 // Función para agregar un turno
+
 async function agregarTurno(nuevoTurno) {
     try {
-        // AÑADIR 'categoria' aquí
-        const { nombre, detalle, precio, stock, imagen_url, categoria } = nuevoTurno;
+
+        const {
+            id,
+            cliente_id,
+            empleado_id,
+            servicio_id,
+            fecha,
+            hora_inicio,
+            hora_fin,
+            estado,
+            observaciones,
+            precio,
+            creado,
+            modificado
+        } = nuevoTurno;
 
         const { data, error } = await supabaseAdmin
             .from('turnos')
             .insert([
                 {
-                    nombre: nombre,
-                    detalle: detalle,
+                    id: id,
+                    cliente_id: cliente_id,
+                    empleado_id: empleado_id,
+                    servicio_id: servicio_id,
+                    fecha: fecha,
+                    hora_inicio: hora_inicio,
+                    hora_fin: hora_fin,
+                    estado: estado,
+                    observaciones: observaciones,
                     precio: precio,
-                    stock: stock,
-                    imagen_url: imagen_url,
-                    categoria: categoria
+                    creado: creado,
+                    modificado: modificado
                 }
             ])
             .select()
@@ -114,19 +134,37 @@ async function agregarTurno(nuevoTurno) {
 // Función para modificar un turno
 async function modificarTurno(id, turnoModificar) {
     try {
-        // AÑADIR 'categoria' aquí
-        const { nombre, detalle, precio, stock, imagen_url, categoria } = turnoModificar;
+
+        const {
+            id,
+            cliente_id,
+            empleado_id,
+            servicio_id,
+            fecha,
+            hora_inicio,
+            hora_fin,
+            estado,
+            observaciones,
+            precio,
+            creado,
+            modificado
+        } = turnoModificar;
 
         const { data, error } = await supabaseAdmin
             .from('turnos')
             .update({
-                nombre: nombre,
-                detalle: detalle,
+                id: id,
+                cliente_id: cliente_id,
+                empleado_id: empleado_id,
+                servicio_id: servicio_id,
+                fecha: fecha,
+                hora_inicio: hora_inicio,
+                hora_fin: hora_fin,
+                estado: estado,
+                observaciones: observaciones,
                 precio: precio,
-                stock: stock,
-                imagen_url: imagen_url,
-                // AÑADIR 'categoria' aquí
-                categoria: categoria
+                creado: creado,
+                modificado: modificado
             })
             .eq('id', id)
             .select()
@@ -147,8 +185,8 @@ async function modificarTurno(id, turnoModificar) {
 // Función para eliminar un turno
 async function eliminarTurno(id) {
     try {
-        const { error, count } = await supabaseAdmin // Usar supabaseAdmin
-            .from('turnos') // Nombre de tu tabla en Supabase
+        const { error, count } = await supabaseAdmin
+            .from('turnos')
             .delete()
             .eq('id', id);
 

@@ -41,15 +41,7 @@ async function obtenerUnTurno(req, res) {
 async function agregarUnTurno(req, res) {
     try {
         const nuevoTurno = req.body;
-        // Validación de datos de entrada
-        // AÑADIR 'categoria' a la validación
-        if (!nuevoTurno.nombre || !nuevoTurno.detalle || typeof nuevoTurno.precio === 'undefined' || typeof nuevoTurno.stock === 'undefined' || !nuevoTurno.categoria) {
-            return res.status(400).json({ mensaje: "Faltan datos obligatorios para el turno (nombre, detalle, precio, stock, categoria)." });
-        }
-        if (isNaN(nuevoTurno.precio) || isNaN(nuevoTurno.stock)) {
-            return res.status(400).json({ mensaje: "Precio y stock deben ser valores numéricos." });
-        }
-
+    
         const turnoCreado = await modelo.agregarTurno(nuevoTurno);
         res.status(201).json({ mensaje: "Turno agregado con éxito", turno: turnoCreado });
     } catch (error) {
@@ -68,14 +60,7 @@ async function modificarTurno(req, res) {
             return res.status(400).json({ mensaje: 'ID de turno inválido. Debe ser un número.' });
         }
 
-        // Validación de datos de entrada para la modificación
-        // AÑADIR 'categoria' a la validación
-        if (!turnoModificado.nombre || !turnoModificado.detalle || typeof turnoModificado.precio === 'undefined' || typeof turnoModificado.stock === 'undefined' || !turnoModificado.categoria) {
-            return res.status(400).json({ mensaje: "Faltan datos obligatorios para modificar el turno (nombre, detalle, precio, stock, categoria)." });
-        }
-        if (isNaN(turnoModificado.precio) || isNaN(turnoModificado.stock)) {
-            return res.status(400).json({ mensaje: "Precio y stock deben ser valores numéricos." });
-        }
+
 
         const turnoExistente = await modelo.obtenerUnTurno(turnoId);
         if (!turnoExistente) {
