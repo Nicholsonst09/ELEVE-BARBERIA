@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import controlador from './controlador.mjs';
 
-
 const rutasApi = Router();
 
 rutasApi.get('/api/v1/turnos', controlador.obtenerTurnos);
