@@ -107,7 +107,38 @@ async function eliminarTurno(req, res) {
     }
 }
 
+async function obtenerHorariosDisponibles(req, res) {
+    try{
+        const {empleado_id, fecha} = req.params;
+        const {hora_apertura, hora_cierre} = req.query;
 
+        //Validar parámetros requeridos
+        if (!empleado_id || !fecha) {
+            return res.status(400).json({ 
+                mensaje: "Faltan parámetros requeridos: empleado_id, fecha" 
+            });
+        }
+
+        //Validar formato de fecha
+
+        //Validar que no sea una fecha anterior
+
+        const horarios = await modelo.obtenerHorariosDisponibles(
+            parseInt(empleado_id),
+            fecha, 
+            hora_apertura,
+            hora_cierre
+        );
+
+        res.status(200).json(horarios);
+    } catch (error) {
+        console.error("Error en controlador.obtenerHorariosDisponibles:", error);
+        res.status(500).json({ 
+            mensaje: "Error interno del servidor al obtener horarios disponibles.", 
+            detalle: error.message 
+        });
+    }
+}
 
 // Exportamos las funciones del controlador
 export default {
@@ -116,5 +147,5 @@ export default {
     agregarUnTurno,
     modificarTurno,
     eliminarTurno,
-
+    obtenerHorariosDisponibles
 };

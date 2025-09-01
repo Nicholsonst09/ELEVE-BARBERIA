@@ -98,18 +98,6 @@ async function agregarTurno(nuevoTurno) {
             .from('turnos')
             .insert([
                 {
-                    id: id,
-                    cliente_id: cliente_id,
-                    empleado_id: empleado_id,
-                    servicio_id: servicio_id,
-                    fecha: fecha,
-                    hora_inicio: hora_inicio,
-                    hora_fin: hora_fin,
-                    estado: estado,
-                    observaciones: observaciones,
-                    precio: precio,
-                    creado: creado,
-                    modificado: modificado
                     cliente_id,
                     empleado_id,
                     servicio_id,
@@ -207,8 +195,98 @@ async function eliminarTurno(id) {
     }
 }
 
-1
+// Funcion para obtener horarios disponibles
+async function obtenerHorariosDisponibles(empleado_id, fecha, hora_apertura = "09:00", hora_cierre = "18:00") {
+    try {
+        //Obtener turnos ocupados del empleado en esa fecha
+        const {data: turnosOcupados, error} = await supabaseAdmin
+            .from('turnos')
+            .select('hora_inicio, hora_fin, estado')
+            .eq('empleado_id', empleado_id)
+            .eq('fecha', fecha)
+            .neq('estado', 'cancelado'); // Así se excluyen los cancelados
+    
+            if (error) {
+                throw error;
+            }
+    
+            // Horarios posibles del día
+            const horariosDelDia = generarHorariosDelDia(hora_apertura, hora_cierre);
+    
+            // Filtrar horarios disponibles
+            const horariosDisponibles = horariosDelDia.filter(horario => {
+                return !estaOcupado(horario.inicio, horario.fin, turnosOcupados);
+            })
+    
+            return {
+                fecha, 
+                empleado_id,
+                horarios_disponibles: horariosDisponibles,
+                horarios_ocupados: turnosOcupados,
+                total_disponibles: horariosDisponibles.length,
+                horario_trabajo: {
+                    apertura: hora_apertura,
+                    cierre: hora_cierre
+                }
+            };
+    }catch (error) {
+        console.error("Error al obtener horarios disponibles:", error.message);
+        throw error;
+    }
+        
+}
 
+// Generar horarios del día
+function generarHorariosDelDia(horaInicio, horaFin) {
+    const horarios = [];
+    let horaActual = convertirHoraAMinutos(horaInicio);
+    const horaLimite = convertirHoraAMinutos(horaFin);
+
+    while (horaActual < horaLimite) {
+        const horaInicioFormato = convertirMinutosAHora(horaActual);
+        const horaFinFormato = convertirMinutosAHora(horaActual + 30); // 30 minutos por turno
+        
+        // Solo agregar si el horario completo está dentro del horario laboral
+        if (horaActual + 30 <= horaLimite) {
+            horarios.push({
+                inicio: horaInicioFormato,
+                fin: horaFinFormato,
+                disponible: true
+            });
+        }
+        
+        horaActual += 30; // Incrementar 30 minutos
+    }
+    
+    return horarios;
+}
+
+// Funcion para verificar si un horario está ocupado
+function estaOcupado(horaInicio, horaFin, turnosOcupados){
+    const inicioMinutos = convertirHoraAMinutos(horaInicio);
+    const finMinutos = convertirHoraAMinutos(horaFin);
+    
+    return turnosOcupados.some(turno => {
+        const turnoInicioMinutos = convertirHoraAMinutos(turno.hora_inicio);
+        const turnoFinMinutos = convertirHoraAMinutos(turno.hora_fin);
+        
+        // Verificar si hay solapamiento
+        return (inicioMinutos < turnoFinMinutos && finMinutos > turnoInicioMinutos);
+    });
+}
+
+//Funcion para convertir hora a minutos
+function convertirHoraAMinutos(hora) {
+    const [horas, minutos] = hora.split(':').map(Number);
+    return horas * 60 + minutos;
+}
+
+//Funcion para convertir minutos a hora
+function convertirMinutosAHora(minutos) {
+    const horas = Math.floor(minutos / 60);
+    const mins = minutos % 60;
+    return `${horas.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+}
 
 
 export default {
@@ -217,4 +295,5 @@ export default {
     agregarTurno,
     modificarTurno,
     eliminarTurno,
+    obtenerHorariosDisponibles
 };
