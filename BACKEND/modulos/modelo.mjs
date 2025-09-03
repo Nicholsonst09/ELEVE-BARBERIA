@@ -178,7 +178,7 @@ async function modificarTurno(id, turnoModificar) {
 // Función para eliminar un turno
 async function eliminarTurno(id) {
     try {
-        const { error, count } = await supabaseAdmin
+        const { error } = await supabaseAdmin
             .from('turnos')
             .delete()
             .eq('id', id);
@@ -187,8 +187,8 @@ async function eliminarTurno(id) {
             console.error(`Error al eliminar turno con ID ${id} en Supabase:`, error);
             throw new Error(`Error al eliminar turno: ${error.message}`);
         }
-
-        return count > 0;
+        
+        return true;
     } catch (error) {
         console.error(`Error en modelo.eliminarTurno (ID: ${id}):`, error);
         throw error;
@@ -201,15 +201,16 @@ async function obtenerHorariosDisponibles(empleado_id, fecha, hora_apertura = "0
         //Obtener turnos ocupados del empleado en esa fecha
         const {data: turnosOcupados, error} = await supabaseAdmin
             .from('turnos')
-            .select('hora_inicio, hora_fin, estado')
+            .select('id,hora_inicio, hora_fin, estado,cliente_id')
             .eq('empleado_id', empleado_id)
             .eq('fecha', fecha)
             .neq('estado', 'cancelado'); // Así se excluyen los cancelados
+            //.order('hora_inicio', { ascending: true }); no sé si es necesario
     
             if (error) {
                 throw error;
             }
-    
+            
             // Horarios posibles del día
             const horariosDelDia = generarHorariosDelDia(hora_apertura, hora_cierre);
     
@@ -224,9 +225,14 @@ async function obtenerHorariosDisponibles(empleado_id, fecha, hora_apertura = "0
                 horarios_disponibles: horariosDisponibles,
                 horarios_ocupados: turnosOcupados,
                 total_disponibles: horariosDisponibles.length,
+                total_ocupados: turnosOcupados.length,
                 horario_trabajo: {
                     apertura: hora_apertura,
                     cierre: hora_cierre
+                },
+                resumen: {
+                    total_slots_posibles: horariosDelDia.length,
+                    porcentaje_ocupacion: Math.round((turnosOcupados.length/horariosDelDia.length) * 100)
                 }
             };
     }catch (error) {

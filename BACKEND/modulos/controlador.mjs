@@ -91,15 +91,17 @@ async function eliminarTurno(req, res) {
     try {
         // Antes de eliminar el turno de la BD, obtener su URL de imagen para eliminarla del storage
         const turnoAEliminar = await modelo.obtenerUnTurno(turnoId);
-        if (turnoAEliminar && turnoAEliminar.imagen_url) {
-            await modelo.eliminarImagenStorage(turnoAEliminar.imagen_url);
+        
+        if(!turnoAEliminar) {
+            return res.status(404).json({ mensaje: 'Turno no encontrado para eliminar.' });
         }
 
         const eliminado = await modelo.eliminarTurno(turnoId);
+
         if (eliminado) {
             res.status(200).json({ mensaje: `Turno con ID ${turnoId} eliminado con éxito.` });
         } else {
-            res.status(404).json({ mensaje: 'Turno no encontrado para eliminar.' });
+            res.status(404).json({ mensaje: 'Turno no encontrado para eliminar.' }); //Es redundante porque siempre será true pero queda por si aparece algo inusual
         }
     } catch (error) {
         console.error(`Error en controlador.eliminarTurno (ID: ${turnoId}):`, error);
