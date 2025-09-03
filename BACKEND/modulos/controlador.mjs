@@ -121,9 +121,29 @@ async function obtenerHorariosDisponibles(req, res) {
             });
         }
 
-        //Validar formato de fecha
+        //Validar que el empleado existe (una vez que esté creada tabla Empleados)
 
-        //Validar que no sea una fecha anterior
+        //Validar que empleado id sea un número (luego lo filtramos enviando solo ese dato)
+        const idEmpleado = parseInt(empleado_id);
+        if (isNaN(idEmpleado)) {
+            return res.status(400).json({ mensaje: 'ID de empleado inválido. Debe ser un número.' });
+        }
+
+        //Validar formato de fecha
+        const regexFecha = /^\d{4}-\d{2}-\d{2}$/;
+        if (!regexFecha.test(fecha)) {
+            return res.status(400).json({ mensaje: "Formato de fecha inválido. Use YYYY-MM-DD." });
+        }
+
+        //Validar que no sea una fecha anterior (VER ESTO DIRECTAMENTE EN EL FRONT DE NO MOSTRAR)
+        const fechaActual = new Date();
+        const fechaSolicitada = new Date(fecha);
+        fechaActual.setHours(0, 0, 0,0); //Hora a 0 para comparar solo la fecha
+        if (fechaSolicitada < fechaActual){
+            return res.status(400).json({ mensaje: "No se pueden buscar horarios para una fecha anterior a la actual." });
+        }
+
+        //Validar formato de hora
 
         const horarios = await modelo.obtenerHorariosDisponibles(
             parseInt(empleado_id),

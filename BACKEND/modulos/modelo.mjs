@@ -196,6 +196,7 @@ async function eliminarTurno(id) {
 }
 
 // Funcion para obtener horarios disponibles
+//(Saber que luego se va a agregar y tener en cuenta la duracion del servicio)
 async function obtenerHorariosDisponibles(empleado_id, fecha, hora_apertura = "09:00", hora_cierre = "18:00") {
     try {
         //Obtener turnos ocupados del empleado en esa fecha
