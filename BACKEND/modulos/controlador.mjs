@@ -109,10 +109,68 @@ async function eliminarTurno(req, res) {
     }
 }
 
+//Funcion para buscar empleados por servicio
+async function buscarEmpleadosPorServicio(req, res) {
+    try{
+        const {servicio_id} = req.params;
+
+        if(!servicio_id) {
+            return res.status(400).json({mensaje: "El id del servicio es requerido"});
+        }
+
+        const empleados = await modelo.buscarEmpleadosPorServicio(servicio_id);
+
+        //Vallidar que no vengan vacíos los empleados
+        if (empleados.length === 0) {
+            return res.status(200).json({
+                mensaje: "No hay empleados que brinden este servicio",
+                empleados: []
+            })
+        }
+
+        res.status(200).json({
+            servicio_id: servicio_id,
+            empleados: empleados,
+            total: empleados.length
+        });
+    }catch(error){
+        console.error("Error en controlador.buscarProfesionalesPorServicio:", error);
+        res.status(500).json({ 
+            mensaje: "Error interno del servidor al buscar profesionales.", 
+            detalle: error.message 
+        });
+    }
+}
+
+async function obtenerServicioPorId(req, res) {
+    try{
+        const {servicio_id}= req.params;
+        if(!servicio_id) {
+            return res.status(404).json({ mensaje: "Falta ingresar el id del servicio." });
+        }
+
+        const servicio = await modelo.obtenerServicioPorId(servicio_id);
+        if(!servicio){
+            return res.status(404).json({ mensaje: "Servicio no encontrado." });
+        }
+
+        res.status(200).json(servicio);
+    }catch(error) {
+        console.error(`Error en controlador.obtenerServicioPorId (ID: ${turnoId}):`, error);
+        res.status(500).json({ mensaje: 'Error interno del servidor buscar servicio por su id.', detalle: error.message });
+    }
+}
+
+//Funcion para traer los horarios disponibles de un empleado en determinada fecha
 async function obtenerHorariosDisponibles(req, res) {
     try{
-        const {empleado_id, fecha} = req.params;
-        const {hora_apertura, hora_cierre} = req.query;
+        const {empleado_id, servicio_id, fecha} = req.params;
+
+        const servicio = await modelo.obtenerServicioPorId(servicio_id);
+        if(!servicio){
+            return res.status(404).json({ mensaje: "Servicio no encontrado." });
+        }
+        const duracionServicio = servicio.duracion_min;
 
         //Validar parámetros requeridos
         if (!empleado_id || !fecha) {
@@ -145,12 +203,7 @@ async function obtenerHorariosDisponibles(req, res) {
 
         //Validar formato de hora
 
-        const horarios = await modelo.obtenerHorariosDisponibles(
-            parseInt(empleado_id),
-            fecha, 
-            hora_apertura,
-            hora_cierre
-        );
+        const horarios = await modelo.obtenerHorariosDisponibles(parseInt(empleado_id),fecha, duracionServicio);
 
         res.status(200).json(horarios);
     } catch (error) {
@@ -169,5 +222,7 @@ export default {
     agregarUnTurno,
     modificarTurno,
     eliminarTurno,
-    obtenerHorariosDisponibles
+    buscarEmpleadosPorServicio,
+    obtenerHorariosDisponibles,
+    obtenerServicioPorId
 };

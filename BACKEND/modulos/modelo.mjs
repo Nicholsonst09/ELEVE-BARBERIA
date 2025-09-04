@@ -68,18 +68,8 @@ async function obtenerUnTurno(id) {
     }
 }
 
-//Función para consultar disponbilidad por fecha, hora y empleado
-async function consultarDisponibilidad(fecha, hora_inicio, empleado_id) {
-    try {
-
-    } catch (error) {
-        console.error(`Error al consultar disponibilidad: `, error.message);
-        throw error;
-    }
-}
 
 // Función para agregar un turno
-
 async function agregarTurno(nuevoTurno) {
     try {
         const { 
@@ -195,42 +185,127 @@ async function eliminarTurno(id) {
     }
 }
 
+
+//Funcion para buscar empleados por id del servicio
+//(Ver si es necesario traer especialidades y horarios)
+async function buscarEmpleadosPorServicio(servicio_id){
+    try {
+        const {data: empleados, error} = await supabaseAdmin
+        .from('empleados_servicios')
+        .select(`   
+                empleado_id,
+                empleados(
+                    id,
+                    nombre,
+                    especialidades,
+                    horarios_disponibles,
+                    activo
+                )
+            `)
+            .eq('servicio_id', servicio_id)
+            .eq('empleados.activo', true);  //Para traer solo los barberos activos
+
+        if (error) {
+            throw error;
+        }
+
+        const arrayEmpleados = empleados.map(empleado =>({
+            id: empleado.empleados.id,
+            nombre: empleado.empleados.nombre,
+            especialidades: empleado.empleados.especialidades,
+            horarios_disponibles: empleado.empleados.horarios_disponibles
+        }));
+
+        return arrayEmpleados;
+
+    }catch (error) {
+        console.error("Error al buscar empleados por servicio:", error.message);
+        throw error;
+    }
+}
+
+//FUNCION PARA TRAER EL SERVICIO POR NOMBRE
+async function obtenerServicioPorNombre(nombreServicio) {
+    try {
+        const { data: servicio, error } = await supabaseAdmin
+            .from('servicios')
+            .select('id, nombre, precio, duracion_min')
+            .eq('nombre', nombreServicio)
+            .eq('activo', true)
+            .single();
+
+        if (error) {
+            if (error.code === 'PGRST116') {
+                return null;
+            }
+            throw error;
+        }
+        return servicio;
+    } catch (error) {
+        console.error(`Error al buscar servicio ${nombreServicio}:`, error.message);
+        throw error;
+    }
+}
+
+
+//FUNCION PARA TRAER SERVICIO POR ID
+async function obtenerServicioPorId(servicio_id) {
+    try {
+        const { data, error } = await supabaseAdmin
+            .from('servicios')
+            .select('nombre, duracion_min, precio')
+            .eq('id', servicio_id)
+            .single();
+
+        if (error) {
+            throw error;
+        }
+
+        return data;
+    }catch(error){
+        console.error(`Error al buscar servicio con ID ${servicio_id}:`, error.message);
+        throw error;
+    }
+}
+
+const hora_apertura = "09:00";
+const hora_cierre = "18:00";
+
 // Funcion para obtener horarios disponibles
-//(Saber que luego se va a agregar y tener en cuenta la duracion del servicio)
-async function obtenerHorariosDisponibles(empleado_id, fecha, hora_apertura = "09:00", hora_cierre = "18:00") {
+async function obtenerHorariosDisponibles(empleado_id, fecha, duracionServicio) {
     try {
         //Obtener turnos ocupados del empleado en esa fecha
-        const {data: turnosOcupados, error} = await supabaseAdmin
+        const {data: turnosOcupados, error: errorTurnos} = await supabaseAdmin
             .from('turnos')
-            .select('id,hora_inicio, hora_fin, estado,cliente_id')
+            .select('hora_inicio, hora_fin, estado, cliente_id')
             .eq('empleado_id', empleado_id)
             .eq('fecha', fecha)
-            .neq('estado', 'cancelado'); // Así se excluyen los cancelados
-            //.order('hora_inicio', { ascending: true }); no sé si es necesario
+            .neq('estado', 'cancelado') // Para excluir los cancelados
+            .order('hora_inicio', { ascending: true }); //no sé si es necesario
     
-            if (error) {
-                throw error;
+            if (errorTurnos) {
+                throw errorTurnos;
             }
             
             // Horarios posibles del día
-            const horariosDelDia = generarHorariosDelDia(hora_apertura, hora_cierre);
+            const horariosDelDia = generarHorariosDelDia(hora_apertura, hora_cierre, duracionServicio);
     
             // Filtrar horarios disponibles
             const horariosDisponibles = horariosDelDia.filter(horario => {
                 return !estaOcupado(horario.inicio, horario.fin, turnosOcupados);
             })
     
+            //Ver bien lo de generarHorariosDelDia ya que recibiría como parámetro la duracion del servicio
+            
             return {
                 fecha, 
                 empleado_id,
+                //servicio_id, 
+                //duracion_servicio: duracionServicio,
                 horarios_disponibles: horariosDisponibles,
                 horarios_ocupados: turnosOcupados,
                 total_disponibles: horariosDisponibles.length,
                 total_ocupados: turnosOcupados.length,
-                horario_trabajo: {
-                    apertura: hora_apertura,
-                    cierre: hora_cierre
-                },
                 resumen: {
                     total_slots_posibles: horariosDelDia.length,
                     porcentaje_ocupacion: Math.round((turnosOcupados.length/horariosDelDia.length) * 100)
@@ -244,25 +319,23 @@ async function obtenerHorariosDisponibles(empleado_id, fecha, hora_apertura = "0
 }
 
 // Generar horarios del día
-function generarHorariosDelDia(horaInicio, horaFin) {
+function generarHorariosDelDia(horaInicio, horaFin, duracionMinutos) {
     const horarios = [];
     let horaActual = convertirHoraAMinutos(horaInicio);
     const horaLimite = convertirHoraAMinutos(horaFin);
 
-    while (horaActual < horaLimite) {
+    while (horaActual <= horaLimite - duracionMinutos) {
         const horaInicioFormato = convertirMinutosAHora(horaActual);
-        const horaFinFormato = convertirMinutosAHora(horaActual + 30); // 30 minutos por turno
+        const horaFinFormato = convertirMinutosAHora(horaActual + duracionMinutos);
         
         // Solo agregar si el horario completo está dentro del horario laboral
-        if (horaActual + 30 <= horaLimite) {
-            horarios.push({
-                inicio: horaInicioFormato,
-                fin: horaFinFormato,
-                disponible: true
-            });
-        }
+        horarios.push({
+            inicio: horaInicioFormato,
+            fin: horaFinFormato,
+            disponible: true
+        });
         
-        horaActual += 30; // Incrementar 30 minutos
+        horaActual += duracionMinutos; // Incrementar 30 minutos
     }
     
     return horarios;
@@ -301,6 +374,9 @@ export default {
     obtenerUnTurno,
     agregarTurno,
     modificarTurno,
+    obtenerServicioPorId,
+    obtenerServicioPorNombre,
     eliminarTurno,
+    buscarEmpleadosPorServicio,
     obtenerHorariosDisponibles
 };
