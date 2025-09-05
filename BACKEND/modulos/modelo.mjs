@@ -68,15 +68,6 @@ async function obtenerUnTurno(id) {
     }
 }
 
-//Función para consultar disponbilidad por fecha, hora y empleado
-async function consultarDisponibilidad(fecha, hora_inicio, empleado_id) {
-    try {
-
-    } catch (error) {
-        console.error(`Error al consultar disponibilidad: `, error.message);
-        throw error;
-    }
-}
 
 // Función para agregar un turno
 
@@ -84,7 +75,6 @@ async function agregarTurno(nuevoTurno) {
     try {
 
         const {
-            id,
             cliente_id,
             empleado_id,
             servicio_id,
@@ -93,16 +83,15 @@ async function agregarTurno(nuevoTurno) {
             hora_fin,
             estado,
             observaciones,
-            precio,
-            creado,
-            modificado
+            precio
+
         } = nuevoTurno;
 
         const { data, error } = await supabaseAdmin
             .from('turnos')
             .insert([
                 {
-                    id: id,
+        
                     cliente_id: cliente_id,
                     empleado_id: empleado_id,
                     servicio_id: servicio_id,
@@ -111,9 +100,7 @@ async function agregarTurno(nuevoTurno) {
                     hora_fin: hora_fin,
                     estado: estado,
                     observaciones: observaciones,
-                    precio: precio,
-                    creado: creado,
-                    modificado: modificado
+                    precio: precio
                 }
             ])
             .select()
@@ -136,7 +123,7 @@ async function modificarTurno(id, turnoModificar) {
     try {
 
         const {
-            id,
+
             cliente_id,
             empleado_id,
             servicio_id,
@@ -145,15 +132,13 @@ async function modificarTurno(id, turnoModificar) {
             hora_fin,
             estado,
             observaciones,
-            precio,
-            creado,
-            modificado
+            precio
+      
         } = turnoModificar;
 
         const { data, error } = await supabaseAdmin
             .from('turnos')
             .update({
-                id: id,
                 cliente_id: cliente_id,
                 empleado_id: empleado_id,
                 servicio_id: servicio_id,
@@ -162,9 +147,7 @@ async function modificarTurno(id, turnoModificar) {
                 hora_fin: hora_fin,
                 estado: estado,
                 observaciones: observaciones,
-                precio: precio,
-                creado: creado,
-                modificado: modificado
+                precio: precio
             })
             .eq('id', id)
             .select()
