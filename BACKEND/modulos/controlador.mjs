@@ -40,34 +40,76 @@ async function obtenerUnTurno(req, res) {
 // Función para agregar un turno
 async function agregarUnTurno(req, res) {
     try {
-        const nuevoTurno = req.body;
-    
-        const turnoCreado = await modelo.agregarTurno(nuevoTurno);
+        const { cliente_id, empleado_id, servicio_id, hora_inicio, fecha, hora_fin, estado, precio } = req.body;
+
+        const estadosPermitidos = ["pendiente", "confirmado", "cancelado", "realizado"];
+        const expresionHora = /^\d{2}:\d{2}:\d{2}$/;
+        const fechaNumero = new Date(fecha);
+        const fechaValida = !isNaN(fechaNumero.getTime());
+
+        if (
+            !Number(cliente_id) ||
+            !Number(empleado_id) ||
+            !Number(servicio_id) ||
+            !fechaValida ||
+            !expresionHora.test(hora_inicio) ||
+            !expresionHora.test(hora_fin) ||
+            hora_inicio >= hora_fin ||
+            (estado && !estadosPermitidos.includes(estado)) ||
+            precio === undefined || isNaN(precio) || precio <= 0
+        ) {
+            return res.status(400).json({ mensaje: "Los datos del turno no son válidos." });
+        }
+
+        // Si pasa validaciones, inserta turno en BD
+        const turnoCreado = await modelo.agregarTurno(req.body);
         res.status(201).json({ mensaje: "Turno agregado con éxito", turno: turnoCreado });
+
     } catch (error) {
         console.error("Error en controlador.agregarUnTurno:", error);
         res.status(500).json({ mensaje: 'Error interno del servidor al agregar el turno.', detalle: error.message });
     }
 }
 
+
 // Función para modificar un turno
 async function modificarTurno(req, res) {
     try {
         const turnoId = parseInt(req.params.id);
-        const turnoModificado = req.body;
+        const { cliente_id, empleado_id, servicio_id, fecha, hora_inicio, hora_fin, estado, precio } = req.body;
 
         if (isNaN(turnoId)) {
-            return res.status(400).json({ mensaje: 'ID de turno inválido. Debe ser un número.' });
+            return res.status(400).json({ mensaje: 'El ID del turno no es válido. Debe ser un número.' });
         }
-
-
 
         const turnoExistente = await modelo.obtenerUnTurno(turnoId);
         if (!turnoExistente) {
-            return res.status(404).json({ mensaje: "Turno a modificar no encontrado." });
+            return res.status(404).json({ mensaje: "El turno que desea modificar no existe." });
+        }
+        const estadosPermitidos = ["pendiente", "confirmado", "cancelado", "realizado"];
+        const expresionHora = /^\d{2}:\d{2}:\d{2}$/;
+
+        const fechaNumero = new Date(fecha);
+        const fechaValida = !isNaN(fechaNumero.getTime());
+
+
+        if (
+            !Number(cliente_id) ||
+            !Number(empleado_id) ||
+            !Number(servicio_id) ||
+            !fechaValida ||
+            !expresionHora.test(hora_inicio) ||
+            !expresionHora.test(hora_fin) ||
+            hora_inicio >= hora_fin ||
+            (estado && !estadosPermitidos.includes(estado)) ||
+            precio === undefined || isNaN(precio) || precio <= 0
+        ) {
+            return res.status(400).json({ mensaje: "Los datos del turno no son válidos." });
         }
 
-        const modificado = await modelo.modificarTurno(turnoId, turnoModificado);
+        // Si pasa validaciones, modifica turno en BD
+        const modificado = await modelo.modificarTurno(turnoId, req.body);
+
         if (modificado) {
             res.status(200).json({ mensaje: `Turno con ID ${turnoId} modificado con éxito.` });
         } else {
@@ -79,6 +121,8 @@ async function modificarTurno(req, res) {
         res.status(500).json({ mensaje: 'Error interno del servidor al modificar el turno.', detalle: error.message });
     }
 }
+
+
 
 // Función para eliminar 1 turno
 async function eliminarTurno(req, res) {

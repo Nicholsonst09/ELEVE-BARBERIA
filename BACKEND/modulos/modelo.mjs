@@ -119,7 +119,7 @@ async function modificarTurno(id, turnoModificar) {
     try {
 
         const {
-            id,
+
             cliente_id,
             empleado_id,
             servicio_id,
@@ -128,15 +128,13 @@ async function modificarTurno(id, turnoModificar) {
             hora_fin,
             estado,
             observaciones,
-            precio,
-            creado,
-            modificado
+            precio
+      
         } = turnoModificar;
 
         const { data, error } = await supabaseAdmin
             .from('turnos')
             .update({
-                id: id,
                 cliente_id: cliente_id,
                 empleado_id: empleado_id,
                 servicio_id: servicio_id,
@@ -145,9 +143,7 @@ async function modificarTurno(id, turnoModificar) {
                 hora_fin: hora_fin,
                 estado: estado,
                 observaciones: observaciones,
-                precio: precio,
-                creado: creado,
-                modificado: modificado
+                precio: precio
             })
             .eq('id', id)
             .select()
