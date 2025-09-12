@@ -135,15 +135,17 @@ async function eliminarTurno(req, res) {
     try {
         // Antes de eliminar el turno de la BD, obtener su URL de imagen para eliminarla del storage
         const turnoAEliminar = await modelo.obtenerUnTurno(turnoId);
-        if (turnoAEliminar && turnoAEliminar.imagen_url) {
-            await modelo.eliminarImagenStorage(turnoAEliminar.imagen_url);
+        
+        if(!turnoAEliminar) {
+            return res.status(404).json({ mensaje: 'Turno no encontrado para eliminar.' });
         }
 
         const eliminado = await modelo.eliminarTurno(turnoId);
+
         if (eliminado) {
             res.status(200).json({ mensaje: `Turno con ID ${turnoId} eliminado con éxito.` });
         } else {
-            res.status(404).json({ mensaje: 'Turno no encontrado para eliminar.' });
+            res.status(404).json({ mensaje: 'Turno no encontrado para eliminar.' }); //Es redundante porque siempre será true pero queda por si aparece algo inusual
         }
     } catch (error) {
         console.error(`Error en controlador.eliminarTurno (ID: ${turnoId}):`, error);
@@ -151,7 +153,111 @@ async function eliminarTurno(req, res) {
     }
 }
 
+//Funcion para buscar empleados por servicio
+async function buscarEmpleadosPorServicio(req, res) {
+    try{
+        const {servicio_id} = req.params;
 
+        if(!servicio_id) {
+            return res.status(400).json({mensaje: "El id del servicio es requerido"});
+        }
+
+        const empleados = await modelo.buscarEmpleadosPorServicio(servicio_id);
+
+        //Vallidar que no vengan vacíos los empleados
+        if (empleados.length === 0) {
+            return res.status(200).json({
+                mensaje: "No hay empleados que brinden este servicio",
+                empleados: []
+            })
+        }
+
+        res.status(200).json({
+            servicio_id: servicio_id,
+            empleados: empleados,
+            total: empleados.length
+        });
+    }catch(error){
+        console.error("Error en controlador.buscarProfesionalesPorServicio:", error);
+        res.status(500).json({ 
+            mensaje: "Error interno del servidor al buscar profesionales.", 
+            detalle: error.message 
+        });
+    }
+}
+
+async function obtenerServicioPorId(req, res) {
+    try{
+        const {servicio_id}= req.params;
+        if(!servicio_id) {
+            return res.status(404).json({ mensaje: "Falta ingresar el id del servicio." });
+        }
+
+        const servicio = await modelo.obtenerServicioPorId(servicio_id);
+        if(!servicio){
+            return res.status(404).json({ mensaje: "Servicio no encontrado." });
+        }
+
+        res.status(200).json(servicio);
+    }catch(error) {
+        console.error(`Error en controlador.obtenerServicioPorId (ID: ${turnoId}):`, error);
+        res.status(500).json({ mensaje: 'Error interno del servidor buscar servicio por su id.', detalle: error.message });
+    }
+}
+
+//Funcion para traer los horarios disponibles de un empleado en determinada fecha
+async function obtenerHorariosDisponibles(req, res) {
+    try{
+        const {empleado_id, servicio_id, fecha} = req.params;
+
+        const servicio = await modelo.obtenerServicioPorId(servicio_id);
+        if(!servicio){
+            return res.status(404).json({ mensaje: "Servicio no encontrado." });
+        }
+        const duracionServicio = servicio.duracion_min;
+
+        //Validar parámetros requeridos
+        if (!empleado_id || !fecha) {
+            return res.status(400).json({ 
+                mensaje: "Faltan parámetros requeridos: empleado_id, fecha" 
+            });
+        }
+
+        //Validar que el empleado existe (una vez que esté creada tabla Empleados)
+
+        //Validar que empleado id sea un número (luego lo filtramos enviando solo ese dato)
+        const idEmpleado = parseInt(empleado_id);
+        if (isNaN(idEmpleado)) {
+            return res.status(400).json({ mensaje: 'ID de empleado inválido. Debe ser un número.' });
+        }
+
+        //Validar formato de fecha
+        const regexFecha = /^\d{4}-\d{2}-\d{2}$/;
+        if (!regexFecha.test(fecha)) {
+            return res.status(400).json({ mensaje: "Formato de fecha inválido. Use YYYY-MM-DD." });
+        }
+
+        //Validar que no sea una fecha anterior (VER ESTO DIRECTAMENTE EN EL FRONT DE NO MOSTRAR)
+        const fechaActual = new Date();
+        const fechaSolicitada = new Date(fecha);
+        fechaActual.setHours(0, 0, 0,0); //Hora a 0 para comparar solo la fecha
+        if (fechaSolicitada < fechaActual){
+            return res.status(400).json({ mensaje: "No se pueden buscar horarios para una fecha anterior a la actual." });
+        }
+
+        //Validar formato de hora
+
+        const horarios = await modelo.obtenerHorariosDisponibles(parseInt(empleado_id),fecha, duracionServicio);
+
+        res.status(200).json(horarios);
+    } catch (error) {
+        console.error("Error en controlador.obtenerHorariosDisponibles:", error);
+        res.status(500).json({ 
+            mensaje: "Error interno del servidor al obtener horarios disponibles.", 
+            detalle: error.message 
+        });
+    }
+}
 
 // Exportamos las funciones del controlador
 export default {
@@ -160,5 +266,7 @@ export default {
     agregarUnTurno,
     modificarTurno,
     eliminarTurno,
-
+    buscarEmpleadosPorServicio,
+    obtenerHorariosDisponibles,
+    obtenerServicioPorId
 };
