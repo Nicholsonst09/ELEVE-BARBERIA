@@ -40,16 +40,18 @@ async function obtenerUnTurno(req, res) {
 // Función para agregar un turno
 async function agregarUnTurno(req, res) {
     try {
-        const { cliente_id, empleado_id, servicio_id, hora_inicio, hora_fin, estado, precio } = req.body;
+        const { cliente_id, empleado_id, servicio_id, hora_inicio, fecha, hora_fin, estado, precio } = req.body;
 
         const estadosPermitidos = ["pendiente", "confirmado", "cancelado", "realizado"];
-        const expresionHora = /^\d{2}:\d{2}$/; // que se vea de esta forma: 16:00 y no de esta 4:00
-
+        const expresionHora = /^\d{2}:\d{2}:\d{2}$/;
+        const fechaNumero = new Date(fecha);
+        const fechaValida = !isNaN(fechaNumero.getTime());
 
         if (
-            !Number.cliente_id ||
-            !Number.empleado_id ||
-            !Number.servicio_id ||
+            !Number(cliente_id) ||
+            !Number(empleado_id) ||
+            !Number(servicio_id) ||
+            !fechaValida ||
             !expresionHora.test(hora_inicio) ||
             !expresionHora.test(hora_fin) ||
             hora_inicio >= hora_fin ||
@@ -74,7 +76,7 @@ async function agregarUnTurno(req, res) {
 async function modificarTurno(req, res) {
     try {
         const turnoId = parseInt(req.params.id);
-        const { cliente_id, empleado_id, servicio_id, fecha, hora_inicio, hora_fin, estado, observaciones, precio } = req.body;
+        const { cliente_id, empleado_id, servicio_id, fecha, hora_inicio, hora_fin, estado, precio } = req.body;
 
         if (isNaN(turnoId)) {
             return res.status(400).json({ mensaje: 'El ID del turno no es válido. Debe ser un número.' });
@@ -85,13 +87,17 @@ async function modificarTurno(req, res) {
             return res.status(404).json({ mensaje: "El turno que desea modificar no existe." });
         }
         const estadosPermitidos = ["pendiente", "confirmado", "cancelado", "realizado"];
-        const expresionHora = /^\d{2}:\d{2}$/;
+        const expresionHora = /^\d{2}:\d{2}:\d{2}$/;
+
+        const fechaNumero = new Date(fecha);
+        const fechaValida = !isNaN(fechaNumero.getTime());
 
 
         if (
-            !Number.cliente_id ||
-            !Number.empleado_id ||
-            !Number.servicio_id ||
+            !Number(cliente_id) ||
+            !Number(empleado_id) ||
+            !Number(servicio_id) ||
+            !fechaValida ||
             !expresionHora.test(hora_inicio) ||
             !expresionHora.test(hora_fin) ||
             hora_inicio >= hora_fin ||
@@ -103,6 +109,7 @@ async function modificarTurno(req, res) {
 
         // Si pasa validaciones, modifica turno en BD
         const modificado = await modelo.modificarTurno(turnoId, req.body);
+
         if (modificado) {
             res.status(200).json({ mensaje: `Turno con ID ${turnoId} modificado con éxito.` });
         } else {
