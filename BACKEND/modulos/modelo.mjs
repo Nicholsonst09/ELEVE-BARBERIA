@@ -294,8 +294,6 @@ async function obtenerHorariosDisponibles(empleado_id, fecha, duracionServicio) 
             const horariosDisponibles = horariosDelDia.filter(horario => {
                 return !estaOcupado(horario.inicio, horario.fin, turnosOcupados);
             })
-    
-            //Ver bien lo de generarHorariosDelDia ya que recibiría como parámetro la duracion del servicio
             
             return {
                 fecha, 
