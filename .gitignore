@@ -5,3 +5,4 @@
 .env.test
 config.js
 secrets.json
+node_modules/

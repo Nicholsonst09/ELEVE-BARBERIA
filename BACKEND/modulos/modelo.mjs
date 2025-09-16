@@ -264,12 +264,112 @@ async function obtenerServicioPorId(servicio_id) {
     }
 }
 
-const hora_apertura = "09:00";
-const hora_cierre = "18:00";
+// Configuración de horarios por día de la semana
+const HORARIOS_POR_DIA = {
+    1: { // Lunes
+        apertura: "13:00",
+        cierre: "21:00",
+        activo: true
+    },
+    2: { // Martes
+        apertura: "09:00",
+        cierre: "18:00",
+        activo: true
+    },
+    3: { // Miércoles
+        apertura: "09:00",
+        cierre: "18:00",
+        activo: true
+    },
+    4: { // Jueves
+        apertura: "09:00",
+        cierre: "18:00",
+        activo: true
+    },
+    5: { // Viernes
+        apertura: "09:00",
+        cierre: "18:00",
+        activo: true
+    },
+    6: { // Sábado
+        apertura: "09:00",
+        cierre: "18:00",
+        activo: true
+    },
+    0: { // Domingo
+        apertura: "09:00",
+        cierre: "18:00",
+        activo: false // Cerrado 
+    }
+};
+
+//Obtener horarios según el día de la semana
+function obtenerHorariosDelDia(fecha) {
+    try{
+        const [año, mes, dia] = fecha.split('-').map(Number);
+        const fechaElegida = new Date(año, mes - 1, dia); // mes - 1 porque Date usa 0-11 para meses
+        const diaSemana = fechaElegida.getDay(); // 0 Sería Domingo, 1 Lunes y así
+    
+        const detalleDelDia = HORARIOS_POR_DIA[diaSemana];
+
+        if (!detalleDelDia || !detalleDelDia.activo) {
+            return null; // Barberia cerrada
+        }
+        
+        return {
+            apertura: detalleDelDia.apertura,
+            cierre: detalleDelDia.cierre,
+            dia: diaSemana,
+            nombreDia: obtenerNombreDia(diaSemana)
+        };
+    
+    }catch (error) {
+        console.error("Error al obtener turnos:", error.message);
+        throw error;
+    }
+}
+
+
+// Función auxiliar para obtener el nombre del día
+function obtenerNombreDia(dia) {
+    const nombresDias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    return nombresDias[dia];
+}
+
+// Función para verificar si el negocio está abierto en una fecha específica
+function estaAbierto(fecha) {
+    const horarios = obtenerHorariosDelDia(fecha);
+    return horarios !== null && horarios.activo !== false;
+}
 
 // Funcion para obtener horarios disponibles
 async function obtenerHorariosDisponibles(empleado_id, fecha, duracionServicio) {
     try {
+        // Verificar si el negocio está abierto en esa fecha
+        const horarioBarberia = obtenerHorariosDelDia(fecha);
+        
+        if (!horarioBarberia) {
+            const [año, mes, dia] = fecha.split('-').map(Number);
+            const fechaElegida = new Date(año, mes - 1, dia);
+            const diaSemana = fechaElegida.getDay();
+            
+            return {
+                fecha,
+                empleado_id,
+                error: "El negocio está cerrado este día",
+                horarios_disponibles: [],
+                horarios_ocupados: [],
+                total_disponibles: 0,
+                total_ocupados: 0,
+                resumen: {
+                    total_slots_posibles: 0,
+                    porcentaje_ocupacion: 0,
+                    dia: obtenerNombreDia(diaSemana),
+                    cerrado: true
+                }
+            };
+        }
+
         //Obtener turnos ocupados del empleado en esa fecha
         const {data: turnosOcupados, error: errorTurnos} = await supabaseAdmin
             .from('turnos')
@@ -277,14 +377,18 @@ async function obtenerHorariosDisponibles(empleado_id, fecha, duracionServicio) 
             .eq('empleado_id', empleado_id)
             .eq('fecha', fecha)
             .neq('estado', 'cancelado') // Para excluir los cancelados
-            .order('hora_inicio', { ascending: true }); //no sé si es necesario
+            .order('hora_inicio', { ascending: true });
     
             if (errorTurnos) {
                 throw errorTurnos;
             }
             
-            // Horarios posibles del día
-            const horariosDelDia = generarHorariosDelDia(hora_apertura, hora_cierre, duracionServicio);
+            // Horarios posibles del día usando la configuración dinámica
+            const horariosDelDia = generarHorariosDelDia(
+                horarioBarberia.apertura, 
+                horarioBarberia.cierre, 
+                duracionServicio
+            );
     
             // Filtrar horarios disponibles
             const horariosDisponibles = horariosDelDia.filter(horario => {
@@ -294,15 +398,20 @@ async function obtenerHorariosDisponibles(empleado_id, fecha, duracionServicio) 
             return {
                 fecha, 
                 empleado_id,
-                //servicio_id, 
-                //duracion_servicio: duracionServicio,
                 horarios_disponibles: horariosDisponibles,
                 horarios_ocupados: turnosOcupados,
                 total_disponibles: horariosDisponibles.length,
                 total_ocupados: turnosOcupados.length,
+                horarios_negocio: {
+                    apertura: horarioBarberia.apertura,
+                    cierre: horarioBarberia.cierre,
+                    dia: horarioBarberia.nombreDia
+                },
                 resumen: {
                     total_slots_posibles: horariosDelDia.length,
-                    porcentaje_ocupacion: Math.round((turnosOcupados.length/horariosDelDia.length) * 100)
+                    porcentaje_ocupacion: horariosDelDia.length > 0 ? 
+                        Math.round((turnosOcupados.length/horariosDelDia.length) * 100) : 0,
+                    cerrado: false
                 }
             };
     }catch (error) {
@@ -363,6 +472,54 @@ function convertirMinutosAHora(minutos) {
 }
 
 
+/*
+// Obtener todos los horarios de la semana
+function obtenerHorariosSemana() {
+    return HORARIOS_POR_DIA;
+}
+
+// Actualizar horarios de un día específico
+function actualizarHorariosDia(dia, nuevosHorarios) {
+    if (HORARIOS_POR_DIA[dia]) {
+        HORARIOS_POR_DIA[dia] = {
+            ...HORARIOS_POR_DIA[dia],
+            ...nuevosHorarios
+        };
+        return true;
+    }
+    return false;
+}
+
+// Validar si una hora está dentro del horario de atención
+function validarHoraEnHorario(fecha, hora) {
+    const horarioBarberia = obtenerHorariosDelDia(fecha);
+    
+    if (!horarioBarberia) {
+        return { valido: false, motivo: "El negocio está cerrado este día" };
+    }
+    
+    const horaMinutos = convertirHoraAMinutos(hora);
+    const aperturaMinutos = convertirHoraAMinutos(horarioBarberia.apertura);
+    const cierreMinutos = convertirHoraAMinutos(horarioBarberia.cierre);
+    
+    if (horaMinutos < aperturaMinutos) {
+        return { 
+            valido: false, 
+            motivo: `La hora debe ser después de ${horarioBarberia.apertura}` 
+        };
+    }
+    
+    if (horaMinutos >= cierreMinutos) {
+        return { 
+            valido: false, 
+            motivo: `La hora debe ser antes de ${horarioBarberia.cierre}` 
+        };
+    }
+    
+    return { valido: true };
+} 
+*/
+
 export default {
     obtenerTurnos,
     obtenerUnTurno,
@@ -372,5 +529,11 @@ export default {
     obtenerServicioPorNombre,
     eliminarTurno,
     buscarEmpleadosPorServicio,
-    obtenerHorariosDisponibles
+    obtenerHorariosDisponibles,
+    
+    obtenerHorariosDelDia,
+    //obtenerHorariosSemana,
+    estaAbierto,
+    //actualizarHorariosDia,
+    //validarHoraEnHorario
 };
