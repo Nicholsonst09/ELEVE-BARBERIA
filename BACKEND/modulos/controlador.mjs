@@ -54,7 +54,7 @@ async function agregarUnTurno(req, res) {
             !fechaValida ||
             !expresionHora.test(hora_inicio) ||
             !expresionHora.test(hora_fin) ||
-            hora_inicio >= hora_fin ||
+            hora_inicio < hora_fin ||
             (estado && !estadosPermitidos.includes(estado)) ||
             precio === undefined || isNaN(precio) || precio <= 0
         ) {
@@ -100,7 +100,7 @@ async function modificarTurno(req, res) {
             !fechaValida ||
             !expresionHora.test(hora_inicio) ||
             !expresionHora.test(hora_fin) ||
-            hora_inicio >= hora_fin ||
+            hora_inicio < hora_fin ||
             (estado && !estadosPermitidos.includes(estado)) ||
             precio === undefined || isNaN(precio) || precio <= 0
         ) {
@@ -152,6 +152,24 @@ async function eliminarTurno(req, res) {
         res.status(500).json({ mensaje: 'Error interno del servidor al eliminar el turno.', detalle: error.message });
     }
 }
+
+/* obtenter todos los servicios disponibles*/
+// Función para manejar la solicitud de obtener todos los turnos
+async function obtenerServicios(req, res) {
+    try {
+        const servicios = await modelo.obtenerServicios();
+        if (servicios.length === 0) {
+            return res.status(200).json({ mensaje: "No hay servicios en la base de datos." });
+        }
+        const serviciosActivos = servicios.filter(servicio => servicio.activo === true);
+
+        res.status(200).json(serviciosActivos);
+    } catch (error) {
+        console.error("Error en controlador.obtenerServicios:", error);
+        res.status(500).json({ mensaje: "Error interno del servidor al obtener servicios.", detalle: error.message });
+    }
+}
+
 
 //Funcion para buscar empleados por servicio
 async function buscarEmpleadosPorServicio(req, res) {
@@ -238,12 +256,12 @@ async function obtenerHorariosDisponibles(req, res) {
         }
 
         //Validar que no sea una fecha anterior (VER ESTO DIRECTAMENTE EN EL FRONT DE NO MOSTRAR)
-        const fechaActual = new Date();
+/*         const fechaActual = new Date();
         const fechaSolicitada = new Date(fecha);
         fechaActual.setHours(0, 0, 0,0); //Hora a 0 para comparar solo la fecha
         if (fechaSolicitada < fechaActual){
             return res.status(400).json({ mensaje: "No se pueden buscar horarios para una fecha anterior a la actual." });
-        }
+        } */
 
         //Validar formato de hora
 
@@ -266,6 +284,7 @@ export default {
     agregarUnTurno,
     modificarTurno,
     eliminarTurno,
+    obtenerServicios,
     buscarEmpleadosPorServicio,
     obtenerHorariosDisponibles,
     obtenerServicioPorId

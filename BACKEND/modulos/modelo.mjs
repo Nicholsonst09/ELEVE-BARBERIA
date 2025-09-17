@@ -182,6 +182,35 @@ async function eliminarTurno(id) {
 }
 
 
+/* funcion para traer todos los servicios */
+// Función para obtener todos los turnos
+async function obtenerServicios() {
+    try {
+        const { data: servicios, error } = await supabaseAdmin
+            .from('servicios')
+            .select(`
+                id,
+                nombre,
+                precio,
+                duracion_min,
+                descripcion,
+                activo,
+                creado,
+                modificado
+                `)
+            .order('nombre', { ascending: true });
+
+        if (error) {
+            throw error;
+        }
+        return servicios;
+    } catch (error) {
+        console.error("Error al obtener servicios:", error.message);
+        throw error;
+    }
+}
+
+
 //Funcion para buscar empleados por id del servicio
 //(Ver si es necesario traer especialidades y horarios)
 async function buscarEmpleadosPorServicio(servicio_id){
@@ -371,6 +400,7 @@ export default {
     obtenerServicioPorId,
     obtenerServicioPorNombre,
     eliminarTurno,
+    obtenerServicios,
     buscarEmpleadosPorServicio,
     obtenerHorariosDisponibles
 };
