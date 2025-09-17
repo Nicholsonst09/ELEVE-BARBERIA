@@ -12,5 +12,5 @@ rutasApi.delete('/api/v1/turnos/:id', controlador.eliminarTurno);
 rutasApi.get('/api/v1/turnos/horarios-disponibles/:empleado_id/:servicio_id/:fecha', controlador.obtenerHorariosDisponibles);
 rutasApi.get('/api/v1/servicios/:servicio_id/empleados', controlador.buscarEmpleadosPorServicio);
 rutasApi.get('/api/v1/servicios/:servicio_id', controlador.obtenerServicioPorId); //Serviría para más adelante
-
+rutasApi.get('/api/v1/servicios', controlador.obtenerServicios); 
 export default rutasApi;
