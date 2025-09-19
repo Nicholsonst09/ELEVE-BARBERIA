@@ -153,8 +153,8 @@ async function eliminarTurno(req, res) {
     }
 }
 
-/* obtenter todos los servicios disponibles*/
-// Función para manejar la solicitud de obtener todos los turnos
+
+// Función para obtener todos los servicios
 async function obtenerServicios(req, res) {
     try {
         const servicios = await modelo.obtenerServicios();
