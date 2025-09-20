@@ -1,5 +1,4 @@
-// modulos/modelo.mjs
-import { supabaseAdmin } from '../db/supabaseClient.mjs'; // Importa el cliente Supabase con service_role
+import { supabaseAdmin } from "../../db/supabaseClient.mjs";
 
 // Función para obtener todos los turnos
 async function obtenerTurnos() {
@@ -92,7 +91,7 @@ async function agregarTurno(nuevoTurno) {
                     empleado_id,
                     servicio_id,
                     fecha,
-                    hora_inicio ,
+                    hora_inicio,
                     hora_fin,
                     estado: estado || 'pendiente', //Sería como el valor por defecto si no se especifica
                     observaciones: observaciones || null,
@@ -100,7 +99,7 @@ async function agregarTurno(nuevoTurno) {
                 }
             ])
             .select()
-            .s
+            .single();
 
         if (error) {
             console.error("Error al agregar turno en Supabase:", error);
@@ -180,197 +179,6 @@ async function eliminarTurno(id) {
     }
 }
 
-
-/* funcion para traer todos los servicios */
-// Función para obtener todos los turnos
-async function obtenerServicios() {
-    try {
-        const { data: servicios, error } = await supabaseAdmin
-            .from('servicios')
-            .select(`
-                id,
-                nombre,
-                precio,
-                duracion_min,
-                descripcion,
-                activo,
-                creado,
-                modificado
-                `)
-            .order('nombre', { ascending: true });
-
-        if (error) {
-            throw error;
-        }
-        return servicios;
-    } catch (error) {
-        console.error("Error al obtener servicios:", error.message);
-        throw error;
-    }
-}
-
-
-//Funcion para buscar empleados por id del servicio
-//(Ver si es necesario traer especialidades y horarios)
-async function buscarEmpleadosPorServicio(servicio_id){
-    try {
-        const {data: empleados, error} = await supabaseAdmin
-        .from('empleados_servicios')
-        .select(`   
-                empleado_id,
-                empleados(
-                    id,
-                    nombre,
-                    especialidades,
-                    horarios_disponibles,
-                    activo
-                )
-            `)
-            .eq('servicio_id', servicio_id)
-            .eq('empleados.activo', true);  //Para traer solo los barberos activos
-
-        if (error) {
-            throw error;
-        }
-
-        const arrayEmpleados = empleados.map(empleado =>({
-            id: empleado.empleados.id,
-            nombre: empleado.empleados.nombre,
-            especialidades: empleado.empleados.especialidades,
-            horarios_disponibles: empleado.empleados.horarios_disponibles
-        }));
-
-        return arrayEmpleados;
-
-    }catch (error) {
-        console.error("Error al buscar empleados por servicio:", error.message);
-        throw error;
-    }
-}
-
-//FUNCION PARA TRAER EL SERVICIO POR NOMBRE
-async function obtenerServicioPorNombre(nombreServicio) {
-    try {
-        const { data: servicio, error } = await supabaseAdmin
-            .from('servicios')
-            .select('id, nombre, precio, duracion_min')
-            .eq('nombre', nombreServicio)
-            .eq('activo', true)
-            .single();
-
-        if (error) {
-            if (error.code === 'PGRST116') {
-                return null;
-            }
-            throw error;
-        }
-        return servicio;
-    } catch (error) {
-        console.error(`Error al buscar servicio ${nombreServicio}:`, error.message);
-        throw error;
-    }
-}
-
-
-//FUNCION PARA TRAER SERVICIO POR ID
-async function obtenerServicioPorId(servicio_id) {
-    try {
-        const { data, error } = await supabaseAdmin
-            .from('servicios')
-            .select('nombre, duracion_min, precio')
-            .eq('id', servicio_id)
-            .single();
-
-        if (error) {
-            throw error;
-        }
-
-        return data;
-    }catch(error){
-        console.error(`Error al buscar servicio con ID ${servicio_id}:`, error.message);
-        throw error;
-    }
-}
-
-// Configuración de horarios por día de la semana
-const HORARIOS_POR_DIA = {
-    1: { // Lunes
-        apertura: "13:00",
-        cierre: "21:00",
-        activo: true
-    },
-    2: { // Martes
-        apertura: "09:00",
-        cierre: "18:00",
-        activo: true
-    },
-    3: { // Miércoles
-        apertura: "09:00",
-        cierre: "18:00",
-        activo: true
-    },
-    4: { // Jueves
-        apertura: "09:00",
-        cierre: "18:00",
-        activo: true
-    },
-    5: { // Viernes
-        apertura: "09:00",
-        cierre: "18:00",
-        activo: true
-    },
-    6: { // Sábado
-        apertura: "09:00",
-        cierre: "18:00",
-        activo: true
-    },
-    0: { // Domingo
-        apertura: "09:00",
-        cierre: "18:00",
-        activo: false // Cerrado 
-    }
-};
-
-//Obtener horarios según el día de la semana
-function obtenerHorariosDelDia(fecha) {
-    try{
-        const [año, mes, dia] = fecha.split('-').map(Number);
-        const fechaElegida = new Date(año, mes - 1, dia); // mes - 1 porque Date usa 0-11 para meses
-        const diaSemana = fechaElegida.getDay(); // 0 Sería Domingo, 1 Lunes y así
-    
-        const detalleDelDia = HORARIOS_POR_DIA[diaSemana];
-
-        if (!detalleDelDia || !detalleDelDia.activo) {
-            return null; // Barberia cerrada
-        }
-        
-        return {
-            apertura: detalleDelDia.apertura,
-            cierre: detalleDelDia.cierre,
-            dia: diaSemana,
-            nombreDia: obtenerNombreDia(diaSemana)
-        };
-    
-    }catch (error) {
-        console.error("Error al obtener turnos:", error.message);
-        throw error;
-    }
-}
-
-
-// Función auxiliar para obtener el nombre del día
-function obtenerNombreDia(dia) {
-    const nombresDias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-    return nombresDias[dia];
-}
-
-// Función para verificar si el negocio está abierto en una fecha específica
-function estaAbierto(fecha) {
-    const horarios = obtenerHorariosDelDia(fecha);
-    return horarios !== null && horarios.activo !== false;
-}
-
-// Funcion para obtener horarios disponibles
 async function obtenerHorariosDisponibles(empleado_id, fecha, duracionServicio) {
     try {
         // Verificar si el negocio está abierto en esa fecha
@@ -449,6 +257,83 @@ async function obtenerHorariosDisponibles(empleado_id, fecha, duracionServicio) 
         
 }
 
+//Obtener horarios según el día de la semana
+function obtenerHorariosDelDia(fecha) {
+    try{
+        const [año, mes, dia] = fecha.split('-').map(Number);
+        const fechaElegida = new Date(año, mes - 1, dia); // mes - 1 porque Date usa 0-11 para meses
+        const diaSemana = fechaElegida.getDay(); // 0 Sería Domingo, 1 Lunes y así
+    
+        const detalleDelDia = HORARIOS_POR_DIA[diaSemana];
+
+        if (!detalleDelDia || !detalleDelDia.activo) {
+            return null; // Barberia cerrada
+        }
+        
+        return {
+            apertura: detalleDelDia.apertura,
+            cierre: detalleDelDia.cierre,
+            dia: diaSemana,
+            nombreDia: obtenerNombreDia(diaSemana)
+        };
+    
+    }catch (error) {
+        console.error("Error al obtener turnos:", error.message);
+        throw error;
+    }
+}
+
+// Configuración de horarios por día de la semana
+const HORARIOS_POR_DIA = {
+    1: { // Lunes
+        apertura: "13:00",
+        cierre: "21:00",
+        activo: true
+    },
+    2: { // Martes
+        apertura: "09:00",
+        cierre: "18:00",
+        activo: true
+    },
+    3: { // Miércoles
+        apertura: "09:00",
+        cierre: "18:00",
+        activo: true
+    },
+    4: { // Jueves
+        apertura: "09:00",
+        cierre: "18:00",
+        activo: true
+    },
+    5: { // Viernes
+        apertura: "09:00",
+        cierre: "18:00",
+        activo: true
+    },
+    6: { // Sábado
+        apertura: "09:00",
+        cierre: "18:00",
+        activo: true
+    },
+    0: { // Domingo
+        apertura: "09:00",
+        cierre: "18:00",
+        activo: false // Cerrado 
+    }
+};
+
+// Función auxiliar para obtener el nombre del día
+function obtenerNombreDia(dia) {
+    const nombresDias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    return nombresDias[dia];
+}
+
+// Función para verificar si el negocio está abierto en una fecha específica
+function estaAbierto(fecha) {
+    const horarios = obtenerHorariosDelDia(fecha);
+    return horarios !== null && horarios.activo !== false;
+}
+
 // Generar horarios del día
 function generarHorariosDelDia(horaInicio, horaFin, duracionMinutos) {
     const horarios = [];
@@ -498,9 +383,6 @@ function convertirMinutosAHora(minutos) {
     const mins = minutos % 60;
     return `${horas.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
 }
-
-
-
 
 /*
 // Obtener todos los horarios de la semana
@@ -556,15 +438,5 @@ export default {
     agregarTurno,
     modificarTurno,
     eliminarTurno,
-    obtenerServicioPorId,
-    obtenerServicioPorNombre,
-    obtenerServicios,
-    buscarEmpleadosPorServicio,
-    obtenerHorariosDisponibles,
-    
-    obtenerHorariosDelDia,
-    //obtenerHorariosSemana,
-    //estaAbierto,
-    //actualizarHorariosDia,
-    //validarHoraEnHorario
+    obtenerHorariosDisponibles
 };

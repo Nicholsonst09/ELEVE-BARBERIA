@@ -1,9 +1,10 @@
+/*
 import { Router } from 'express';
 import controlador from './controlador.mjs';
 
 const rutasApi = Router();
 
-rutasApi.get('/api/v1/turnos', controlador.obtenerTurnos);
+//rutasApi.get('/api/v1/turnos', controlador.obtenerTurnos);
 rutasApi.get('/api/v1/turnos/:id', controlador.obtenerUnTurno);
 rutasApi.post('/api/v1/turnos', controlador.agregarUnTurno);
 rutasApi.put('/api/v1/turnos/:id', controlador.modificarTurno);
@@ -14,3 +15,4 @@ rutasApi.get('/api/v1/servicios/:servicio_id/empleados', controlador.buscarEmple
 rutasApi.get('/api/v1/servicios/:servicio_id', controlador.obtenerServicioPorId); //Serviría para más adelante
 rutasApi.get('/api/v1/servicios', controlador.obtenerServicios); 
 export default rutasApi;
+*/
