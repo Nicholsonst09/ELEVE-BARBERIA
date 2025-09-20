@@ -2,427 +2,6 @@ import gsap from "https://cdn.jsdelivr.net/npm/gsap@3.12.5/index.js"
 import { ScrollTrigger } from "https://cdn.jsdelivr.net/npm/gsap@3.12.5/ScrollTrigger.js"
 import { ScrollToPlugin } from "https://cdn.jsdelivr.net/npm/gsap@3.12.5/ScrollToPlugin.js"
 
-const volverButtons = document.querySelectorAll('.btn-volver');
-const cargarDatosReserva = document.getElementById('btn-continuar');
-const btnConfirmarTurno = document.getElementById('btn-confirmar-reserva');
-
-// Estados del turno
-let pasoActual = 1;
-let reservaActual = {
-  servicio: null,
-  duracion: null,
-  servicio_id: null,
-  barbero_id: null,
-  barbero: null,
-  fecha: null,
-  hora: null,
-  cliente: null,
-  total: null
-
-}
-
-let fechasDisponibles = [];
-
-// Inicialización
-document.addEventListener("DOMContentLoaded", () => {
-  generarFechasDisponibles();
-  cargarServicios();
-
-  //eventos para cargar datos de la reserva
-  cargarDatosReserva.addEventListener('click', guardarDatosCliente)
-  // eventos para volver al paso anterior en la reserva
-  volverButtons.forEach(button => {
-    button.addEventListener('click', volver);
-  });
-
-  btnConfirmarTurno.addEventListener('click', async () => {
-    const turnoCreado = await crearTurno(reservaActual);
-
-    if (turnoCreado) {
-      console.log('Turno confirmado:', turnoCreado);
-      irAPaso(1)
-    }
-  });
-
-})
-
-/* Logica reserva de turnos */
-function generarFechasDisponibles() {
-  fechasDisponibles = [];
-  const hoy = new Date();
-
-  for (let i = 0; i < 7; i++) {
-
-    const fecha = new Date(hoy);
-    fecha.setDate(hoy.getDate() + i);
-    fechasDisponibles.push(fecha.toISOString().split("T")[0])
-  }
-}
-
-async function cargarServicios() {
-  const contenedorServicios = document.getElementById("servicios-container");
-  contenedorServicios.innerHTML = "";
-  try {
-    const response = await fetch("http://localhost:3000/api/v1/servicios");
-    if (!response.ok) {
-      throw new Error(`Error al cargar los servicios: ${response.statusText}`);
-    }
-    const servicios = await response.json();
-    if (servicios.length === 0) {
-      container.innerHTML = "<p>No hay servicios disponibles en este momento.</p>";
-      return;
-    }
-
-    servicios.forEach((servicio) => {
-      const servicioCard = document.createElement("div");
-      servicioCard.className = "tarjeta";
-      // Asegúrate de que la función seleccionarServicio exista y reciba un objeto de servicio
-      servicioCard.onclick = () => seleccionarServicio(servicio);
-
-      servicioCard.innerHTML = `
-                <div class="tarjeta__encabezado">
-                    <h3 class="tarjeta__titulo">${servicio.nombre}</h3>
-                </div>
-                <div class="tarjeta__contenido">
-                    <p class="tarjeta-servicio__descripcion">${servicio.descripcion}</p>
-                    <div class="tarjeta-servicio__detalles">
-                        <span class="etiqueta etiqueta--precio">$${servicio.precio}</span>
-                        <span class="etiqueta etiqueta--duracion">${servicio.duracion_min} min</span>
-                    </div>
-                </div>
-            `;
-
-      contenedorServicios.appendChild(servicioCard);
-    });
-
-  } catch (error) {
-    console.error("Hubo un problema con el fetch de servicios", error);
-    contenedorServicios.innerHTML = `<p>Ocurrió un error al intentar cargar los servicios.</p>`;
-  }
-
-}
-
-// Cargar barberos disponibles
-function cargarBarberos(barberosDisponibles) {
-  const container = document.getElementById("barberos-container");
-  container.innerHTML = "";
-
-  barberosDisponibles.forEach((barbero) => {
-    const barberoElement = document.createElement("div");
-    barberoElement.className = "tarjeta";
-    barberoElement.onclick = () => seleccionarBarbero(barbero);
-
-    // Actualizar el HTML para usar las propiedades correctas del objeto barbero
-    barberoElement.innerHTML = `
-            <div class="tarjeta__contenido">
-                <div class="barbero-info">
-                    <div class="barbero-avatar">foto</div>
-                    <div class="barbero-detalles">
-                        <h3>${barbero.nombre}</h3>
-                        <p class="barbero-especialidad">${barbero.especialidades}</p>
-                    </div>
-                </div>
-            </div>
-        `;
-
-    container.appendChild(barberoElement);
-  });
-}
-
-
-// Cargar fechas disponibles
-function cargarFechas() {
-  const container = document.getElementById("fechas-container")
-  container.innerHTML = "";
-  fechasDisponibles.forEach((fecha) => {
-    const fechaElement = document.createElement("div")
-    fechaElement.className = "tarjeta"
-    fechaElement.onclick = () => seleccionarFecha(fecha)
-
-    fechaElement.innerHTML = `
-            <div class="tarjeta__contenido">
-                <div class="tarjeta-fecha">${formatearFecha(fecha)}</div>
-            </div>
-        `
-
-    container.appendChild(fechaElement)
-  })
-}
-
-// Cargar horarios disponibles
-function cargarHorarios(horariosDisponibles) {
-  const container = document.getElementById("horarios-container")
-  const sinHorarios = document.getElementById("sin-horarios")
-
-  container.innerHTML = ""
-
-  if (horariosDisponibles.length === 0) {
-    sinHorarios.style.display = "block"
-    return
-  }
-
-  sinHorarios.style.display = "none"
-
-  if (!Array.isArray(horariosDisponibles) || horariosDisponibles.length === 0) {
-    container.innerHTML = `<p>No hay horarios disponibles para esta fecha. Intenta con otro día.</p>`;
-    return;
-  }
-
-  // Crea una tarjeta para cada horario disponible
-  horariosDisponibles.forEach((horario) => {
-    if (horario.disponible) {
-      const horarioElement = document.createElement("div");
-      horarioElement.className = "tarjeta";
-      horarioElement.onclick = () => seleccionarHora(horario); // Asume que tienes una función para seleccionar la hora
-
-      horarioElement.innerHTML = `
-          <div class="tarjeta__contenido">
-            <div class="tarjeta-horario">${horario.inicio}</div>
-          </div>
-        `;
-      container.appendChild(horarioElement);
-    }
-  });
-}
-
-// Crea un nuevo turno a través de la API.
-// La función `crearTurno` ahora retorna `data` si es exitosa o `null` si falla
-async function crearTurno(turno) {
-  try {
-  /*   const respuesta = await fetch(`http://localhost:3000/api/v1/turnos`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(turno),
-    });
-    if (!respuesta.ok) {
-      const errorBody = await respuesta.json();
-      throw new Error(
-        `Error HTTP: ${respuesta.status}, mensaje: ${errorBody.message || "Error desconocido"}`,
-      );
-    }
-    const data = await respuesta.json();
-    return data; */
-    alert("turno cargado con exito");
-    console.log(turno);
-  } catch (error) {
-    console.error("Error al agregar el turno en la API:", error);
-    return null;
-  }
-}
-
-// Funciones de selección
-async function seleccionarServicio(servicio) {
-  reservaActual.servicio = servicio.nombre;
-  reservaActual.servicio_id = servicio.id;
-  reservaActual.total = servicio.precio;
-  reservaActual.duracion = servicio.duracion_min;
-
-  try {
-    const url = `http://localhost:3000/api/v1/servicios/${servicio.id}/empleados`;
-    const response = await fetch(url);
-
-    if (!response.ok) {
-      throw new Error(`Error en la solicitud: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-
-    // Accede a la propiedad 'empleados' del objeto de respuesta
-    const barberosDisponibles = data.empleados;
-
-    if (!Array.isArray(barberosDisponibles) || barberosDisponibles.length === 0) {
-      document.getElementById("barberos-container").innerHTML = "<p>No hay barberos disponibles para este servicio.</p>";
-      console.warn("La API retornó un objeto sin la propiedad 'empleados' o un arreglo vacío.");
-      return;
-    }
-
-    cargarBarberos(barberosDisponibles);
-    irAPaso(2);
-
-  } catch (error) {
-    console.error("Hubo un problema al obtener los barberos:", error);
-    alert("Ocurrió un error al cargar los barberos. Por favor, inténtalo de nuevo.");
-  }
-}
-
-
-function seleccionarBarbero(barbero) {
-  reservaActual.barbero = barbero.nombre;
-  reservaActual.barbero_id = barbero.id;
-
-  cargarFechas();
-  irAPaso(3)
-  console.log(reservaActual);
-}
-
-async function seleccionarFecha(fecha) {
-  reservaActual.fecha = fecha;
-  const empleado_id = reservaActual.barbero_id;
-  const servicio_id = reservaActual.servicio_id;
-
-  try {
-
-    const url = `http://localhost:3000/api/v1/turnos/horarios-disponibles/${empleado_id}/${servicio_id}/${fecha}`;
-    const response = await fetch(url);
-
-    if (!response.ok) {
-      throw new Error(`Error en la solicitud: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-
-    // Accede a la propiedad 'empleados' del objeto de respuesta
-    const horariosDisponibles = data.horarios_disponibles;
-
-    if (!Array.isArray(horariosDisponibles) || horariosDisponibles.length === 0) {
-      document.getElementById("turnos-container").innerHTML = "<p>No hay horarios disponibles para este servicio.</p>";
-      console.warn("La API retornó un objeto sin la propiedad 'empleados' o un arreglo vacío.");
-      return;
-    }
-
-    cargarHorarios(horariosDisponibles);
-    irAPaso(4);
-
-  } catch (error) {
-    console.error("Hubo un problema al obtener los horarios:", error);
-    alert("Ocurrió un error al cargar los horarios. Por favor, inténtalo de nuevo.");
-  }
-}
-function seleccionarHora(hora) {
-  reservaActual.hora = hora.inicio
-  irAPaso(5)
-}
-
-// Configurar eventos del formulario
-function configurarEventosFormulario() {
-  const nombreInput = document.getElementById("nombre")
-  const telefonoInput = document.getElementById("telefono")
-  const continuarBtn = document.getElementById("continuar-btn")
-
-  function validarFormulario() {
-    const nombre = nombreInput.value.trim()
-    const telefono = telefonoInput.value.trim()
-    continuarBtn.disabled = !nombre || !telefono
-  }
-
-  nombreInput.addEventListener("input", validarFormulario)
-  telefonoInput.addEventListener("input", validarFormulario)
-}
-
-// Guardar datos del cliente
-function guardarDatosCliente() {
-  const nombre = document.getElementById("nombre").value.trim()
-  const telefono = document.getElementById("telefono").value.trim()
-
-  if (nombre && telefono) {
-    reservaActual.cliente = { nombre, telefono }
-    cargarResumen()
-    irAPaso(6)
-  }
-}
-
-// Cargar resumen de la reserva
-function cargarResumen() {
-  document.getElementById("resumen-nombre").textContent = reservaActual.cliente.nombre
-  document.getElementById("resumen-telefono").textContent = reservaActual.cliente.telefono
-  document.getElementById("resumen-servicio").textContent = reservaActual.servicio
-  document.getElementById("resumen-barbero").textContent = reservaActual.barbero
-  document.getElementById("resumen-fecha").textContent = formatearFecha(reservaActual.fecha)
-  document.getElementById("resumen-hora").textContent = reservaActual.hora
-  document.getElementById("resumen-duracion").textContent = `${reservaActual.duracion} minutos`
-  document.getElementById("resumen-precio").textContent = `$${reservaActual.total}`
-}
-
-// Confirmar reserva final
-function confirmarReservaFinal() {
-  const mensaje = `¡Reserva confirmada exitosamente!
-
-Datos del cliente:
-Nombre: ${reservaActual.cliente.nombre}
-Teléfono: ${reservaActual.cliente.telefono}
-
-Detalles de la reserva:
-Servicio: ${reservaActual.servicio.nombre}
-Barbero: ${reservaActual.barbero.nombre}
-Fecha: ${formatearFecha(reservaActual.fecha)}
-Hora: ${reservaActual.hora}
-Total: $${reservaActual.servicio.precio}`
-
-  alert(mensaje)
-  console.log("Datos completos de la reserva:", reservaActual)
-}
-
-
-
-// Navegación
-function irAPaso(numeroPaso) {
-  // Ocultar paso actual
-  document.getElementById(`paso-${pasoActual}`).classList.remove("paso--activo")
-  document.querySelector(`[data-paso="${pasoActual}"]`).classList.remove("indicador-progreso__paso--activo")
-
-  // Mostrar nuevo paso
-  pasoActual = numeroPaso
-  document.getElementById(`paso-${pasoActual}`).classList.add("paso--activo")
-  document.querySelector(`[data-paso="${pasoActual}"]`).classList.add("indicador-progreso__paso--activo")
-
-  // Actualizar indicadores de progreso
-  actualizarIndicadorProgreso()
-}
-
-function volver() {
-  if (pasoActual > 1) {
-    // Limpiar datos según el paso
-    if (pasoActual === 2) {
-      reservaActual = {}
-    } else if (pasoActual === 3) {
-      reservaActual = { servicio: reservaActual.servicio }
-    } else if (pasoActual === 4) {
-      reservaActual = {
-        servicio: reservaActual.servicio,
-        barbero: reservaActual.barbero,
-      }
-    } else if (pasoActual === 5) {
-      reservaActual = {
-        servicio: reservaActual.servicio,
-        barbero: reservaActual.barbero,
-        fecha: reservaActual.fecha,
-      }
-    } else if (pasoActual === 6) {
-      reservaActual = {
-        servicio: reservaActual.servicio,
-        barbero: reservaActual.barbero,
-        fecha: reservaActual.fecha,
-        hora: reservaActual.hora,
-      }
-    }
-
-    irAPaso(pasoActual - 1)
-  }
-}
-
-function actualizarIndicadorProgreso() {
-  const pasos = document.querySelectorAll(".indicador-progreso__paso")
-  pasos.forEach((paso, index) => {
-    const numeroPaso = index + 1
-    if (numeroPaso <= pasoActual) {
-      paso.classList.add("indicador-progreso__paso--activo")
-    } else {
-      paso.classList.remove("indicador-progreso__paso--activo")
-    }
-  })
-}
-
-// Utilidades
-function formatearFecha(fecha) {
-  const date = new Date(fecha + "T00:00:00")
-  return date.toLocaleDateString("es-ES", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  })
-}
 
 
 // Registrar los plugins
@@ -432,16 +11,30 @@ gsap.registerPlugin(ScrollTrigger, ScrollToPlugin)
 const numeroWhatsApp = "542944806944"
 
 
+// Smooth scrolling para navegación
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+  anchor.addEventListener('click', function (e) {
+    e.preventDefault();
+    const target = document.querySelector(this.getAttribute('href'));
+    if (target) {
+      target.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }
+  });
+});
+
 /* galeria*/
 const imagenes = [
-  { src: "./img/img-1.jpg", alt: "ver galeria" },
-  { src: "./img/img-2.jpg", alt: "ver galeria" },
-  { src: "./img/img-3.jpg", alt: "ver galeria" },
-  { src: "./img/img-4.jpg", alt: "ver galeria" },
-  { src: "./img/img-05.jpeg", alt: "ver galeria" },
-  { src: "./img/img-06.jpeg", alt: "ver galeria" },
-  { src: "./img/img-07.jpeg", alt: "ver galeria" },
-  { src: "./img/img-09.jpeg", alt: "ver galeria" },
+  { src: "./img/img-1.jpg", alt: "Low Fade" },
+  { src: "./img/img-2.jpg", alt: "Mullet" },
+  { src: "./img/img-3.jpg", alt: "High Fade" },
+  { src: "./img/img-4.jpg", alt: "Barba" },
+  { src: "./img/img-05.jpeg", alt: "French Crop" },
+  { src: "./img/img-06.jpeg", alt: "Drop Fade" },
+  { src: "./img/img-07.jpeg", alt: "Texturizado" },
+  { src: "./img/img-09.jpeg", alt: "Mid Fade" },
 ];
 
 let indiceImagenActual = 0;
@@ -488,12 +81,13 @@ function abrirModal(index) {
   indiceImagenActual = index;
   actualizarModal();
   modalGaleria.classList.add('abierto');
+  /*     document.body.classList.add('no-scroll'); // Evitar scroll en el body */
 }
 
 // Función para cerrar el modal
 function cerrarModal() {
   modalGaleria.classList.remove('abierto');
-
+  /*     document.body.classList.remove('no-scroll'); // Restaurar scroll en el body */
 }
 
 // Función para mostrar la siguiente imagen
@@ -515,14 +109,15 @@ function actualizarModal() {
   contadorImagenes.textContent = `${indiceImagenActual + 1} / ${imagenes.length}`;
 }
 
+//funcion mostrar el boton reserva
 window.addEventListener('scroll', function () {
   const boton = document.getElementById('btn-reservar');
   if (window.scrollY > window.innerHeight) {
     boton.classList.add('visible');
-
+    // No es necesario eliminar 'oculto' ya que no se usa para ocultar
   } else {
     boton.classList.remove('visible');
-
+    // No es necesario añadir 'oculto'
   }
 });
 // Event Listeners
@@ -572,6 +167,42 @@ renderizarGaleria();
 
 
 
+document.getElementById("reservaForm").addEventListener("submit", function (e) {
+  e.preventDefault();
+
+  // Obtener los datos del formulario
+  const formData = new FormData(this);
+  const name = formData.get("name");
+  const phone = formData.get("phone");
+  const professional = formData.get("professional");
+  const servicio = formData.get("servicio");
+  const date = formData.get("datetime"); // Usamos "datetime" para la fecha y hora
+  const message = formData.get("message") || "";
+
+  // Construir el mensaje de WhatsApp
+  let mensajeWhatsApp = "*RESERVA TURNO - ELEVÉ BARBERIA* \n\n";
+  mensajeWhatsApp += `* Cliente:* ${name}\n`;
+  mensajeWhatsApp += `* Teléfono:* ${phone}\n`;
+  mensajeWhatsApp += `* Fecha y Hora:* ${date}\n`;
+  mensajeWhatsApp += `* Servicio:* ${servicio}\n`;
+  mensajeWhatsApp += `* Profesional:* ${professional.toUpperCase()}\n`;
+
+  if (message.trim()) {
+    mensajeWhatsApp += `\n* Mensaje:* ${message}\n`;
+  }
+
+  mensajeWhatsApp += "\n*¡Espero tu confirmación!* ";
+
+  const mensajeCodificado = encodeURIComponent(mensajeWhatsApp);
+  const urlWhatsApp = `https://wa.me/${numeroWhatsApp}?text=${mensajeCodificado}`;
+  window.open(urlWhatsApp, "_blank");
+
+  // Mostrar confirmación
+  alert(`¡Perfecto ${name}! Te estamos redirigiendo a WhatsApp para confirmar tu cita con ${professional}.`);
+
+  // Limpiar el formulario
+  this.reset();
+});
 
 
 document.querySelector('.menu-toggle').addEventListener('click', function () {
@@ -591,23 +222,25 @@ document.querySelector('.menu-toggle').addEventListener('click', function () {
   nav.style.width = '100vw';
   nav.style.height = '100vh';
   nav.style.transition = 'all 0.3s ease-in-out';
+  nav.style.paddingTop = "100px"
 
   menuToggle.style.display = 'none';
   menuClose.style.display = 'block';
 
+  // 🚫 Bloquear scroll
   body.style.overflow = "hidden";
 });
 
 document.querySelector('.menu-close').addEventListener('click', function () {
-  const nav = document.querySelector('.header-content nav');
+  const nav = document.querySelector('.header-content nav'); // 👈 corregido
   const body = document.querySelector('body');
   const menuToggle = document.querySelector('.menu-toggle');
   const menuClose = document.querySelector('.menu-close');
 
   nav.style.display = 'none';
-  body.style.overflow = "auto";
+  body.style.overflow = "auto"; // ✅ restaurar scroll
   menuToggle.style.display = 'block';
-  menuClose.style.display = 'none';
+  menuClose.style.display = 'none'; // 👈 conviene ocultar el botón cerrar
 });
 
 
@@ -820,6 +453,197 @@ function initGaleriaCarousel() {
 initGaleriaCarousel()
 
 
+//datatime
+class DateTimeSelector {
+  constructor() {
+    this.input = document.getElementById('datetime');
+    this.dropdown = document.getElementById('dropdown');
+    this.arrow = document.querySelector('.dropdown-arrow');
+    this.calendarSection = document.getElementById('calendar-section');
+    this.timeSection = document.getElementById('time-section');
+    this.selectedDate = null;
+    this.selectedTime = null;
+    this.currentDate = new Date();
+
+    this.init();
+  }
+
+  init() {
+    this.input.addEventListener('click', () => this.toggleDropdown());
+    document.addEventListener('click', (e) => this.handleOutsideClick(e));
+
+    document.getElementById('prev-month').addEventListener('click', () => this.changeMonth(-1));
+    document.getElementById('next-month').addEventListener('click', () => this.changeMonth(1));
+    document.getElementById('change-date-btn').addEventListener('click', () => this.showCalendar());
+
+    this.generateCalendar();
+  }
+
+  toggleDropdown() {
+    const isOpen = this.dropdown.classList.contains('open');
+    if (isOpen) {
+      this.closeDropdown();
+    } else {
+      this.openDropdown();
+    }
+  }
+
+  openDropdown() {
+    this.dropdown.classList.add('open');
+    this.arrow.classList.add('open');
+    this.showCalendar();
+  }
+
+  closeDropdown() {
+    this.dropdown.classList.remove('open');
+    this.arrow.classList.remove('open');
+  }
+
+  handleOutsideClick(e) {
+    if (!this.input.contains(e.target) && !this.dropdown.contains(e.target)) {
+      this.closeDropdown();
+    }
+  }
+
+  showCalendar() {
+    this.calendarSection.style.display = 'block';
+    this.timeSection.classList.remove('active');
+    this.generateCalendar();
+  }
+
+  showTimeSlots() {
+    this.calendarSection.style.display = 'none';
+    this.timeSection.classList.add('active');
+    this.generateTimeSlots();
+  }
+
+  changeMonth(direction) {
+    this.currentDate.setMonth(this.currentDate.getMonth() + direction);
+    this.generateCalendar();
+  }
+
+  generateCalendar() {
+    const year = this.currentDate.getFullYear();
+    const month = this.currentDate.getMonth();
+
+    // Actualizar título
+    const monthNames = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+      'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+    document.getElementById('calendar-title').textContent = `${monthNames[month]} ${year}`;
+
+    // Generar días del calendario
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const startDate = new Date(firstDay);
+    startDate.setDate(startDate.getDate() - firstDay.getDay() + 1); // Empezar en lunes
+
+    const calendarGrid = document.getElementById('calendar-grid');
+    calendarGrid.innerHTML = '';
+
+    // Headers de días de la semana
+    const dayHeaders = ['lu', 'ma', 'mi', 'ju', 'vi', 'sá', 'do'];
+    dayHeaders.forEach(day => {
+      const header = document.createElement('div');
+      header.className = 'calendar-day-header';
+      header.textContent = day;
+      calendarGrid.appendChild(header);
+    });
+
+    // Generar 42 días (6 semanas)
+    const today = new Date();
+    for (let i = 0; i < 42; i++) {
+      const date = new Date(startDate);
+      date.setDate(startDate.getDate() + i);
+
+      const dayElement = document.createElement('div');
+      dayElement.className = 'calendar-day';
+      dayElement.textContent = date.getDate();
+
+      // Verificar si es del mes actual
+      if (date.getMonth() !== month) {
+        dayElement.classList.add('disabled');
+      }
+      // Verificar si es domingo o fecha pasada
+      else if (date.getDay() === 0 || date < today.setHours(0, 0, 0, 0)) {
+        dayElement.classList.add('disabled');
+      }
+      // Verificar si es hoy
+      else if (date.toDateString() === today.toDateString()) {
+        dayElement.classList.add('today');
+      }
+
+      // Event listener para seleccionar fecha
+      if (!dayElement.classList.contains('disabled')) {
+        dayElement.addEventListener('click', () => {
+          // Remover selección anterior
+          calendarGrid.querySelectorAll('.calendar-day.selected').forEach(el => {
+            el.classList.remove('selected');
+          });
+          dayElement.classList.add('selected');
+          this.selectedDate = new Date(date);
+          this.showTimeSlots();
+        });
+      }
+
+      calendarGrid.appendChild(dayElement);
+    }
+  }
+
+  generateTimeSlots() {
+    const timeGrid = document.getElementById('time-grid');
+    const selectedDateDisplay = document.getElementById('selected-date-display');
+
+    // Mostrar fecha seleccionada
+    selectedDateDisplay.textContent = this.formatSelectedDate(this.selectedDate);
+
+    // Generar horarios
+    const times = [];
+    for (let hour = 9; hour <= 20; hour++) {
+      times.push(`${hour.toString().padStart(2, '0')}:00`);
+      if (hour <= 20) {  // ahora también entra cuando es 20
+        times.push(`${hour.toString().padStart(2, '0')}:30`);
+      }
+    }
+
+    timeGrid.innerHTML = '';
+    times.forEach(time => {
+      const timeSlot = document.createElement('div');
+      timeSlot.className = 'time-slot';
+      timeSlot.textContent = time;
+      timeSlot.addEventListener('click', () => {
+        // Remover selección anterior
+        timeGrid.querySelectorAll('.time-slot.selected').forEach(el => {
+          el.classList.remove('selected');
+        });
+        timeSlot.classList.add('selected');
+        this.selectedTime = time;
+        this.updateInput();
+        this.closeDropdown();
+      });
+      timeGrid.appendChild(timeSlot);
+    });
+  }
+
+  formatSelectedDate(date) {
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  }
+
+  updateInput() {
+    if (this.selectedDate && this.selectedTime) {
+      const formattedDate = this.formatSelectedDate(this.selectedDate);
+      this.input.value = `${formattedDate} - ${this.selectedTime}`;
+      this.input.classList.add('has-value');
+    }
+  }
+}
+
+// Inicializar cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', () => {
+  new DateTimeSelector();
+});
 
 // Función para crear botones flotantes
 function initFloatingButtons() {
@@ -945,6 +769,12 @@ function
 initMotivationalBanner();
 
 
+
+
+
+
+
+
 /* animaciones Reveal */
 
 // ✅ Inicializa ScrollReveal con opciones globales
@@ -953,11 +783,11 @@ const sr = ScrollReveal({
   duration: 1000,
   easing: 'ease-in-out',
   origin: 'top',
-  reset: false, // hace que se reinicie cada vez que haces scroll
-  once: true  //  Solo se anima la primera
+  reset: false, // 👈 Esto hace que se reinicie cada vez que haces scroll
+  once: true  // 👈 Solo se anima la primera
 });
 
 // ✅ Revela elementos específicos con diferentes orígenes
 sr.reveal('.animacion-01', { delay: 200, origin: 'top' });
 sr.reveal('.animacion-02', { delay: 400, origin: 'left', once: false });
-sr.reveal('.animacion-03', { delay: 600, origin: 'right' }); 
+sr.reveal('.animacion-03', { delay: 600, origin: 'right' }); // 👈 corregido "rigth" → "right"
