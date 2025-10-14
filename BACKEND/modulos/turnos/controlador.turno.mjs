@@ -38,15 +38,15 @@ async function obtenerUnTurno(req, res) {
 // Función para agregar un turno
 async function agregarTurno(req, res) {
     try {
-        const { cliente_id, empleado_id, servicio_id, hora_inicio, fecha, hora_fin, estado, precio } = req.body;
+/*         const {  cliente_id, empleado_id, servicio_id, hora_inicio, fecha, hora_fin, estado, precio } = req.body;
 
         const estadosPermitidos = ["pendiente", "confirmado", "cancelado", "realizado"];
-        const expresionHora = /^\d{2}:\d{2}:\d{2}$/;
+        const expresionHora = /^\d{2}:\d{2}$/;  
         const fechaNumero = new Date(fecha);
         const fechaValida = !isNaN(fechaNumero.getTime());
 
         if (
-            !Number(cliente_id) ||
+             !Number(cliente_id) ||
             !Number(empleado_id) ||
             !Number(servicio_id) ||
             !fechaValida ||
@@ -58,7 +58,7 @@ async function agregarTurno(req, res) {
         ) {
             return res.status(400).json({ mensaje: "Los datos del turno no son válidos." });
         }
-
+ */
         // Si pasa validaciones, inserta turno en BD
         const turnoCreado = await modelo.agregarTurno(req.body);
         res.status(201).json({ mensaje: "Turno agregado con éxito", turno: turnoCreado });
