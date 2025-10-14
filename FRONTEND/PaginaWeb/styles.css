@@ -632,36 +632,6 @@ h2 {
     color: #666;
 }
 
-/* parallax */
-.parallax-hero-container {
-    height: 70vh;
-    background-image: url('./img/portada-eleve-MOBILE.jpeg');
-    background-position: center;
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: cover;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    color: white;
-    position: relative;
-    background-color: var(--clr-oscuro);
-}
-
-.parallax-hero-container::before {
-    content: "";
-    /* Necesario para que el pseudo-elemento se muestre */
-    position: absolute;
-    /* Posiciona el overlay sobre el contenedor */
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.5);
-    /* Fondo negro semitransparente */
-    z-index: 1;
-    /* Asegúrate de que el overlay esté por encima del fondo */
-}
 
 .container-hero {
     position: relative;

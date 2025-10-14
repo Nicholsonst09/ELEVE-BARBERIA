@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +8,7 @@
     <link rel="stylesheet" href="style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
+
 <body>
     <!-- Actualizando todas las clases a español -->
     <header class="encabezado">
@@ -266,6 +268,16 @@
                         </select>
                     </div>
                     <div class="grupo-formulario">
+                        <label for="service-type">Profesional</label>
+                        <select id="service-type" required>
+                            <option value="">Seleccionar Profesional</option>
+                            <option value="corte-clasico" data-price="18">Corte Clásico - $10000</option>
+                            <option value="corte-barba" data-price="25">Corte + Barba - $12000</option>
+                            <option value="corte-mujer" data-price="30">Corte infantil - $7000</option>
+                            <option value="peinado" data-price="40">Barba - $5000</option>
+                        </select>
+                    </div>
+                    <div class="grupo-formulario">
                         <label for="appointment-time">Hora</label>
                         <select id="appointment-time" required>
                             <option value="">Seleccionar hora</option>
@@ -305,4 +317,5 @@
 
     <script src="script.js"></script>
 </body>
+
 </html>
