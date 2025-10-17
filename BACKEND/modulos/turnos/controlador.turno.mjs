@@ -46,7 +46,7 @@ async function agregarTurno(req, res) {
         const fechaValida = !isNaN(fechaNumero.getTime());
 
         if (
-             !Number(cliente_id) ||
+            !Number(cliente_id) ||
             !Number(empleado_id) ||
             !Number(servicio_id) ||
             !fechaValida ||
