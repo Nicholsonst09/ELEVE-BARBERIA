@@ -15,7 +15,10 @@ let reservaActual = {
   barbero_id: null,
   barbero: null,
   fecha: null,
-  hora: null,
+  hora_inicio: null,
+  hora_fin: null,
+  estado: null,
+  observaciones: null,
   cliente: null,
   total: null
 
@@ -36,7 +39,8 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   btnConfirmarTurno.addEventListener('click', async () => {
-    const turnoCreado = await crearTurno(reservaActual);
+    confirmarReservaFinal()
+    const turnoCreado = await crearTurno();
 
     if (turnoCreado) {
       console.log('Turno confirmado:', turnoCreado);
@@ -44,9 +48,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  configurarEventosFormulario()
 })
 
 /* Logica reserva de turnos */
+
+//podrian ser cargada desde el backend -> seria la forma correcta
 function generarFechasDisponibles() {
   fechasDisponibles = [];
   const hoy = new Date();
@@ -76,7 +83,6 @@ async function cargarServicios() {
     servicios.forEach((servicio) => {
       const servicioCard = document.createElement("div");
       servicioCard.className = "tarjeta";
-      // Asegúrate de que la función seleccionarServicio exista y reciba un objeto de servicio
       servicioCard.onclick = () => seleccionarServicio(servicio);
 
       servicioCard.innerHTML = `
@@ -111,8 +117,6 @@ function cargarBarberos(barberosDisponibles) {
     const barberoElement = document.createElement("div");
     barberoElement.className = "tarjeta";
     barberoElement.onclick = () => seleccionarBarbero(barbero);
-
-    // Actualizar el HTML para usar las propiedades correctas del objeto barbero
     barberoElement.innerHTML = `
             <div class="tarjeta__contenido">
                 <div class="barbero-info">
@@ -173,8 +177,7 @@ function cargarHorarios(horariosDisponibles) {
     if (horario.disponible) {
       const horarioElement = document.createElement("div");
       horarioElement.className = "tarjeta";
-      horarioElement.onclick = () => seleccionarHora(horario); // Asume que tienes una función para seleccionar la hora
-
+      horarioElement.onclick = () => seleccionarHora(horario);
       horarioElement.innerHTML = `
           <div class="tarjeta__contenido">
             <div class="tarjeta-horario">${horario.inicio}</div>
@@ -185,27 +188,37 @@ function cargarHorarios(horariosDisponibles) {
   });
 }
 
-// Crea un nuevo turno a través de la API.
-// La función `crearTurno` ahora retorna `data` si es exitosa o `null` si falla
-async function crearTurno(turno) {
+// Crea un nuevo turno web
+async function crearTurno() {
+
+  const turnoData = {
+    cliente_id: Math.floor(Math.random() * 5) + 1, 
+    empleado_id: reservaActual.barbero_id,
+    servicio_id: reservaActual.servicio_id,
+    fecha: reservaActual.fecha,
+    hora_inicio: reservaActual.hora_inicio, 
+    hora_fin: reservaActual.hora_fin,
+    estado:"pendiente",
+    observaciones: null, 
+    precio: reservaActual.total,
+  }
   try {
-  /*   const respuesta = await fetch(`http://localhost:3000/api/v1/turnos`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(turno),
-    });
-    if (!respuesta.ok) {
-      const errorBody = await respuesta.json();
-      throw new Error(
-        `Error HTTP: ${respuesta.status}, mensaje: ${errorBody.message || "Error desconocido"}`,
-      );
-    }
-    const data = await respuesta.json();
-    return data; */
-    alert("turno cargado con exito");
-    console.log(turno);
+       const respuesta = await fetch(`http://localhost:3000/api/v1/turnos`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(turnoData),
+      });
+      if (!respuesta.ok) {
+        const errorBody = await respuesta.json();
+        throw new Error(
+          `Error HTTP: ${respuesta.status}, mensaje: ${errorBody.message || "Error desconocido"}`,
+        );
+      }
+      const data = await respuesta.json();
+      return data;
+    
   } catch (error) {
     console.error("Error al agregar el turno en la API:", error);
     return null;
@@ -220,8 +233,7 @@ async function seleccionarServicio(servicio) {
   reservaActual.duracion = servicio.duracion_min;
 
   try {
-    const url = `http://localhost:3000/api/v1/servicios/${servicio.id}/empleados`;
-    const response = await fetch(url);
+    const response = await fetch(`http://localhost:3000/api/v1/servicios/${servicio.id}/empleados`);
 
     if (!response.ok) {
       throw new Error(`Error en la solicitud: ${response.statusText}`);
@@ -291,7 +303,8 @@ async function seleccionarFecha(fecha) {
   }
 }
 function seleccionarHora(hora) {
-  reservaActual.hora = hora.inicio
+  reservaActual.hora_inicio = hora.inicio
+  reservaActual.hora_fin = hora.fin
   irAPaso(5)
 }
 
@@ -330,7 +343,7 @@ function cargarResumen() {
   document.getElementById("resumen-servicio").textContent = reservaActual.servicio
   document.getElementById("resumen-barbero").textContent = reservaActual.barbero
   document.getElementById("resumen-fecha").textContent = formatearFecha(reservaActual.fecha)
-  document.getElementById("resumen-hora").textContent = reservaActual.hora
+  document.getElementById("resumen-hora").textContent = reservaActual.hora_inicio
   document.getElementById("resumen-duracion").textContent = `${reservaActual.duracion} minutos`
   document.getElementById("resumen-precio").textContent = `$${reservaActual.total}`
 }
@@ -344,11 +357,11 @@ Nombre: ${reservaActual.cliente.nombre}
 Teléfono: ${reservaActual.cliente.telefono}
 
 Detalles de la reserva:
-Servicio: ${reservaActual.servicio.nombre}
-Barbero: ${reservaActual.barbero.nombre}
+Servicio: ${reservaActual.servicio}
+Barbero: ${reservaActual.barbero}
 Fecha: ${formatearFecha(reservaActual.fecha)}
-Hora: ${reservaActual.hora}
-Total: $${reservaActual.servicio.precio}`
+Hora: ${reservaActual.hora_inicio}
+Total: $${reservaActual.total}`
 
   alert(mensaje)
   console.log("Datos completos de la reserva:", reservaActual)
@@ -621,18 +634,6 @@ document.querySelectorAll('.header-content nav a').forEach(link => {
     body.style.overflow = "auto";
 
   });
-});
-/* parallax */
-document.addEventListener('scroll', function () {
-  const parallax = document.querySelector('.parallax-hero-container');
-  const scrollPosition = window.pageYOffset;
-
-  // La velocidad de desplazamiento del fondo
-  const speed = 0.6;
-
-
-  // Ajusta la posición vertical del fondo
-  parallax.style.backgroundPositionY = (scrollPosition * speed) + 'px';
 });
 
 /* banner infinito */
