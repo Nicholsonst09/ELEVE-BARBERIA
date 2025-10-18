@@ -25,7 +25,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(rutasApiTurnos);
 app.use(rutasApiServicios);
 app.use(rutasApiEmpleados);
-app.use(rutasApiClientes);
+
 
 app.use('/Eleve-Barberia-Web', express.static(path.join(__dirname, '../FRONTEND/PaginaWeb')));
 
