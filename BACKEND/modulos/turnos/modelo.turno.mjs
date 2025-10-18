@@ -87,7 +87,7 @@ async function agregarTurno(nuevoTurno) {
             .from('turnos')
             .insert([
                 {
-                    cliente_id: cliente_id || 0,
+                    cliente_id: cliente_id,
                     empleado_id,
                     servicio_id,
                     fecha,
