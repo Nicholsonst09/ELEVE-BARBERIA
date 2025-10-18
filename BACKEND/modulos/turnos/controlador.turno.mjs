@@ -37,32 +37,47 @@ async function obtenerUnTurno(req, res) {
 
 // Función para agregar un turno
 async function agregarTurno(req, res) {
+    const {
+        cliente_id, empleado_id, servicio_id,
+        hora_inicio, fecha, hora_fin,
+        estado, precio
+    } = req.body;
+    
+    const estadosPermitidos = ["pendiente", "confirmado", "cancelado", "realizado"];
+    const expresionHora = /^\d{2}:\d{2}$/;
+    
+    const fechaNumero = new Date(fecha);
+    const fechaValida = !isNaN(fechaNumero.getTime());
+    
+    //VALIDACIONES MÁS IMPORTANTES
+    if (
+        !Number(cliente_id) ||
+        !Number(empleado_id) ||
+        !Number(servicio_id) 
+    ) {
+        return res.status(400).json({ mensaje: "Los IDs de cliente, empleado o servicio son inválidos o faltantes." });
+    }
+    
+    if (!fecha || !fechaValida) {
+        return res.status(400).json({ mensaje: "El formato de la fecha es inválido." });
+    }
+    
+    if (!expresionHora.test(hora_inicio) ||!expresionHora.test(hora_fin)
+    ) {
+        return res.status(400).json({ mensaje: "El formato de la hora debe ser HH:MM." });
+    }
+    
+    if (hora_inicio >= hora_fin) {
+        return res.status(400).json({ mensaje: "La hora de inicio debe ser anterior a la hora de fin." });
+    }
+    
+    if (estado && !estadosPermitidos.includes(estado)) {
+        return res.status(400).json({ mensaje: `El estado '${estado}' no es un estado de turno permitido.` });
+    } 
+        
     try {
-/*         const {  cliente_id, empleado_id, servicio_id, hora_inicio, fecha, hora_fin, estado, precio } = req.body;
-
-        const estadosPermitidos = ["pendiente", "confirmado", "cancelado", "realizado"];
-        const expresionHora = /^\d{2}:\d{2}$/;  
-        const fechaNumero = new Date(fecha);
-        const fechaValida = !isNaN(fechaNumero.getTime());
-
-        if (
-            !Number(cliente_id) ||
-            !Number(empleado_id) ||
-            !Number(servicio_id) ||
-            !fechaValida ||
-            !expresionHora.test(hora_inicio) ||
-            !expresionHora.test(hora_fin) ||
-            hora_inicio < hora_fin ||
-            (estado && !estadosPermitidos.includes(estado)) ||
-            precio === undefined || isNaN(precio) || precio <= 0
-        ) {
-            return res.status(400).json({ mensaje: "Los datos del turno no son válidos." });
-        }
- */
-        // Si pasa validaciones, inserta turno en BD
         const turnoCreado = await modelo.agregarTurno(req.body);
         res.status(201).json({ mensaje: "Turno agregado con éxito", turno: turnoCreado });
-
     } catch (error) {
         console.error("Error en controlador.agregarUnTurno:", error);
         res.status(500).json({ mensaje: 'Error interno del servidor al agregar el turno.', detalle: error.message });
