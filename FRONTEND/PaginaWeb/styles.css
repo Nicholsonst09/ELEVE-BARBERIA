@@ -1392,7 +1392,7 @@ h2 {
 }
 
 .barbero-experiencia {
-    background-color: var(--color-fondo-secundario);
+    background-color: var(--color-fondo);
     color: var(--color-texto);
     padding: 0.25rem 0.5rem;
     border-radius: 4px;

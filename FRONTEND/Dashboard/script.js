@@ -1,4 +1,15 @@
-// Data
+import { 
+  profesionales, 
+  turnos, 
+  buscarTurnosPorProfesional, 
+  buscarTurnosPendientes,
+  buscarProfesionalPorId,
+  actualizarTurno
+} from './datos.js';
+
+// ===================================================
+// SECCIÓN 2: DATOS (de script.js original)
+// ===================================================
 let appointments = [
   {
     id: "1",
@@ -79,9 +90,15 @@ const serviceOptions = [
   { value: "peinado", name: "Peinado", price: 40, duration: 90 },
 ]
 
+// ===================================================
+// SECCIÓN 3: ESTADO GLOBAL Y SELECTORES
+// ===================================================
+
+// Estado (de script.js original)
 let currentEditingAppointment = null
 let isEditMode = false
 
+// Selectores DOM (de script.js original)
 const botonesNavegacion = document.querySelectorAll(".boton-navegacion")
 const contenidosPestana = document.querySelectorAll(".contenido-pestana")
 const elementoFechaActual = document.getElementById("current-date")
@@ -90,15 +107,55 @@ const selectorPeriodo = document.getElementById("period-selector")
 const modalCita = document.getElementById("appointment-modal")
 const formularioCita = document.getElementById("appointment-form")
 
-// Initialize
-document.addEventListener("DOMContentLoaded", () => {
-  initializeDate()
-  setupEventListeners()
-  renderAppointments()
-  updateStats()
-  renderFinancialData("week")
-  populateServiceOptions()
+// Estado (del nuevo fragmento)
+let estado = {
+  profesionalSeleccionado: profesionales[0].id,
+  fechaActual: new Date(),
+  turnoSeleccionado: null,
+  modoEdicion: false,
+}
+
+// Horarios (del nuevo fragmento)
+const horariosDelDia = Array.from({ length: 13 }, (_, i) => {
+  const hora = i + 9
+  return `${hora.toString().padStart(2, "0")}:00`
 })
+
+// ===================================================
+// SECCIÓN 4: INICIALIZACIÓN UNIFICADA
+// ===================================================
+
+document.addEventListener("DOMContentLoaded", () => {
+  // --- Inicialización del Dashboard (script.js original) ---
+  if (elementoFechaActual) initializeDate()
+  if (botonesNavegacion.length > 0) setupEventListeners() // Llama a los listeners del dashboard
+  if (document.getElementById("total-appointments")) updateStats()
+  if (selectorPeriodo) renderFinancialData("week")
+  if (document.getElementById("service-type")) populateServiceOptions()
+
+  // --- Inicialización del generador de horas (script.js original) ---
+  const timeSelect = document.getElementById("appointment-time")
+  if (timeSelect) {
+    const timeSlots = generateTimeSlots()
+    timeSlots.forEach((time) => {
+      const option = document.createElement("option")
+      option.value = time
+      option.textContent = time
+      timeSelect.appendChild(option)
+    })
+  }
+
+  // --- Inicialización de la Agenda/Grilla (nuevo fragmento) ---
+  // Comprobamos si los elementos de la agenda existen antes de renderizar
+  if (document.getElementById("navPestanas")) {
+    renderizar() // Renderizado inicial de la agenda
+    setupAgendaEventListeners() // Llama a los listeners de la agenda
+  }
+})
+
+// ===================================================
+// SECCIÓN 5: FUNCIONES DEL DASHBOARD (script.js original)
+// ===================================================
 
 function initializeDate() {
   const today = new Date()
@@ -193,66 +250,6 @@ function updateDurationAndPrice() {
     const duration = selectedOption.getAttribute("data-duration")
     console.log(`Selected service duration: ${duration} minutes`)
   }
-}
-
-function renderAppointments() {
-  const appointmentsList = document.getElementById("appointments-list")
-  appointmentsList.innerHTML = ""
-
-  if (appointments.length === 0) {
-    appointmentsList.innerHTML = `
-            <div style="text-align: center; padding: 2rem; color: #718096;">
-                <i class="fas fa-calendar-times" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
-                <p style="font-size: 1.125rem; font-weight: 500;">No hay citas programadas para hoy</p>
-                <p style="font-size: 0.875rem; margin-top: 0.5rem;">Haz clic en "Nueva Cita" para programar una</p>
-            </div>
-        `
-    return
-  }
-
-  const sortedAppointments = [...appointments].sort((a, b) => a.time.localeCompare(b.time))
-
-  sortedAppointments.forEach((appointment) => {
-    const appointmentElement = createAppointmentElement(appointment)
-    appointmentsList.appendChild(appointmentElement)
-  })
-}
-
-function createAppointmentElement(appointment) {
-  const div = document.createElement("div")
-  div.className = "elemento-cita"
-  div.innerHTML = `
-        <div class="hora-cita">
-            <div class="tiempo">${appointment.time}</div>
-            <div class="duracion">${appointment.duration}min</div>
-        </div>
-        <div class="detalles-cita">
-            <div class="cliente-cita">
-                <h4>${appointment.client}</h4>
-                <span class="insignia-estado estado-${appointment.status}">${appointment.status}</span>
-            </div>
-            <div class="servicio-cita">${appointment.service}</div>
-            <div class="metadatos-cita">
-                <span class="telefono-cita">
-                    <i class="fas fa-phone"></i>
-                    ${appointment.phone}
-                </span>
-                <span class="precio-cita">$${appointment.price}</span>
-            </div>
-        </div>
-        <div class="acciones-cita">
-            <button class="boton-icono" onclick="editAppointment('${appointment.id}')" title="Editar cita">
-                <i class="fas fa-edit"></i>
-            </button>
-            <button class="boton-icono" onclick="toggleAppointmentStatus('${appointment.id}')" title="Cambiar estado">
-                <i class="fas fa-check-circle"></i>
-            </button>
-            <button class="boton-icono eliminar" onclick="deleteAppointment('${appointment.id}')" title="Eliminar cita">
-                <i class="fas fa-trash"></i>
-            </button>
-        </div>
-    `
-  return div
 }
 
 function updateStats() {
@@ -360,7 +357,6 @@ function addNewAppointment() {
 
   appointments.push(newAppointment)
 
-  renderAppointments()
   updateStats()
   closeAppointmentModal()
 
@@ -409,7 +405,6 @@ function updateAppointment() {
       phone: clientPhone,
     }
 
-    renderAppointments()
     updateStats()
     closeAppointmentModal()
 
@@ -434,7 +429,6 @@ function toggleAppointmentStatus(id) {
 
   appointment.status = statusCycle[appointment.status] || "pendiente"
 
-  renderAppointments()
   updateStats()
 
   const statusNames = {
@@ -453,9 +447,12 @@ function deleteAppointment(id) {
     return
   }
 
-  if (confirm(`¿Estás seguro de que quieres eliminar la cita de ${appointment.client} a las ${appointment.time}?`)) {
+  if (
+    confirm(
+      `¿Estás seguro de que quieres eliminar la cita de ${appointment.client} a las ${appointment.time}?`,
+    )
+  ) {
     appointments = appointments.filter((a) => a.id !== id)
-    renderAppointments()
     updateStats()
     showNotification(`Cita de ${appointment.client} eliminada`, "success")
   }
@@ -470,8 +467,12 @@ function renderFinancialData(period) {
   document.getElementById("products-count").textContent = data.products.total
   document.getElementById("products-revenue").textContent = formatCurrency(data.products.revenue)
 
-  document.getElementById("avg-service").textContent = formatCurrency(data.services.revenue / data.services.total)
-  document.getElementById("avg-product").textContent = formatCurrency(data.products.revenue / data.products.total)
+  document.getElementById("avg-service").textContent = formatCurrency(
+    data.services.revenue / data.services.total,
+  )
+  document.getElementById("avg-product").textContent = formatCurrency(
+    data.products.revenue / data.products.total,
+  )
   document.getElementById("services-per-day").textContent = Math.round(
     data.services.total / (period === "week" ? 7 : 30),
   )
@@ -637,25 +638,519 @@ function generateTimeSlots() {
   return slots
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  const timeSelect = document.getElementById("appointment-time")
-  if (timeSelect) {
-    const timeSlots = generateTimeSlots()
-    timeSlots.forEach((time) => {
-      const option = document.createElement("option")
-      option.value = time
-      option.textContent = time
-      timeSelect.appendChild(option)
+// ===================================================
+// SECCIÓN 6: FUNCIONES DE LA AGENDA (nuevo fragmento)
+// ===================================================
+
+// Funciones de utilidad
+function formatearFecha(fecha) {
+  return new Intl.DateTimeFormat("es-ES", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(fecha)
+}
+
+function esHoy(fecha) {
+  const hoy = new Date()
+  return (
+    fecha.getDate() === hoy.getDate() &&
+    fecha.getMonth() === hoy.getMonth() &&
+    fecha.getFullYear() === hoy.getFullYear()
+  )
+}
+
+function esFechaPasada(fecha) {
+  const hoy = new Date()
+  hoy.setHours(0, 0, 0, 0)
+  const comparar = new Date(fecha)
+  comparar.setHours(0, 0, 0, 0)
+  return comparar < hoy
+}
+
+function puedeDiaAnterior() {
+  const diaAnterior = new Date(estado.fechaActual)
+  diaAnterior.setDate(diaAnterior.getDate() - 1)
+  return !esFechaPasada(diaAnterior)
+}
+
+function obtenerEstiloTurno(horaInicio, horaFin) {
+  const [horaI, minI] = horaInicio.split(":").map(Number)
+  const [horaF, minF] = horaFin.split(":").map(Number)
+
+  const minutosInicio = (horaI - 9) * 60 + minI
+  const minutosFin = (horaF - 9) * 60 + minF
+  const duracion = minutosFin - minutosInicio
+
+  return {
+    top: `${(minutosInicio / 60) * 130}px`,
+    height: `${(duracion / 60) * 130 - 6}px`,
+  }
+}
+
+function obtenerEtiquetaEstado(estado) {
+  const etiquetas = {
+    confirmado: "Confirmado",
+    pendiente: "Pendiente",
+    completado: "Completado",
+    cancelado: "Cancelado",
+  }
+  return etiquetas[estado] || estado
+}
+
+// Función para obtener turnos filtrados
+function obtenerTurnosFiltrados() {
+  if (estado.profesionalSeleccionado === "pendiente") {
+    return buscarTurnosPendientes(estado.fechaActual)
+  }
+  const profesional = buscarProfesionalPorId(estado.profesionalSeleccionado)
+
+  return buscarTurnosPorProfesional(
+    estado.profesionalSeleccionado,
+    profesional?.nombre,
+    estado.fechaActual,
+  )
+}
+
+// Renderizar navegación de profesionales
+function renderizarNavegacion() {
+  const navPestanas = document.getElementById("navPestanas")
+  const turnosPendientes = buscarTurnosPendientes(estado.fechaActual).length
+
+  let html = `
+        <button class="pestana-navegacion pendiente ${
+          estado.profesionalSeleccionado === "pendiente" ? "activo" : ""
+        }" 
+                data-id="pendiente">
+          <svg class="icono" style="color: var(  --color-primario);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10" stroke-width="2"/>
+            <line x1="12" y1="8" x2="12" y2="12" stroke-width="2" stroke-linecap="round"/>
+            <line x1="12" y1="16" x2="12.01" y2="16" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <span>Turnos Pendientes</span>
+          ${turnosPendientes > 0 ? `<span class="insignia">${turnosPendientes}</span>` : ""}
+        </button>
+      `
+
+  profesionales.forEach((prof) => {
+    html += `
+          <button class="pestana-navegacion ${
+            estado.profesionalSeleccionado === prof.id ? "activo" : ""
+          }" 
+                  data-id="${prof.id}">
+            <div class="punto-color" style="background-color: ${prof.color};"></div>
+            ${prof.nombre}
+          </button>
+        `
+  })
+
+  navPestanas.innerHTML = html
+
+  // Agregar event listeners
+  navPestanas.querySelectorAll(".pestana-navegacion").forEach((pestana) => {
+    pestana.addEventListener("click", () => {
+      estado.profesionalSeleccionado = pestana.dataset.id
+      renderizar()
+    })
+  })
+}
+
+// Renderizar encabezado
+function renderizarEncabezado() {
+  const turnosFiltrados = obtenerTurnosFiltrados()
+  const profesional = buscarProfesionalPorId(estado.profesionalSeleccionado)
+
+  const titulo =
+    estado.profesionalSeleccionado === "pendiente" ? "Turnos Pendientes" : profesional?.nombre
+
+  document.getElementById("tituloEncabezado").textContent =
+    `${formatearFecha(estado.fechaActual)} - ${titulo}`
+  document.getElementById(
+    "subtituloEncabezado",
+  ).textContent = `${turnosFiltrados.length} turnos programados`
+
+  // Actualizar botones de navegación de fecha
+  const btnDiaAnterior = document.getElementById("btnDiaAnterior")
+  const btnHoy = document.getElementById("btnHoy")
+
+  btnDiaAnterior.disabled = !puedeDiaAnterior()
+  btnHoy.disabled = esHoy(estado.fechaActual)
+}
+
+// Renderizar grilla de turnos
+function renderizarGrilla() {
+  const cuerpoGrilla = document.getElementById("cuerpoGrilla")
+  const turnosFiltrados = obtenerTurnosFiltrados()
+
+  // Crear ranuras de tiempo
+  let ranuraHtml = ""
+  horariosDelDia.forEach((hora) => {
+    ranuraHtml += `
+          <div class="ranura-tiempo">
+            <div class="etiqueta-tiempo">${hora}</div>
+            <div class="contenido-tiempo"></div>
+          </div>
+        `
+  })
+
+  cuerpoGrilla.innerHTML = ranuraHtml
+
+  // Crear capa de turnos
+  const capaTurnos = document.createElement("div")
+  capaTurnos.className = "capa-turnos"
+  capaTurnos.innerHTML = `
+      <div class="grilla-turnos">
+        <div></div>
+        <div class="contenedor-turnos" id="contenedorTurnos"></div>
+      </div>
+    `
+  cuerpoGrilla.appendChild(capaTurnos)
+
+  // Renderizar turnos
+  const contenedor = document.getElementById("contenedorTurnos")
+  turnosFiltrados.forEach((turno) => {
+    const profesional = buscarProfesionalPorId(turno.profesionalId)
+    const estilo = obtenerEstiloTurno(turno.horaInicio, turno.horaFin)
+
+    const tarjeta = document.createElement("div")
+    tarjeta.className = "tarjeta-turno"
+    tarjeta.style.top = estilo.top
+    tarjeta.style.backgroundColor = profesional?.color || "var(  --color-primario)"
+    tarjeta.style.borderColor = profesional?.color || "var(  --color-primario)"
+
+    tarjeta.innerHTML = `
+          <div class="info-turno">
+            <div class="cliente-turno">${turno.nombreCliente}</div>
+            <div class="servicio-turno">${turno.servicio}</div>
+            ${
+              profesional
+                ? `
+              <div class="profesional-turno">
+                <svg class="icono" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <circle cx="12" cy="7" r="4" stroke-width="2"/>
+                </svg>
+                <span>${profesional.nombre}</span>
+              </div>
+            `
+                : ""
+            }
+          </div>
+          <div class="pie-turno">
+            <div class="hora-turno">
+              <svg class="icono" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" stroke-width="2"/>
+                <path d="M12 6v6l4 2" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              <span>${turno.horaInicio} - ${turno.horaFin}</span>
+            </div>
+            <div class="editar-turno">
+              <svg class="icono" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </div>
+        `
+
+    tarjeta.addEventListener("click", () => {
+      estado.turnoSeleccionado = turno
+      estado.modoEdicion = false
+      renderizarModal()
+    })
+
+    contenedor.appendChild(tarjeta)
+  })
+}
+
+// Renderizar modal
+function renderizarModal() {
+  const modal = document.getElementById("modalSuperpuesto")
+  const cuerpoModal = document.getElementById("cuerpoModal")
+  const tituloModal = document.getElementById("tituloModal")
+
+  if (!estado.turnoSeleccionado) {
+    modal.classList.remove("activo")
+    return
+  }
+
+  modal.classList.add("activo")
+  const turno = estado.turnoSeleccionado
+  const profesional = buscarProfesionalPorId(turno.profesionalId)
+
+  if (estado.modoEdicion) {
+    tituloModal.textContent = "Modificar Turno"
+    cuerpoModal.innerHTML = `
+          <form id="formEdicion">
+            <div class="grupo-formulario">
+              <label class="form-label" for="nombreCliente">Nombre del Cliente</label>
+              <input type="text" id="nombreCliente" class="form-input" value="${
+                turno.nombreCliente
+              }" required>
+            </div>
+
+            <div class="grupo-formulario">
+              <label class="form-label" for="telefono">Teléfono</label>
+              <input type="tel" id="telefono" class="form-input" value="${turno.telefono || ""}">
+            </div>
+
+            <div class="grupo-formulario">
+              <label class="form-label" for="email">Email</label>
+              <input type="email" id="email" class="form-input" value="${turno.email || ""}">
+            </div>
+
+            <div class="grupo-formulario">
+              <label class="form-label" for="servicio">Servicio</label>
+              <input type="text" id="servicio" class="form-input" value="${turno.servicio}" required>
+            </div>
+
+            <div class="grupo-formulario">
+              <label class="form-label" for="profesionalId">Profesional</label>
+              <select id="profesionalId" class="form-select" required>
+                ${profesionales
+                  .map(
+                    (p) => `
+                  <option value="${p.id}" ${p.id === turno.profesionalId ? "selected" : ""}>
+                    ${p.nombre}
+                  </option>
+                `,
+                  )
+                  .join("")}
+              </select>
+            </div>
+
+            <div class="form-row-2col">
+              <div class="grupo-formulario">
+                <label class="form-label" for="horaInicio">Hora de Inicio</label>
+                <input type="time" id="horaInicio" class="form-input" value="${
+                  turno.horaInicio
+                }" required>
+              </div>
+
+              <div class="grupo-formulario">
+                <label class="form-label" for="horaFin">Hora de Fin</label>
+                <input type="time" id="horaFin" class="form-input" value="${turno.horaFin}" required>
+              </div>
+            </div>
+
+            <div class="grupo-formulario">
+              <label class="form-label" for="estado">Estado</label>
+              <select id="estado" class="form-select" required>
+                <option value="confirmado" ${
+                  turno.estado === "confirmado" ? "selected" : ""
+                }>Confirmado</option>
+                <option value="pendiente" ${
+                  turno.estado === "pendiente" ? "selected" : ""
+                }>Pendiente</option>
+                <option value="completado" ${
+                  turno.estado === "completado" ? "selected" : ""
+                }>Completado</option>
+                <option value="cancelado" ${
+                  turno.estado === "cancelado" ? "selected" : ""
+                }>Cancelado</option>
+              </select>
+            </div>
+
+            <div class="grupo-formulario">
+              <label class="form-label" for="observaciones">Observaciones</label>
+              <textarea id="observaciones" class="form-input" placeholder="Agregar notas u observaciones...">${
+                turno.observaciones || ""
+              }</textarea>
+            </div>
+
+            <div class="pie-modal">
+              <button type="button" class="boton-secundario" id="btnCancelarEdicion">Cancelar</button>
+              <button type="submit" class="boton-primario">Guardar Cambios</button>
+            </div>
+          </form>
+        `
+
+    // Event listeners para formulario
+    document.getElementById("formEdicion").addEventListener("submit", (e) => {
+      e.preventDefault()
+
+      const turnoActualizado = {
+        ...turno,
+        nombreCliente: document.getElementById("nombreCliente").value,
+        telefono: document.getElementById("telefono").value,
+        email: document.getElementById("email").value,
+        servicio: document.getElementById("servicio").value,
+        profesionalId: document.getElementById("profesionalId").value,
+        horaInicio: document.getElementById("horaInicio").value,
+        horaFin: document.getElementById("horaFin").value,
+        estado: document.getElementById("estado").value,
+        observaciones: document.getElementById("observaciones").value,
+      }
+
+      actualizarTurno(turnoActualizado)
+      estado.turnoSeleccionado = null
+      estado.modoEdicion = false
+      renderizar()
+    })
+
+    document.getElementById("btnCancelarEdicion").addEventListener("click", () => {
+      estado.modoEdicion = false
+      renderizarModal()
+    })
+  } else {
+    tituloModal.textContent = "Detalles del Turno"
+    cuerpoModal.innerHTML = `
+          <div class="detalles-turno-container">
+            <div class="detalles-turno-header">
+              <div class="detalles-turno-nombre">${turno.nombreCliente}</div>
+              <div class="insignia-estado estado-${turno.estado}">${obtenerEtiquetaEstado(
+      turno.estado,
+    )}</div>
+            </div>
+            <div class="detalles-turno-servicio">${turno.servicio}</div>
+          </div>
+
+          <div class="detalles-turno-info">
+            <div class="detalles-turno-item">
+              <svg class="icono" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" stroke-width="2"/>
+                <path d="M12 6v6l4 2" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              <span>${turno.horaInicio} - ${turno.horaFin}</span>
+            </div>
+
+            ${
+              profesional
+                ? `
+              <div class="detalles-turno-item">
+                <svg class="icono" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <circle cx="12" cy="7" r="4" stroke-width="2"/>
+                </svg>
+                <span>${profesional.nombre}</span>
+              </div>
+            `
+                : ""
+            }
+
+            ${
+              turno.telefono
+                ? `
+              <div class="detalles-turno-item">
+                <svg class="icono" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" stroke-width="2"/>
+                </svg>
+                <a href="tel:${turno.telefono}">${turno.telefono}</a>
+              </div>
+            `
+                : ""
+            }
+
+            ${
+              turno.email
+                ? `
+              <div class="detalles-turno-item">
+                <svg class="icono" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke-width="2"/>
+                  <polyline points="22,6 12,13 2,6" stroke-width="2"/>
+                </svg>
+                <a href="mailto:${turno.email}">${turno.email}</a>
+              </div>
+            `
+                : ""
+            }
+          </div>
+
+          ${
+            turno.observaciones
+              ? `
+            <div class="detalles-turno-notas">
+              <div class="detalles-turno-notas-titulo">Notas</div>
+              <div class="detalles-turno-notas-texto">${turno.observaciones}</div>
+            </div>
+          `
+              : ""
+          }
+
+          <div class="pie-modal">
+            <button class="boton-secundario" id="btnModificar">Modificar</button>
+            <button class="boton-secundario eliminar" id="btnCancelarTurno">Cancelar Turno</button>
+          </div>
+        `
+
+    // Event listeners para botones
+    document.getElementById("btnModificar").addEventListener("click", () => {
+      estado.modoEdicion = true
+      renderizarModal()
+    })
+
+    document.getElementById("btnCancelarTurno").addEventListener("click", () => {
+      if (confirm("¿Está seguro que desea cancelar este turno?")) {
+        const turnoActualizado = { ...turno, estado: "cancelado" }
+        actualizarTurno(turnoActualizado)
+        estado.turnoSeleccionado = null
+        renderizar()
+      }
     })
   }
-})
+}
 
+// Función principal de renderizado
+function renderizar() {
+  renderizarNavegacion()
+  renderizarEncabezado()
+  renderizarGrilla()
+  renderizarModal()
+}
+
+// ===================================================
+// SECCIÓN 7: LISTENERS DE LA AGENDA (nuevo fragmento)
+// ===================================================
+
+// Los movimos a una función 'setupAgendaEventListeners'
+// que se llama dentro del DOMContentLoaded
+function setupAgendaEventListeners() {
+  document.getElementById("btnDiaAnterior").addEventListener("click", () => {
+    if (puedeDiaAnterior()) {
+      estado.fechaActual.setDate(estado.fechaActual.getDate() - 1)
+      renderizar()
+    }
+  })
+
+  document.getElementById("btnDiaSiguiente").addEventListener("click", () => {
+    estado.fechaActual.setDate(estado.fechaActual.getDate() + 1)
+    renderizar()
+  })
+
+  document.getElementById("btnHoy").addEventListener("click", () => {
+    estado.fechaActual = new Date()
+    renderizar()
+  })
+
+  // Cerrar modal
+  document.getElementById("btnCerrarModal").addEventListener("click", () => {
+    estado.turnoSeleccionado = null
+    estado.modoEdicion = false
+    renderizar()
+  })
+
+  document.getElementById("modalSuperpuesto").addEventListener("click", (e) => {
+    if (e.target.id === "modalSuperpuesto") {
+      estado.turnoSeleccionado = null
+      estado.modoEdicion = false
+      renderizar()
+    }
+  })
+}
+
+// ===================================================
+// SECCIÓN 8: EXPORTACIONES Y GLOBALES
+// ===================================================
+
+// Globales (de script.js original)
 window.openNewAppointmentModal = openNewAppointmentModal
 window.closeNewAppointmentModal = closeAppointmentModal
 window.editAppointment = editAppointment
 window.deleteAppointment = deleteAppointment
 window.toggleAppointmentStatus = toggleAppointmentStatus
 
+// Módulos (de script.js original)
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     addNewAppointment,

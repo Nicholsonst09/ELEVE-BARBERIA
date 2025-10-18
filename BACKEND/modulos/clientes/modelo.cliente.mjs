@@ -82,7 +82,6 @@ async function buscarOCrearCliente(nombre, telefono) {
         return clienteNuevo.id; 
 
     } catch (error) {
-        // Renombrado de error para coincidir con tu función original
         console.error("Error en modelo.buscarOCrearCliente:", error); 
         throw error;
     }

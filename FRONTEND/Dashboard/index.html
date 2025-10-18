@@ -40,10 +40,7 @@
                     <i class="fas fa-users"></i>
                     Clientes
                 </button>
-                <button class="boton-navegacion" data-tab="productos">
-                    <i class="fas fa-box"></i>
-                    Productos
-                </button>
+
             </nav>
         </aside>
 
@@ -102,16 +99,80 @@
                     </div>
                 </div>
 
-                <div class="tarjeta">
-                    <div class="encabezado-tarjeta">
-                        <h3>Cronograma del Día</h3>
-                        <p>Vista detallada de todas las citas programadas</p>
-                    </div>
-                    <div class="contenido-tarjeta">
-                        <div id="appointments-list" class="lista-citas">
+                <div class="contenedor-principal-agenda">
+                    <div class="tarjeta">
+                        <div class="navegacion-pestanas" id="navPestanas"></div>
+                        <!-- Encabezado con fecha -->
+                        <div class="encabezado-grilla">
+                            <div class="info-encabezado">
+                                <svg class="icono" id="iconoEncabezado" fill="none" stroke="currentColor"
+                                    viewBox="0 0 24 24">
+                                    <circle cx="12" cy="12" r="10" stroke-width="2" />
+                                    <path d="M12 6v6l4 2" stroke-width="2" stroke-linecap="round" />
+                                </svg>
+                                <div>
+                                    <div class="titulo-encabezado" id="tituloEncabezado"></div>
+                                    <div class="subtitulo-encabezado" id="subtituloEncabezado"></div>
+                                </div>
+                            </div>
+
+                            <div class="navegacion-fecha">
+                                <button class="boton-icono" id="btnDiaAnterior" title="Día anterior">
+                                    <svg class="icono" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path d="M15 19l-7-7 7-7" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" />
+                                    </svg>
+                                </button>
+
+                                <button class="boton-primario" id="btnHoy">
+                                    <svg class="icono" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke-width="2" />
+                                        <line x1="16" y1="2" x2="16" y2="6" stroke-width="2" stroke-linecap="round" />
+                                        <line x1="8" y1="2" x2="8" y2="6" stroke-width="2" stroke-linecap="round" />
+                                        <line x1="3" y1="10" x2="21" y2="10" stroke-width="2" />
+                                    </svg>
+                                    <span class="texto-btn-hoy">Hoy</span>
+                                </button>
+
+                                <button class="boton-icono" id="btnDiaSiguiente" title="Día siguiente">
+                                    <svg class="icono" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path d="M9 5l7 7-7 7" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Grilla de turnos -->
+                        <div class="contenedor-grilla">
+                            <div class="envoltorio-grilla">
+                                <div class="cabecera-grilla">
+                                    <div class="celda-cabecera">Hora</div>
+                                    <div class="celda-cabecera">Turnos del día</div>
+                                </div>
+
+                                <div class="cuerpo-grilla" id="cuerpoGrilla">
+
+
+
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
+
+                <!-- Modal -->
+                <div class="modal" id="modalSuperpuesto">
+                    <div class="contenido-modal">
+                        <div class="encabezado-modal">
+                            <h3 id="tituloModal">Detalles del Turno</h3>
+                            <button class="cerrar-modal" id="btnCerrarModal">&times;</button>
+                        </div>
+                        <div class="cuerpo-modal" id="cuerpoModal"></div>
+                    </div>
+                </div>
+
+
             </div>
 
             <div id="financiero" class="contenido-pestana">
@@ -315,7 +376,7 @@
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <script src="script.js" type="module"></script>
 </body>
 
 </html>
