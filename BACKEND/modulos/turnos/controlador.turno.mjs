@@ -205,11 +205,49 @@ async function obtenerHorariosDisponibles(req, res) {
     }
 }
 
+async function obtenerTurnosConDetalles(req, res) {
+    const {empleadoId, fecha} = req.query;
+
+    let idEmpleadoValidado = null;
+
+    if (empleadoId) {
+        // Asegúrate de que, si el ID viene, sea un número válido
+        const idConvertido = parseInt(empleadoId);
+        if (isNaN(idConvertido)) {
+            return res.status(400).json({ mensaje: 'ID de empleado inválido. Debe ser un número entero.' });
+        }
+        idEmpleadoValidado = idConvertido;
+    }
+
+    try{
+        const turnos = await modelo.obtenerTurnosConDetalles({ 
+            empleadoId: idEmpleadoValidado, 
+            fecha: fecha || null 
+        });
+
+        if (!turnos || turnos.length === 0) {
+            return res.status(200).json({ 
+                mensaje: "No se encontraron turnos con los filtros proporcionados.", 
+                data: [] 
+            });
+        }
+
+        res.status(200).json(turnos);
+    } catch (error) {
+        console.error("Error en controlador.obtenerTurnosConDetalles:", error);
+        res.status(500).json({ 
+            mensaje: "Error interno del servidor al obtener turnos con detalles.", 
+            detalle: error.message 
+        });
+    }
+}
+
 export default {
     obtenerTurnos,
     obtenerUnTurno,
     agregarTurno,
     modificarTurno,
     eliminarTurno,
-    obtenerHorariosDisponibles
+    obtenerHorariosDisponibles,
+    obtenerTurnosConDetalles
 };

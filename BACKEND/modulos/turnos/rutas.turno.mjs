@@ -4,6 +4,7 @@ import controlador from './controlador.turno.mjs';
 const rutasApiTurnos = Router();
 
 rutasApiTurnos.get('/api/v1/turnos', controlador.obtenerTurnos);
+rutasApiTurnos.get('/api/v1/turnos/detalles', controlador.obtenerTurnosConDetalles);
 rutasApiTurnos.get('/api/v1/turnos/:id', controlador.obtenerUnTurno);
 rutasApiTurnos.post('/api/v1/turnos', controlador.agregarTurno);
 rutasApiTurnos.put('/api/v1/turnos/:id', controlador.modificarTurno);
