@@ -188,37 +188,67 @@ function cargarHorarios(horariosDisponibles) {
   });
 }
 
+
+async function obtenerOCrearClienteID(nombre, telefono) {
+  const clienteData = { nombre, telefono };
+
+  try {
+    const respuesta = await fetch(`http://localhost:3000/api/v1/clientes/obtener-o-crear`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(clienteData),
+    });
+
+    if (!respuesta.ok) {
+      const errorBody = await respuesta.json();
+      throw new Error(
+        `Error HTTP al gestionar cliente: ${respuesta.status}, mensaje: ${errorBody.message || "Error desconocido"}`
+      );
+    }
+
+    const data = await respuesta.json();
+    console.log(data.cliente_id) 
+    return data.cliente_id; 
+
+  } catch (error) {
+    console.error("Error al obtener o crear el cliente:", error);
+    return null;
+  }
+}
+
 // Crea un nuevo turno web
 async function crearTurno() {
 
   const turnoData = {
-    cliente_id: Math.floor(Math.random() * 5) + 1, 
+    cliente_id: await obtenerOCrearClienteID(reservaActual.cliente.nombre, reservaActual.cliente.telefono),
     empleado_id: reservaActual.barbero_id,
     servicio_id: reservaActual.servicio_id,
     fecha: reservaActual.fecha,
-    hora_inicio: reservaActual.hora_inicio, 
+    hora_inicio: reservaActual.hora_inicio,
     hora_fin: reservaActual.hora_fin,
-    estado:"pendiente",
-    observaciones: null, 
+    estado: "pendiente",
+    observaciones: null,
     precio: reservaActual.total,
   }
   try {
-       const respuesta = await fetch(`http://localhost:3000/api/v1/turnos`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(turnoData),
-      });
-      if (!respuesta.ok) {
-        const errorBody = await respuesta.json();
-        throw new Error(
-          `Error HTTP: ${respuesta.status}, mensaje: ${errorBody.message || "Error desconocido"}`,
-        );
-      }
-      const data = await respuesta.json();
-      return data;
-    
+    const respuesta = await fetch(`http://localhost:3000/api/v1/turnos`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(turnoData),
+    });
+    if (!respuesta.ok) {
+      const errorBody = await respuesta.json();
+      throw new Error(
+        `Error HTTP: ${respuesta.status}, mensaje: ${errorBody.message || "Error desconocido"}`,
+      );
+    }
+    const data = await respuesta.json();
+    return data;
+
   } catch (error) {
     console.error("Error al agregar el turno en la API:", error);
     return null;
@@ -312,7 +342,7 @@ function seleccionarHora(hora) {
 function configurarEventosFormulario() {
   const nombreInput = document.getElementById("nombre")
   const telefonoInput = document.getElementById("telefono")
-  const continuarBtn = document.getElementById("continuar-btn")
+  const continuarBtn = document.getElementById("btn-continuar")
 
   function validarFormulario() {
     const nombre = nombreInput.value.trim()
