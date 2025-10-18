@@ -3,7 +3,6 @@ import express from 'express';
 import rutasApiTurnos from './modulos/turnos/rutas.turno.mjs';
 import rutasApiServicios from './modulos/servicios/rutas.servicio.mjs';
 import rutasApiEmpleados from './modulos/empleados/rutas.empleado.mjs';
-import rutasApiClientes from './modulos/clientes/rutas.cliente.mjs';
 import bodyParser from 'body-parser'; 
 import cors from 'cors';
 
