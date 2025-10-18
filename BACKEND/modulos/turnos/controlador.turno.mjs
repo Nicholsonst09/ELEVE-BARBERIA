@@ -37,32 +37,47 @@ async function obtenerUnTurno(req, res) {
 
 // Función para agregar un turno
 async function agregarTurno(req, res) {
+    const {
+        cliente_id, empleado_id, servicio_id,
+        hora_inicio, fecha, hora_fin,
+        estado, precio
+    } = req.body;
+    
+    const estadosPermitidos = ["pendiente", "confirmado", "cancelado", "realizado"];
+    const expresionHora = /^\d{2}:\d{2}$/;
+    
+    const fechaNumero = new Date(fecha);
+    const fechaValida = !isNaN(fechaNumero.getTime());
+    
+    //VALIDACIONES MÁS IMPORTANTES
+    if (
+        !Number(cliente_id) ||
+        !Number(empleado_id) ||
+        !Number(servicio_id) 
+    ) {
+        return res.status(400).json({ mensaje: "Los IDs de cliente, empleado o servicio son inválidos o faltantes." });
+    }
+    
+    if (!fecha || !fechaValida) {
+        return res.status(400).json({ mensaje: "El formato de la fecha es inválido." });
+    }
+    
+    if (!expresionHora.test(hora_inicio) ||!expresionHora.test(hora_fin)
+    ) {
+        return res.status(400).json({ mensaje: "El formato de la hora debe ser HH:MM." });
+    }
+    
+    if (hora_inicio >= hora_fin) {
+        return res.status(400).json({ mensaje: "La hora de inicio debe ser anterior a la hora de fin." });
+    }
+    
+    if (estado && !estadosPermitidos.includes(estado)) {
+        return res.status(400).json({ mensaje: `El estado '${estado}' no es un estado de turno permitido.` });
+    } 
+        
     try {
-/*         const {  cliente_id, empleado_id, servicio_id, hora_inicio, fecha, hora_fin, estado, precio } = req.body;
-
-        const estadosPermitidos = ["pendiente", "confirmado", "cancelado", "realizado"];
-        const expresionHora = /^\d{2}:\d{2}$/;  
-        const fechaNumero = new Date(fecha);
-        const fechaValida = !isNaN(fechaNumero.getTime());
-
-        if (
-            !Number(cliente_id) ||
-            !Number(empleado_id) ||
-            !Number(servicio_id) ||
-            !fechaValida ||
-            !expresionHora.test(hora_inicio) ||
-            !expresionHora.test(hora_fin) ||
-            hora_inicio < hora_fin ||
-            (estado && !estadosPermitidos.includes(estado)) ||
-            precio === undefined || isNaN(precio) || precio <= 0
-        ) {
-            return res.status(400).json({ mensaje: "Los datos del turno no son válidos." });
-        }
- */
-        // Si pasa validaciones, inserta turno en BD
         const turnoCreado = await modelo.agregarTurno(req.body);
         res.status(201).json({ mensaje: "Turno agregado con éxito", turno: turnoCreado });
-
     } catch (error) {
         console.error("Error en controlador.agregarUnTurno:", error);
         res.status(500).json({ mensaje: 'Error interno del servidor al agregar el turno.', detalle: error.message });
@@ -205,11 +220,49 @@ async function obtenerHorariosDisponibles(req, res) {
     }
 }
 
+async function obtenerTurnosConDetalles(req, res) {
+    const {empleadoId, fecha} = req.query;
+
+    let idEmpleadoValidado = null;
+
+    if (empleadoId) {
+        // Asegúrate de que, si el ID viene, sea un número válido
+        const idConvertido = parseInt(empleadoId);
+        if (isNaN(idConvertido)) {
+            return res.status(400).json({ mensaje: 'ID de empleado inválido. Debe ser un número entero.' });
+        }
+        idEmpleadoValidado = idConvertido;
+    }
+
+    try{
+        const turnos = await modelo.obtenerTurnosConDetalles({ 
+            empleadoId: idEmpleadoValidado, 
+            fecha: fecha || null 
+        });
+
+        if (!turnos || turnos.length === 0) {
+            return res.status(200).json({ 
+                mensaje: "No se encontraron turnos con los filtros proporcionados.", 
+                data: [] 
+            });
+        }
+
+        res.status(200).json(turnos);
+    } catch (error) {
+        console.error("Error en controlador.obtenerTurnosConDetalles:", error);
+        res.status(500).json({ 
+            mensaje: "Error interno del servidor al obtener turnos con detalles.", 
+            detalle: error.message 
+        });
+    }
+}
+
 export default {
     obtenerTurnos,
     obtenerUnTurno,
     agregarTurno,
     modificarTurno,
     eliminarTurno,
-    obtenerHorariosDisponibles
+    obtenerHorariosDisponibles,
+    obtenerTurnosConDetalles
 };
