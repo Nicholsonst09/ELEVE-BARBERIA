@@ -5,5 +5,6 @@ const rutasApiEmpleados = Router();
 
 rutasApiEmpleados.get('/api/v1/empleados', controlador.obtenerEmpleados);
 rutasApiEmpleados.get('/api/v1/empleados/:id', controlador.obtenerUnEmpleado);
+rutasApiEmpleados.post('/api/v1/empleados', controlador.agregarEmpleado);
 
 export default rutasApiEmpleados;

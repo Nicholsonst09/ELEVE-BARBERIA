@@ -33,10 +33,35 @@ async function obtenerUnEmpleado(req, res){
         console.error(`Error en controlador.obtenerUnEmpleado (ID: ${empleadoId}):`, error);
         res.status(500).json({ mensaje: 'Error interno del servidor al obtener el empleado.', detalle: error.message });
     }
+}
 
+//función para manejar la solicitud de agregar un empleado
+async function agregarEmpleado(req, res){
+    const{ nombre,especialidades, horarios_disponibles,activo} = req.body;
+
+    if (!nombre || typeof nombre !== 'string' || nombre.trim().length === 0) {
+        return res.status(400).json({ mensaje: "El nombre del empleado es obligatorio." });
+    }
+
+    if (!horarios_disponibles || typeof horarios_disponibles !== 'object' || Array.isArray(horarios_disponibles)) {
+        return res.status(400).json({ mensaje: "Los horarios disponibles son obligatorios y deben ser un objeto JSON válido." });
+    }
+
+    if (activo !== undefined && typeof activo !== 'boolean') {
+        return res.status(400).json({ mensaje: "El campo 'activo' debe ser un valor booleano (true o false)." });
+    }
+
+    try{
+        const nuevoEmpleado = await modelo.agregarEmpleado(req.body);
+        res.status(201).json({ mensaje: "Empleado agregado con éxito", empleado: nuevoEmpleado });
+    }catch(error) {
+        console.error("Error en controlador.agregarEmpleado:", error);
+        res.status(500).json({ mensaje: 'Error interno del servidor al agregar el empleado.', detalle: error.message });
+    }
 }
 
 export default{
     obtenerEmpleados,
-    obtenerUnEmpleado
+    obtenerUnEmpleado,
+    agregarEmpleado
 }

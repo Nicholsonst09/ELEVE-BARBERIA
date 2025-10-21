@@ -57,7 +57,45 @@ async function obtenerUnEmpleado(id) {
     }
 }
 
+//funcion para agregar empleado
+async function agregarEmpleado(nuevoEmpleado){
+    try{
+        const{
+            nombre, 
+            especialidades, 
+            horarios_disponibles,
+            activo
+        } = nuevoEmpleado;
+
+        const {data, error} = await supabaseAdmin
+        .from('empleados')
+        .insert([
+            {
+                nombre: nombre,
+                especialidades: especialidades || null,
+                horarios_disponibles: horarios_disponibles,
+                activo: activo !== undefined ? activo : false
+            }
+        ])
+        .select()
+        .single();
+
+        if (error) {
+            console.error("Error al agregar empleado en Supabase:", error);
+            throw new Error(`Error al agregar empleado: ${error.message}`);
+        }
+
+        return data;
+    }catch(error) {
+        console.error("Error en modelo.agregarEmpleado:", error);
+        throw error;
+    }
+}
+
+
+
 export default{
     obtenerEmpleados,
-    obtenerUnEmpleado
+    obtenerUnEmpleado,
+    agregarEmpleado
 }
