@@ -34,7 +34,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
 
 
-    
+
     <!-- icono enlace -->
     <link rel="icon" type="image/png" href="./img/LOGO-ELEVE-2.png" sizes="25x25">
     <link rel="stylesheet" href="styles.css">
@@ -380,11 +380,13 @@
                                 <label class="campo__etiqueta" for="nombre">Nombre completo</label>
                                 <input class="campo__entrada" type="text" id="nombre"
                                     placeholder="Ingresa tu nombre completo">
+                                <span class="error-mensaje" id="nombre-error"></span>
                             </div>
                             <div class="campo">
                                 <label class="campo__etiqueta" for="telefono">Teléfono</label>
                                 <input class="campo__entrada" type="tel" id="telefono"
                                     placeholder="Ingresa tu número de teléfono">
+                                <span class="error-mensaje" id="telefono-error"></span>
                             </div>
                             <button class="continuar" id="btn-continuar">
                                 Continuar
@@ -669,7 +671,8 @@
     </footer>
 
 
-    <script src="script.js" type="module"></script>
+    <script src="./js/main.js" type="module"></script>
+    <script src="./js/reserva.js" type="module"></script>
 </body>
 
 </html>

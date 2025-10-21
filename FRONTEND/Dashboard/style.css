@@ -1224,9 +1224,7 @@ textarea.form-input {
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .contenedor-principal-agenda {
-    padding: 1rem;
-  }
+ 
 
   .encabezado-grilla {
     flex-direction: column;
