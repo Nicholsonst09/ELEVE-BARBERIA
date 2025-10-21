@@ -438,8 +438,10 @@ async function obtenerTurnosConDetalles({empleadoId, fecha}){
         let consulta = supabaseAdmin
             .from('turnos')
             .select(`
+                id,
                 fecha,
                 hora_inicio,
+                hora_fin,
                 observaciones,
                 empleados!inner(nombre),           
                 clientes!inner(nombre, telefono),
@@ -466,8 +468,10 @@ async function obtenerTurnosConDetalles({empleadoId, fecha}){
             }
             //Armar la respuesta
             const turnosPresentables = turnos.map(turno => ({
+                id: turno.id,
                 fecha: turno.fecha,
                 hora: turno.hora_inicio, // Combino fecha y hora en el front para mostrar el turno
+                hora_fin : turno.hora_fin,
                 observaciones: turno.observaciones,
 
                 nombre_empleado: turno.empleados?.nombre || 'N/A',
