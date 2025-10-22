@@ -6,8 +6,8 @@ import { formatearFechaParaAPI, showNotification } from './utilidades.js';
 import * as api from './api.js';
 
 // 3. Importar Módulos de Funcionalidad
-import { renderizar, recargarTurnosYAgenda, setupAgendaEventListeners } from './agenda.js';
-import { renderFinancialData } from './finanzas.js';
+import { renderizar, recargarTurnosYAgenda, setupAgendaEventListeners, renderizarModal } from './agenda.js';
+import { renderFinancialData } from './finanzas.js'
 
 
 import * as ui from './ui.js'; // ui.initializeDate, ui.updateStats, etc.
@@ -82,11 +82,16 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 function setupPrincipalEventListeners() {
 
-  // Botón "Nuevo Turno" (Modal legacy)
+ // Botón "Nuevo Turno"
   const btnNuevoTurno = document.getElementById("btnNuevoTurno");
   if (btnNuevoTurno) {
     btnNuevoTurno.addEventListener("click", () => {
-      ui.openNewAppointmentModal();
+
+      // Abre el modal avanzado en "modo creación"
+      estado.turnoSeleccionado = {}; // Objeto vacío para "abrir"
+      estado.modoEdicion = false;
+      estado.modoCreacion = true; // El nuevo estado
+      renderizarModal(); // Llama a la función importada de agenda.js
     });
   }
 

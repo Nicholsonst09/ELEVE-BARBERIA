@@ -7,6 +7,7 @@ export let estado = {
   fechaActual: new Date(),
   turnoSeleccionado: null,
   modoEdicion: false,
+  modoCreacion: false,
   profesionales: [],
   turnos: [],
   servicios: [],

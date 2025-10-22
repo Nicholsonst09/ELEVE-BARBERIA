@@ -160,3 +160,79 @@ export async function eliminarTurno(turnoId) {
     return null;
   }
 }
+
+/**
+ * Obtiene los empleados (profesionales) disponibles para un servicio específico.
+ * @param {string|number} servicioId
+ * @returns {Promise<Array>} - Lista de profesionales
+ */
+
+export async function fetchProfesionalesPorServicio(servicioId) {
+  if (!servicioId) return [];
+  try {
+    const response = await fetch(`${API_BASE_URL}/servicios/${servicioId}/empleados`);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const data = await response.json();
+    // Ajusta 'data.empleados' según la respuesta real de tu API
+    return data.empleados || data || [];
+  } catch (error) {
+    manejarErrorFetch('No se pudieron cargar los profesionales para el servicio', error);
+    return [];
+  }
+}
+
+/**
+ * Obtiene los horarios disponibles para una combinación de empleado, servicio y fecha.
+ * @param {string|number} empleadoId
+ * @param {string|number} servicioId
+ * @param {string} fecha - Formato "YYYY-MM-DD"
+ * @returns {Promise<Array>} - Lista de horarios (ej: [{ hora_inicio_formato_HHMM: "09:00" }])
+ */
+
+
+export async function fetchHorariosDisponibles(empleadoId, servicioId, fecha) {
+  if (!empleadoId || !servicioId || !fecha) return [];
+  try {
+    const url = `${API_BASE_URL}/turnos/horarios-disponibles/${empleadoId}/${servicioId}/${fecha}`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const data = await response.json();
+    // Ajusta 'data.horarios' según la respuesta real de tu API
+    return data.horarios_disponibles || [];
+  } catch (error) {
+    manejarErrorFetch('No se pudieron cargar los horarios disponibles', error);
+    return [];
+  }
+}
+
+/**
+ * Busca un cliente por nombre/teléfono o crea uno nuevo.
+ * Llama al endpoint: POST /api/v1/clientes/obtener-o-crear
+ * @param {string} nombre
+ * @param {string} telefono
+ * @returns {Promise<number|null>} El ID del cliente
+ */
+
+export async function buscarOCrearCliente(nombre, telefono) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/clientes/obtener-o-crear`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nombre, telefono }) // Envía nombre y teléfono
+    });
+    
+    if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.mensaje || `HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // Tu API devuelve { cliente_id: ... }
+    return data.cliente_id; 
+
+  } catch (error) {
+    manejarErrorFetch('No se pudo obtener o crear el cliente', error);
+    return null;
+  }
+}
