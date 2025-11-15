@@ -1,4 +1,3 @@
-// js/reserva.js
 
 // --- Selectores del DOM para Reservas ---
 const volverButtons = document.querySelectorAll('.btn-volver');
@@ -57,8 +56,7 @@ document.addEventListener("DOMContentLoaded", () => {
 /* Logica reserva de turnos                          */
 /* =================================================== */
 
-// Genera 7 días desde hoy
-// --- MODIFICADO ---
+// Genera 7 días desde hoy, excluyendo domingos
 function generarFechasDisponibles() {
   fechasDisponibles = [];
   const hoy = new Date();
@@ -66,8 +64,6 @@ function generarFechasDisponibles() {
     const fecha = new Date(hoy);
     fecha.setDate(hoy.getDate() + i);
 
-    // VALIDACIÓN AÑADIDA:
-    // getDay() devuelve 0 para Domingo, 1 para Lunes, etc.
     // Si el día NO es Domingo (0), la agregamos.
     if (fecha.getDay() !== 0) {
       fechasDisponibles.push(fecha.toISOString().split("T")[0]);
@@ -258,6 +254,7 @@ async function seleccionarServicio(servicio) {
   reservaActual.duracion = servicio.duracion_min;
 
   try {
+    // API para obtener barberos por servicio
     const response = await fetch(`http://localhost:3000/api/v1/servicios/${servicio.id}/empleados`);
     if (!response.ok) {
       throw new Error(`Error en la solicitud: ${response.statusText}`);
@@ -284,7 +281,6 @@ function seleccionarBarbero(barbero) {
   reservaActual.barbero_id = barbero.id;
   cargarFechas();
   irAPaso(3);
-  console.log(reservaActual);
 }
 
 async function seleccionarFecha(fecha) {
@@ -293,6 +289,7 @@ async function seleccionarFecha(fecha) {
   const servicio_id = reservaActual.servicio_id;
 
   try {
+    // API para obtener horarios disponibles
     const url = `http://localhost:3000/api/v1/turnos/horarios-disponibles/${empleado_id}/${servicio_id}/${fecha}`;
     const response = await fetch(url);
     if (!response.ok) {
@@ -301,8 +298,6 @@ async function seleccionarFecha(fecha) {
     const data = await response.json();
     const horariosDisponibles = data.horarios_disponibles;
     
-    // NOTA: La API devuelve un array vacío en lugar de un error si no hay horarios,
-    // la función cargarHorarios ya maneja ese caso.
     cargarHorarios(horariosDisponibles);
     irAPaso(4);
   } catch (error) {
@@ -317,20 +312,17 @@ function seleccionarHora(hora) {
   irAPaso(5);
 }
 
-// --- Lógica del Formulario y Resumen ---
+// --- Lógica del Formulario y Resumen (Paso 5 y 6) ---
 
-// --- MODIFICADO ---
 function configurarEventosFormulario() {
   const nombreInput = document.getElementById("nombre");
   const telefonoInput = document.getElementById("telefono");
   const continuarBtn = document.getElementById("btn-continuar");
 
-  // --- NUEVO: Selectores para mensajes de error ---
-  // (Asegúrate de agregar estos 'span' en tu HTML)
   const nombreError = document.getElementById("nombre-error");
   const telefonoError = document.getElementById("telefono-error");
 
-  // --- NUEVO: Funciones de validación individuales ---
+  // Funciones de validación individuales
   function validarNombre() {
     const nombre = nombreInput.value.trim();
     // Regex: Al menos 3 letras, permite espacios, ñ y acentos
@@ -338,7 +330,7 @@ function configurarEventosFormulario() {
     
     if (nombre.length === 0) {
       nombreError.textContent = "";
-      nombreInput.classList.remove("invalido"); // Clase CSS opcional
+      nombreInput.classList.remove("invalido");
       return false;
     }
     
@@ -375,15 +367,13 @@ function configurarEventosFormulario() {
     }
   }
 
-  // --- MODIFICADO: Validador principal ---
+  // Validador principal
   function validarFormulario() {
     const nombreValido = validarNombre();
     const telefonoValido = validarTelefono();
-    // El botón solo se activa si AMBOS son válidos
     continuarBtn.disabled = !nombreValido || !telefonoValido;
   }
 
-  // Se ejecuta la validación en cada tipeo
   nombreInput.addEventListener("input", validarFormulario);
   telefonoInput.addEventListener("input", validarFormulario);
   
@@ -391,17 +381,13 @@ function configurarEventosFormulario() {
   validarFormulario();
 }
 
-// --- MODIFICADO ---
 function guardarDatosCliente() {
   const nombre = document.getElementById("nombre").value.trim();
   const telefono = document.getElementById("telefono").value.trim();
 
-  // VALIDACIÓN AÑADIDA:
   // Agrega el prefijo +54 si no está presente
   const telefonoCompleto = telefono.startsWith('+') ? telefono : `+54${telefono}`;
 
-  // La validación de campos vacíos/incorrectos ya la maneja el botón deshabilitado,
-  // pero una doble comprobación no hace daño.
   if (nombre && telefono) { 
     reservaActual.cliente = { nombre, telefono: telefonoCompleto };
     cargarResumen();
@@ -411,7 +397,6 @@ function guardarDatosCliente() {
 
 function cargarResumen() {
   document.getElementById("resumen-nombre").textContent = reservaActual.cliente.nombre;
-  // Esto ahora mostrará el número con +54
   document.getElementById("resumen-telefono").textContent = reservaActual.cliente.telefono;
   document.getElementById("resumen-servicio").textContent = reservaActual.servicio;
   document.getElementById("resumen-barbero").textContent = reservaActual.barbero;
@@ -456,21 +441,21 @@ function irAPaso(numeroPaso) {
 
 function volver() {
   if (pasoActual > 1) {
-    // Limpiar datos según el paso
-    if (pasoActual === 2) { // Vuelve de Barberos a Servicios
+    // Limpiar datos según el paso (evita enviar datos viejos por error)
+    if (pasoActual === 2) { 
       reservaActual.servicio = null;
       reservaActual.servicio_id = null;
       reservaActual.total = null;
       reservaActual.duracion = null;
-    } else if (pasoActual === 3) { // Vuelve de Fechas a Barberos
+    } else if (pasoActual === 3) {
       reservaActual.barbero = null;
       reservaActual.barbero_id = null;
-    } else if (pasoActual === 4) { // Vuelve de Horarios a Fechas
+    } else if (pasoActual === 4) { 
       reservaActual.fecha = null;
-    } else if (pasoActual === 5) { // Vuelve de Cliente a Horarios
+    } else if (pasoActual === 5) { 
       reservaActual.hora_inicio = null;
       reservaActual.hora_fin = null;
-    } else if (pasoActual === 6) { // Vuelve de Resumen a Cliente
+    } else if (pasoActual === 6) { 
       reservaActual.cliente = null;
     }
 
@@ -483,7 +468,7 @@ function actualizarIndicadorProgreso() {
   pasos.forEach((paso, index) => {
     const numeroPaso = index + 1;
     if (numeroPaso < pasoActual) {
-      paso.classList.add("indicador-progreso__paso--completado"); // (Clase opcional, no definida en tu CSS)
+      paso.classList.add("indicador-progreso__paso--completado"); 
       paso.classList.remove("indicador-progreso__paso--activo");
     } else if (numeroPaso === pasoActual) {
       paso.classList.add("indicador-progreso__paso--activo");
@@ -495,7 +480,7 @@ function actualizarIndicadorProgreso() {
   });
 }
 
-// --- Utilidad (Específica de Reserva) ---
+// --- Utilidad ---
 
 function formatearFecha(fecha) {
   const date = new Date(fecha + "T00:00:00"); // Asegura la fecha correcta

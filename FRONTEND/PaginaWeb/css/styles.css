@@ -1,0 +1,1631 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');
+
+
+:root {
+    --clr-oscuro: black;
+    --clr-blanco: white;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+    /* Ya lo tienes, déjalo */
+    scroll-padding-top: 6rem;
+    /* Ajusta este valor al alto de tu navbar */
+}
+
+body {
+    font-family: "DM Sans", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 300;
+    font-style: normal;
+    color: var(--clr-oscuro);
+
+    /*    background-image: url('./img/fondo-negro.png');
+    background-position: center center;
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-attachment: fixed; */
+
+}
+
+
+.fixed-background {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    /* 100% de la altura de la pantalla */
+    background-image: url('../img/fondo-negro.png');
+    background-position: center center;
+    background-size: cover;
+    background-repeat: no-repeat;
+    z-index: -1;
+    /* Se pone detrás de todo */
+}
+
+.fondo-blanco {
+    background-color: var(--clr-blanco);
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+}
+
+div .mqxnbuw {
+    max-height: 20rem;
+}
+
+
+.link-galeria-desktop {
+    display: none;
+}
+
+.link-galeria-mobile {
+    display: flex;
+}
+
+
+
+/* Estilos del Navbar */
+.barra-navegacion {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    /* Fondo fijo usando la variable oscura */
+    background: var(--clr-oscuro);
+    backdrop-filter: blur(10px);
+    z-index: 1000;
+    padding: 1rem 2rem;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.25rem;
+    font-weight: 500;
+    text-decoration: none;
+    color: var(--clr-blanco);
+}
+
+.logo svg {
+    width: 20px;
+    height: 20px;
+    color: var(--clr-blanco);
+}
+
+.contenedor-navbar {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.marca-navbar {
+    font-size: 1.5rem;
+    font-weight: 400;
+    /* Color de la marca en fondo oscuro */
+    color: var(--clr-blanco);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.marca-navbar img {
+    width: 100px;
+}
+
+/* Menú de Escritorio: Oculto por defecto (Mobile First) */
+.navegacion-navbar {
+    display: none;
+    list-style: none;
+    gap: 2rem;
+    margin: 0;
+    padding: 0;
+}
+
+.navegacion-navbar a {
+    /* Enlaces en color blanco */
+    color: var(--clr-blanco);
+    text-decoration: none;
+    font-weight: 300;
+    transition: color 0.3s ease;
+}
+
+.navegacion-navbar a:hover {
+    color: #f0f0f0c0;
+}
+
+/* Botón Menú Móvil: Visible por defecto (Mobile First) */
+.boton-menu-movil {
+    display: flex;
+    background: none;
+    border: none;
+    font-size: 2rem;
+    cursor: pointer;
+    /* Color del ícono del menú */
+    color: var(--clr-blanco);
+    align-items: center;
+    justify-content: center;
+}
+
+/* Menu Móvil Modal (Overlay) */
+.menu-movil {
+    position: fixed;
+    inset: 0;
+    background: var(--clr-oscuro);
+    z-index: 1000;
+    align-items: start;
+    justify-content: center;
+    /* --- CAMBIOS APLICADOS AQUÍ --- */
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.4s ease-in-out, visibility 0.4s ease-in-out;
+    display: flex;
+    /* Mantenemos 'flex' para la estructura interna, pero ocultamos con opacity/visibility */
+    flex-direction: column;
+    /* Lo añadimos aquí para que funcione en el estado base */
+}
+
+.menu-movil img {
+    width: 250px;
+    margin-bottom: 2rem;
+}
+
+.menu-movil.activo {
+    display: flex;
+    flex-direction: column;
+    align-items: start;
+    padding: 1.5rem;
+    opacity: 1;
+    visibility: visible;
+}
+
+.contenido-menu-movil {
+    text-align: start;
+}
+
+.menu-movil .logo {
+    font-size: 3rem;
+    font-weight: 200;
+}
+
+.menu-movil .logo svg {
+    width: 4dvb;
+    height: 50px;
+    stroke-width: 1;
+}
+
+.contenido-menu-movil a {
+    /* Enlaces del menú móvil en color blanco */
+    color: var(--clr-blanco);
+    display: block;
+    text-decoration: none;
+    font-size: 2rem;
+    text-transform: uppercase;
+    margin: 2rem 0;
+    font-weight: 100;
+    transition: color 0.3s ease;
+}
+
+.contenido-menu-movil a:hover {
+    color: #666;
+    /* Gris oscuro para el hover */
+}
+
+.cerrar-menu-movil {
+    position: absolute;
+    top: 2rem;
+    right: 2rem;
+    background: none;
+    border: none;
+    /* Botón de cerrar en color blanco */
+    color: var(--clr-blanco);
+    font-size: 2.5rem;
+    cursor: pointer;
+}
+
+
+a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+i {
+    font-size: 1rem;
+}
+
+#btn-reservar a {
+    text-decoration: none;
+    color: var(--clr-blanco);
+    font-size: .7rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+    cursor: pointer;
+}
+
+#btn-reservar a i {
+    border-radius: 200px;
+    background-color: var(--clr-oscuro);
+    padding: 12px;
+    font-size: 25px;
+}
+
+
+#btn-reservar {
+    text-decoration: none;
+    opacity: 0;
+    transition: opacity 0.5s, visibility 0.5s;
+    /* Añade transición para la visibilidad */
+    visibility: hidden;
+    /* Empieza oculto */
+    pointer-events: none;
+    /* Hazlo inclickable cuando está oculto */
+    color: var(--clr-blanco);
+    border-radius: 0px;
+    background-color: transparent;
+    border-style: none;
+}
+
+#btn-reservar.visible {
+    /* Apunta directamente a la clase en #btn-reservar */
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    /* Hazlo clicable cuando está visible */
+}
+
+
+
+.btn {
+    background: var(--clr-oscuro);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.3s;
+    display: inline-block;
+    border-radius: 20px;
+    border: 1px solid var(--clr-blanco);
+    transition: .7s;
+    text-align: center;
+}
+
+.btn:hover {
+    background-color: rgba(14, 13, 13, 0.6);
+    box-shadow: 0px 0px 2px 2px rgb(247, 246, 246);
+}
+
+.btn-lg {
+    padding: 0.75rem 2rem;
+    font-size: 1rem;
+}
+
+
+
+.btn-reservar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: fit-content;
+    gap: .5rem;
+}
+
+.btn-reservar i {
+    font-size: 20px;
+}
+
+/* Hero Section - ARREGLADO */
+.video-hero-container {
+    position: relative;
+    overflow: hidden;
+    /* Other styling like height, padding, etc. */
+}
+
+.background-video {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    /* This is key to making the video fill the space without distortion */
+    transform: translate(-50%, -50%);
+    z-index: -1;
+}
+
+.hero {
+    position: relative;
+    height: 95vh;
+    display: flex;
+    flex-direction: column;
+    align-items: start;
+    justify-content: center;
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
+    color: white;
+    text-align: center;
+
+}
+
+
+
+.video-mobile {
+    display: block;
+}
+
+.hero h1 {
+    font-size: 2rem;
+    font-weight: 200;
+    letter-spacing: .1em;
+
+}
+
+.hero p {
+    font-size: 1.25rem;
+    max-width: 600px;
+    margin: 0 auto 2rem;
+    text-transform: uppercase;
+}
+
+.container-hero {
+    display: flex;
+    flex-direction: column;
+    justify-content: start;
+    align-items: start;
+    margin-left: 0px;
+}
+
+.btn-hero {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    margin-top: .5rem;
+    font-size: 15px;
+    font-weight: 200;
+    color: white;
+    border: 1px solid var(--clr-blanco);
+    cursor: pointer;
+    position: relative;
+    background-color: transparent;
+    text-decoration: none;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+    z-index: 1;
+    font-family: inherit;
+    text-transform: uppercase;
+    border-radius: 20px;
+    backdrop-filter: blur(10px);
+}
+
+.btn-hero ion-icon {
+    font-size: 1.5rem;
+    transform: rotate(-45deg);
+    font-weight: 100;
+}
+
+.btn-hero:hover ion-icon {
+    transform: rotate(0deg);
+    transition: ease-in-out .3s;
+
+}
+
+/* fondos */
+.fondo-01 {
+    background-color: white;
+    background-image: radial-gradient(100% 50% at 50% 0%,
+            rgba(45, 47, 48, 0.13) 0,
+            rgba(90, 94, 96, 0) 50%,
+            rgba(84, 90, 93, 0) 100%);
+}
+
+.contenedor-padre-fondo-02 {
+    /* Equivalente a relative h-full w-full bg-white */
+
+    height: 100%;
+    width: 100%;
+
+    background-color: white;
+}
+
+.contenedor-patron-fondo-02 {
+    /* Equivalente a absolute h-full w-full */
+
+    height: 100%;
+    width: 100%;
+
+    /* Equivalente a bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] */
+    background-image: radial-gradient(#e5e7eb 1px, transparent 1px);
+
+    /* Equivalente a [background-size:16px_16px] */
+    background-size: 16px 16px;
+
+    /* Equivalente a [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,#000_70%,transparent_100%)] */
+    mask-image: radial-gradient(ellipse 50% 50% at 50% 50%,
+            #000 80%,
+            transparent 100%);
+}
+
+
+
+
+/* Banner motivacional infinito */
+.motivational-banner-section {
+    padding: 0rem 0;
+    background-color: var(--clr-blanco);
+    overflow: hidden;
+    width: 100%;
+    margin-left: calc(-50vw + 50%);
+    position: relative;
+}
+
+.motivational-banner-container {
+    width: 100%;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+    position: relative;
+    display: flex;
+    align-items: center;
+    z-index: 2;
+}
+
+.motivational-banner {
+    position: relative;
+    height: 100%;
+    overflow: hidden;
+    width: 100%;
+}
+
+.motivational-banner::before,
+.motivational-banner::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    width: 40px;
+    height: 100%;
+    z-index: 2;
+    pointer-events: none;
+}
+
+.motivational-banner::before {
+    left: 0;
+    background: linear-gradient(to right, rgb(255, 253, 253), transparent);
+}
+
+.motivational-banner::after {
+    right: 0;
+    background: linear-gradient(to left, rgb(255, 255, 255), transparent);
+}
+
+.motivational-track {
+    display: flex;
+    height: 100%;
+    align-items: center;
+    gap: 2rem;
+    animation: scroll-motivational-mobile 200s linear infinite;
+    width: max-content;
+}
+
+
+.motivational-item {
+    flex-shrink: 0;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 400px;
+}
+
+.motivational-text {
+    color: var(--clr-oscuro);
+    font-size: 6rem;
+    font-weight: 100;
+    text-transform: uppercase;
+    letter-spacing: -0.05rem;
+    font-family: "Unbounded", sans-serif;
+    text-align: center;
+    line-height: 1.1;
+    /* Agregamos la imagen como fondo */
+    background-image: url('../img/fondo-negro.png');
+    /* ¡IMPORTANTE: Reemplaza esto con la URL real de tu imagen! */
+    background-size: cover;
+    /* Ajusta la imagen para cubrir el área del texto */
+    background-position: center;
+    /* Centra la imagen en el texto */
+    background-repeat: no-repeat;
+    /* Evita que la imagen se repita */
+
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    /* Para navegadores que no usan -webkit- */
+    color: transparent;
+    /* Otra forma de asegurar que el texto sea transparente si -webkit-text-fill-color no funciona */
+}
+
+@keyframes scroll-motivational-mobile {
+    0% {
+        transform: translateX(0);
+    }
+
+    100% {
+        transform: translateX(-50%);
+    }
+}
+
+@keyframes scroll-motivational-desktop {
+    0% {
+        transform: translateX(0);
+    }
+
+    100% {
+        transform: translateX(-50%);
+    }
+}
+
+/* seccion reservar turno */
+.reserva-turno article {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.reserva-turno h2 {
+    color: var(--clr-blanco);
+    text-align: left;
+    padding: 0px;
+    margin-bottom: 0rem;
+    margin-top: .5rem;
+}
+
+.imagen-reserva img {
+    width: 100%;
+    object-fit: cover;
+    border-radius: 20px;
+    /* background: #212121;
+    box-shadow: 15px 15px 60px rgb(25, 25, 25),
+        -5px -5px 70px rgb(225, 224, 224); */
+}
+
+
+.reserva-turno article div a {
+
+    width: fit-content;
+
+}
+
+.reserva-turno article div p {
+    color: var(--clr-blanco);
+    padding: .5rem 0rem 1rem 0rem;
+    font-size: 1.3rem;
+    width: 100%;
+    font-weight: 200;
+}
+
+/* Botones flotantes */
+.boton-reserva-flotante {
+    position: fixed;
+    bottom: 1rem;
+    right: 2.1rem;
+    z-index: 1000;
+}
+
+.floating-buttons {
+    position: fixed;
+    bottom: 2rem;
+    right: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    z-index: 1000;
+
+}
+
+.floating-btn {
+    border-radius: 200px;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    font-family: "DM Sans", sans-serif;
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+
+}
+
+.floating-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+.floating-btn:active {
+    transform: translateY(0);
+}
+
+.back-to-top {
+    background-color: transparent;
+    backdrop-filter: blur(100px);
+    color: var(--primary-black);
+    border: 1px solid rgba(156, 163, 175, 0.3);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(20px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.back-to-top.visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.floating-btn i {
+    padding: 10px;
+    font-size: 25px;
+}
+
+.back-to-top:hover {
+    background: rgba(156, 163, 175, 1);
+    border-color: rgba(156, 163, 175, 0.5);
+}
+
+.whatsapp {
+    background: #25d366;
+    color: white;
+    border: 1px solid rgba(37, 211, 102, 0.3);
+}
+
+.whatsapp:hover {
+    background: #128c7e;
+    border-color: rgba(18, 140, 126, 0.5);
+}
+
+
+/* banner */
+.banner-infinito {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    padding-top: 16px;
+    /* py-4 */
+    padding-bottom: 16px;
+    /* py-4 */
+    background-color: black;
+}
+
+.banner-imagenes {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: desplazamiento-infinito 3s linear infinite;
+    /* 20s de duración, lineal, infinito */
+    /* Añadimos una transición para que la pausa sea "suave" */
+    transition: animation-play-state 0.3s ease-in-out;
+    cursor: pointer;
+}
+
+/* Clase para pausar la animación */
+.banner-imagenes .animacion-pausada {
+    animation-play-state: paused;
+}
+
+.item-banner {
+    flex-shrink: 0;
+    /* Evita que las imágenes se encojan */
+    padding-left: 8px;
+    /* px-2 */
+    padding-right: 8px;
+    /* px-2 */
+    color: #f9fafb;
+    font-weight: bold;
+}
+
+
+.item-banner i {
+    font-size: 20px;
+    font-weight: 100;
+}
+
+
+/* Sections */
+section {
+    padding: 2rem 0;
+}
+
+h2 {
+    font-size: 1.7rem;
+    font-weight: 300;
+    text-align: center;
+    margin-bottom: 2rem;
+    color: var(--clr-oscuro);
+}
+
+/* Services */
+.services-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+}
+
+.service-item {
+    text-align: center;
+    padding: .5rem;
+}
+
+.service-icon {
+    width: 64px;
+    height: 64px;
+    background: #f5f5f5;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+}
+
+.service-icon svg {
+    width: 32px;
+    height: 32px;
+}
+
+.service-item h3 {
+    font-size: 1.25rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+.service-item p {
+    color: #666;
+}
+
+.service-item a {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    color: var(--clr-oscuro);
+    gap: .2rem;
+    margin-top: 1rem;
+    font-weight: 200;
+}
+
+.service-item a svg {
+    opacity: 0;
+}
+
+.service-item a p {
+    font-size: .8rem;
+    color: var(--clr-oscuro);
+    text-transform: uppercase;
+}
+
+.service-item a:hover svg {
+    opacity: 1;
+    transition: all 1s;
+}
+
+.container-hero {
+    position: relative;
+    z-index: 2;
+}
+
+/* About */
+.about-grid {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.about-text p {
+    color: var(--clr-oscuro);
+    margin-bottom: 1rem;
+    order: 2;
+    font-size: 1.3rem;
+}
+
+.about-text p strong {
+    font-weight: 900;
+
+}
+
+.about-image {
+    width: 100%;
+    height: 350px;
+    background-repeat: no-repeat;
+    order: 0;
+    margin-bottom: 2rem;
+
+}
+
+.about-image video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 15px;
+}
+
+/* Sección de Galería */
+#galeria {
+    padding: 3rem 0;
+    display: none;
+    text-align: center;
+    font-size: 2rem;
+    font-weight: 300;
+}
+
+/* Cuadrícula de Galería */
+.cuadricula-galeria {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    /* grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 */
+    gap: 1rem;
+    /* gap-4 */
+}
+
+.elemento-galeria {
+    position: relative;
+    aspect-ratio: 1;
+    /* aspect-video */
+    overflow: hidden;
+    border-radius: 0rem;
+    /* rounded-lg */
+    cursor: pointer;
+    object-fit: cover;
+    border-radius: 10px;
+
+}
+
+.elemento-galeria:hover {
+    box-shadow: 5px 5px 5px 5px rgba(0, 0, 0, 0.2);
+    transition: .5s;
+}
+
+.elemento-galeria img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    /* object-cover */
+    transition: transform 0.3s ease-in-out;
+    /* transition-transform duration-300 */
+}
+
+.elemento-galeria:hover img {
+    transform: scale(1.05);
+
+    /* group-hover:scale-105 */
+}
+
+.elemento-galeria .superposicion {
+    position: absolute;
+    inset: 0;
+    /* inset-0 */
+    background-color: rgba(0, 0, 0, 0.3);
+    /* bg-black/30 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+    /* transition-opacity duration-300 */
+}
+
+.elemento-galeria:hover .superposicion {
+    opacity: 1;
+
+}
+
+.elemento-galeria .superposicion span {
+    color: white;
+    font-size: 2rem;
+    font-weight: 100;
+}
+
+/* Modal de Galería */
+.modal-galeria {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.9);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+}
+
+.modal-galeria.abierto {
+    opacity: 1;
+    visibility: visible;
+    padding: 20px;
+}
+
+.modal-galeria .boton-cerrar,
+.modal-galeria .boton-anterior,
+.modal-galeria .boton-siguiente {
+    position: absolute;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 2rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 9999px;
+
+    transition: background-color 0.2s ease-in-out;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    z-index: 999999999;
+
+}
+
+.modal-galeria .boton-cerrar {
+    top: 5rem;
+    right: 5rem;
+    background-color: rgba(255, 255, 255, 0.2);
+    padding: 15px;
+}
+
+.modal-galeria .boton-anterior {
+    left: 23rem;
+    transform: translateY(-50%);
+    background-color: rgba(255, 255, 255, 0.2);
+    padding: 15px;
+}
+
+.modal-galeria .boton-siguiente {
+    right: 23rem;
+    background-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-50%);
+    padding: 15px;
+}
+
+
+.modal-galeria button i {
+    font-size: 1.5rem;
+    font-weight: 100;
+}
+
+.modal-galeria .boton-cerrar:hover,
+.modal-galeria .boton-anterior:hover,
+.modal-galeria .boton-siguiente:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+    /* hover:bg-white/20 */
+}
+
+.contenedor-imagen-modal {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    width: 600px;
+    height: 650px;
+    /* max-w-5xl */
+    /* max-h-[90vh] */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0rem;
+    border-radius: 20px;
+
+}
+
+.contenedor-imagen-modal img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 20px;
+    /* object-contain */
+}
+
+.contador-imagenes {
+    position: absolute;
+    bottom: 50px;
+    /* bottom-4 */
+    left: 50%;
+    transform: translateX(-50%);
+    /* -translate-x-1/2 */
+    color: white;
+    font-size: 1.125rem;
+    /* text-lg */
+    font-weight: 600;
+    /* font-semibold */
+    background-color: rgba(0, 0, 0, 0.5);
+    /* bg-black/50 */
+    padding: 0.25rem 0.75rem;
+    /* px-3 py-1 */
+    border-radius: 9999px;
+    /* rounded-full */
+}
+
+
+/* Estilos para el botón de WhatsApp */
+.whatsapp-btn {
+    background: linear-gradient(200deg, #000000, #2e2e2e) !important;
+    color: white !important;
+    border: none;
+    padding: 15px 30px;
+    border-radius: 50px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+}
+
+.whatsapp-btn:hover {
+    background: linear-gradient(200deg, #000000, #2e2e2e) !important;
+    transform: translateY(-2px);
+}
+
+.whatsapp-btn:active {
+    transform: translateY(0);
+}
+
+.whatsapp-btn i {
+    font-size: 20px;
+}
+
+/* Mejorar el formulario existente */
+.reserva-form {
+    width: 500px;
+    margin: 0 auto;
+    padding: 30px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: #fff;
+    font-weight: 500;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 12px 15px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font-size: 16px;
+    transition: all 0.3s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #000000;
+    box-shadow: 0 0 0 2px rgba(59, 59, 59, 0.2);
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* Para los select options */
+.form-group select option {
+    background: #333;
+    color: #fff;
+}
+
+
+@keyframes gradient {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+/* Galería Carrusel minimalista */
+.galeria-carousel-section {
+    padding: 3rem 0;
+    padding-bottom: 0rem;
+    background-color: var(--clr-blanco);
+    display: flex;
+    align-items: center;
+}
+
+.galeria-carousel-container {
+    margin: 0 auto;
+    padding: 0rem;
+    width: 100%;
+}
+
+.galeria-carousel-container h2 {
+    padding: 10px;
+    margin-bottom: 0px;
+
+}
+
+.galeria-carousel-subtitle {
+    font-size: 1.2rem;
+    padding: 10PX;
+    color: #8f8f8f;
+    margin-bottom: 3rem;
+    text-align: center;
+    font-family: "DM Sans", sans-serif;
+}
+
+.carousel-fullscreen {
+    position: relative;
+    width: 100%;
+    height: 500px;
+    border-radius: 0px;
+    overflow: hidden;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+    object-fit: cover;
+}
+
+.carousel-track {
+    display: flex;
+    height: 100%;
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform;
+}
+
+.carousel-slide {
+    flex: 0 0 100%;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+}
+
+.carousel-slide img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.6s ease;
+}
+
+.carousel-slide:hover img {
+    transform: scale(1.02);
+}
+
+.carousel-slide-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+    padding: 2rem;
+    color: #fff;
+    transform: translateY(0);
+    opacity: 1;
+    transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.carousel-slide-overlay h3 {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    font-family: "DM Sans", sans-serif;
+    transform: translateY(20px);
+    opacity: 0;
+    transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.carousel-slide-overlay p {
+    font-size: 1rem;
+    opacity: 0;
+    line-height: 1.4;
+    font-family: "DM Sans", sans-serif;
+    transform: translateY(20px);
+    transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    transition-delay: 0.1s;
+}
+
+.carousel-slide.active .carousel-slide-overlay h3 {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+.carousel-slide.active .carousel-slide-overlay p {
+    transform: translateY(0);
+    opacity: 0.9;
+}
+
+.carousel-controls {
+    position: absolute;
+    top: 50%;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 2rem;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.carousel-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: var(--clr-blanco);
+    font-size: 1.5rem;
+    font-weight: 400;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(10px);
+    pointer-events: auto;
+    user-select: none;
+    transform: translateY(-50%);
+    font-family: "DM Sans", sans-serif;
+}
+
+.carousel-btn:hover {
+    background: rgba(156, 163, 175, 0.2);
+    border-color: var(--accent-gray);
+}
+
+.carousel-btn:active {
+    transform: translateY(-50%) scale(0.95);
+}
+
+.carousel-indicators {
+    display: none;
+}
+
+
+
+/* Contact */
+
+#contacto div h2 {
+    color: var(--clr-blanco);
+}
+
+.contact-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+}
+
+.contact-item {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.contact-item svg {
+    width: 20px;
+    height: 20px;
+    color: var(--clr-blanco);
+    margin-top: 2px;
+}
+
+.contact-item h3 {
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+    color: var(--clr-blanco);
+}
+
+.contact-item p {
+
+    margin: 0;
+    text-decoration: none;
+    color: inherit;
+    /* Usa el color del texto normal */
+    color: var(--clr-blanco);
+
+}
+
+.social-links {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.social-links a {
+    color: var(--clr-blanco);
+    transition: color 0.3s;
+}
+
+.social-links a:hover {
+    color: var(--clr-blanco);
+}
+
+.map {
+    height: 400px;
+    border-radius: 30px;
+    overflow: hidden;
+    /*   background: #212121;
+    box-shadow: 15px 15px 30px rgb(25, 25, 25),
+        -5px -5px 90px rgb(225, 224, 224);
+} */
+}
+
+.map iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+
+}
+
+/* titulo-footer */
+.titulo-footer h2 {
+    font-size: 5rem;
+    font-weight: 500;
+    letter-spacing: .4rem;
+    /* Agregamos la imagen como fondo */
+    background-image: url('../img/fondo-negro.png');
+    /* ¡IMPORTANTE: Reemplaza esto con la URL real de tu imagen! */
+    background-size: cover;
+    /* Ajusta la imagen para cubrir el área del texto */
+    background-position: center;
+    /* Centra la imagen en el texto */
+    background-repeat: no-repeat;
+    /* Evita que la imagen se repita */
+
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    /* Para navegadores que no usan -webkit- */
+    color: transparent;
+    /* Otra forma de asegurar que el texto sea transparente si -webkit-text-fill-color no funciona */
+    margin-bottom: 0px;
+}
+
+.titulo-footer a {
+    text-decoration: none;
+}
+
+/* Footer */
+footer {
+    padding: 2rem 0;
+}
+
+
+.footer-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    text-align: center;
+}
+
+.footer-content a {
+    text-decoration: none;
+    color: var(--clr-oscuro);
+}
+
+.footer-content a svg {
+    color: var(--clr-oscuro);
+}
+
+.footer-content p {
+    color: #666;
+    font-size: 0.875rem;
+}
+
+.footer-links {
+    display: flex;
+    gap: 1rem;
+}
+
+.footer-links a {
+    color: #666;
+    text-decoration: none;
+    font-size: 0.875rem;
+}
+
+.footer-links a:hover {
+    text-decoration: underline;
+}
+
+/* Estilos Generales */
+body {
+    font-family: "DM Sans", sans-serif;
+    margin: 0;
+    background-color: #f0f0f0;
+    color: #333;
+}
+
+.contenedor {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1rem;
+}
+
+
+
+/* Definición de la animación */
+@keyframes desplazamiento-infinito {
+    from {
+        transform: translateX(0);
+    }
+
+    to {
+        transform: translateX(-20%);
+        /* Desplaza el 50% del ancho para un bucle perfecto */
+    }
+}
+
+.video-desktop {
+    display: none;
+}
+
+/* Media Queries para responsividad */
+@media (min-width: 768px) {
+    #contacto {
+        padding: 6rem 2rem;
+    }
+
+    .video-desktop {
+        display: block;
+    }
+
+    h2 {
+        font-size: 2rem;
+        font-weight: 300;
+    }
+
+    .container-hero {
+        margin-left: 5vw;
+    }
+
+    /* Ocultar el botón móvil */
+    .boton-menu-movil {
+        display: none;
+    }
+
+    /* Mostrar el menú de navegación de escritorio */
+    .navegacion-navbar {
+        display: flex;
+    }
+
+    #galeria {
+        padding: 3rem 0;
+        display: block;
+    }
+
+    #btn-reservar a {
+        padding: 0px;
+    }
+
+    .video-mobile {
+        display: none;
+    }
+
+    .hero h1 {
+        font-size: 3.5rem;
+    }
+
+    .hero p {
+        font-size: 1rem;
+    }
+
+    .services-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    /* seccion reservar turno */
+    .reserva-turno article {
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        gap: 3rem;
+    }
+
+    .reserva-turno h2 {
+        color: var(--clr-blanco);
+    }
+
+    .imagen-reserva img {
+        width: 100%;
+        max-height: 350px;
+        object-fit: cover;
+        border-radius: 20px;
+    }
+
+
+    .reserva-turno article div p {
+        color: var(--clr-blanco);
+        padding: 1rem 0rem 1rem 0rem;
+        font-size: 1.1rem;
+        width: 100%;
+        font-weight: 200;
+    }
+
+    .about-grid {
+        flex-direction: row;
+    }
+
+
+    .about-image {
+
+        width: 700px;
+        margin-left: 2rem;
+    }
+
+    .contact-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .footer-content {
+        flex-direction: row;
+        justify-content: space-between;
+        text-align: left;
+    }
+
+    section {
+        padding: 3rem 0;
+    }
+
+    .banner-imagenes {
+        animation: desplazamiento-infinito 20s linear infinite;
+    }
+
+    .galeria-carousel-section {
+        display: none;
+    }
+
+    .link-galeria-desktop {
+        display: flex;
+    }
+
+    .link-galeria-mobile {
+        display: none;
+    }
+
+    .titulo-footer h2 {
+        font-size: 10rem;
+    }
+
+}
