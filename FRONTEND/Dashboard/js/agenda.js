@@ -28,7 +28,7 @@ let _recargarDashboardStats = () => console.warn('recargarDashboardStats no inye
 
 
 // --- Funciones de Lógica de Agenda (Privadas) ---
-function obtenerEstiloTurno(horaInicio, horaFin) {
+/* function obtenerEstiloTurno(horaInicio, horaFin) {
   const [horaI, minI] = (horaInicio || "09:00").split(":").map(Number);
   const minutosInicio = (horaI - 9) * 60 + minI;
   const duracionMinutos = 60; // Duración fija asumida (API no envía horaFin)
@@ -37,9 +37,9 @@ function obtenerEstiloTurno(horaInicio, horaFin) {
     top: `${(minutosInicio / 60) * 150}px`,
     height: `${(duracionMinutos / 60) * 150 - 6}px`
   };
-}
+} */
 
-/* function obtenerEstiloTurno(horaInicio, horaFin) {
+function obtenerEstiloTurno(horaInicio, horaFin) {
   // Descomponemos ambas horas (ej: "09:30")
   const [horaI, minI] = (horaInicio || "09:00").split(":").map(Number);
   const [horaF, minF] = (horaFin || "10:00").split(":").map(Number);
@@ -55,7 +55,7 @@ function obtenerEstiloTurno(horaInicio, horaFin) {
     top: `${(minutosInicio / 60) * 150}px`,
     height: `${(duracionMinutos / 60) * 150 - 6}px`
   };
-} */
+} 
 
 function obtenerEtiquetaEstado(estado) {
   const etiquetas = {
@@ -96,6 +96,18 @@ function renderizarNavegacion() {
   const navPestanas = document.getElementById("navPestanas");
   const turnosPendientes = estado.turnosPendientesCount;
 
+  // --- INICIO DE LA MODIFICACIÓN ---
+  // 1. Copia el mismo colorMap que usas en renderizarGrilla
+  const colorMap = {
+      "Bautista": "#3b82f6", // Azul
+      "Ciro": "#16a34a",     // Verde
+      "Felipe": "#f97316",   // Naranja
+      "Ricardo": "#a855f7",  // Violeta
+      "default": "#525252"  // Gris (por si acaso)
+  };
+  // --- FIN DE LA MODIFICACIÓN ---
+
+
   let html = `
     <button class="pestana-navegacion pendiente ${estado.profesionalSeleccionado === "pendiente" ? "activo" : ""}" data-id="pendiente">
       <svg class="icono" style="color: var(--color-primario);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -109,9 +121,16 @@ function renderizarNavegacion() {
   `;
 
   estado.profesionales.forEach((prof) => {
+    // --- INICIO DE LA MODIFICACIÓN ---
+    // 2. Usa el colorMap para buscar el color.
+    const color = colorMap[prof.nombre] || prof.color || '#ccc';
+    // --- FIN DE LA MODIFICACIÓN ---
+
     html += `
       <button class="pestana-navegacion ${String(estado.profesionalSeleccionado) === String(prof.id) ? "activo" : ""}" data-id="${prof.id}">
-        <div class="punto-color" style="background-color: ${prof.color || '#ccc'};"></div>
+        
+        <div class="punto-color" style="background-color: ${color};"></div>
+        
         ${prof.nombre}
       </button>
     `;
@@ -119,7 +138,7 @@ function renderizarNavegacion() {
 
   navPestanas.innerHTML = html;
 
-  // Asigna listeners a las pestañas de profesional
+  // Asigna listeners (esto queda igual)
   navPestanas.querySelectorAll(".pestana-navegacion").forEach((pestana) => {
     pestana.addEventListener("click", () => {
       estado.profesionalSeleccionado = pestana.dataset.id;
@@ -140,6 +159,56 @@ function renderizarEncabezado() {
   const btnHoy = document.getElementById("btnHoy");
   btnDiaAnterior.disabled = !puedeDiaAnterior(estado.fechaActual);
   btnHoy.disabled = esHoy(estado.fechaActual);
+}
+
+// Nueva función para detectar superposiciones de turnos
+
+function detectarSuperposiciones(turnos) {
+  const horaAMinutos = (hora) => {
+    const [h, m] = hora.split(':').map(Number);
+    return h * 60 + m;
+  };
+
+  const turnosConPosicion = turnos.map((turno, index) => {
+    const inicioMin = horaAMinutos(turno.hora);
+    const finMin = horaAMinutos(turno.hora_fin);
+    return {
+      ...turno,
+      indiceOriginal: index,
+      inicioMin,
+      finMin,
+      columna: 0,
+      totalColumnas: 1
+    };
+  });
+
+  turnosConPosicion.sort((a, b) => a.inicioMin - b.inicioMin);
+
+  for (let i = 0; i < turnosConPosicion.length; i++) {
+    const turnoActual = turnosConPosicion[i];
+    const turnosSuperpuestos = [turnoActual];
+
+    for (let j = i + 1; j < turnosConPosicion.length; j++) {
+      const turnoComparar = turnosConPosicion[j];
+
+      if (turnoComparar.inicioMin < turnoActual.finMin) {
+        turnosSuperpuestos.push(turnoComparar);
+      }
+    }
+
+    if (turnosSuperpuestos.length > 1) {
+      turnosSuperpuestos.forEach((turno, idx) => {
+        // SOLO actualizamos si el nuevo grupo es MÁS GRANDE
+        // que el grupo en el que ya está.
+        if (turnosSuperpuestos.length > turno.totalColumnas) {
+          turno.columna = idx;
+          turno.totalColumnas = turnosSuperpuestos.length;
+        }
+      });
+    }
+  }
+
+  return turnosConPosicion;
 }
 
 function renderizarGrilla() {
@@ -173,22 +242,48 @@ function renderizarGrilla() {
     return;
   }
 
-  turnosFiltrados.forEach((turno) => {
+  const turnosConPosicion = detectarSuperposiciones(turnosFiltrados);
+  
+  // (Esto es una simulación. Idealmente, los colores vendrían de la API)
+  const colorMap = {
+      "Bautista": "#3b82f6", // Azul
+      "Ciro": "#16a34a",     // Verde
+      "Felipe": "#f97316",   // Naranja
+      "Ricardo": "#a855f7",  // Violeta
+      "default": "#525252"  // Gris
+  };
+  // --- FIN DE MODIFICACIÓN 1 ---
+
+  turnosConPosicion.forEach((turno) => {
+    // --- INICIO DE MODIFICACIÓN 2: Lógica de color ---
     const profesional = estado.profesionales.find(p => p.nombre === turno.nombre_empleado);
     const estilo = obtenerEstiloTurno(turno.hora, turno.hora_fin);
     const tarjeta = document.createElement("div");
     tarjeta.className = "tarjeta-turno";
     tarjeta.style.top = estilo.top;
     tarjeta.style.height = estilo.height;
+    
+    // Calcular ancho y posición horizontal según superposiciones
+    const anchoColumna = 100 / turno.totalColumnas;
+    const leftPosicion = anchoColumna * turno.columna;
+    tarjeta.style.width = `calc(${anchoColumna}% - 8px)`;
+    tarjeta.style.left = `${leftPosicion}%`;
+    
     const duracion = calcularDuracionEnMinutos(turno.fecha, turno.hora, turno.hora_fin);
-    const color = profesional?.color || 'var(--color-primario)';
-    tarjeta.style.backgroundColor = color;
-    tarjeta.style.borderColor = color;
+    
+    // Usar el color del map.
+    const colorProfesional = colorMap[turno.nombre_empleado] || profesional?.color || colorMap["default"];
+    tarjeta.style.borderLeftColor = colorProfesional;
+    // --- FIN DE MODIFICACIÓN 2 ---
 
+    // --- INICIO DE MODIFICACIÓN 3: Nuevo HTML ---
     tarjeta.innerHTML = `
-      <div class="info-turno">
+      <div class="info-cliente-servicio">
         <div class="cliente-turno">${turno.nombre_cliente}</div>
         <div class="servicio-turno">${turno.nombre_servicio} (${duracion} min)</div> 
+      </div>
+
+      <div class="info-profesional-hora">
         ${profesional ? `
           <div class="profesional-turno">
             <svg class="icono" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -197,16 +292,14 @@ function renderizarGrilla() {
             </svg>
             <span>${turno.nombre_empleado}</span>
           </div>
-        ` : ""}
-      </div>
-      <div class="pie-turno">
-        <div class="hora-turno">
-          <svg class="icono" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="10" stroke-width="2"/>
-            <path d="M12 6v6l4 2" stroke-width="2" stroke-linecap="round"/>
-          </svg>
-          <span>${turno.hora} - ${turno.hora_fin}</span>
+        ` : "<div></div>"}
+        <div class="hora-turno-apilada">
+          <span class="hora-texto">${turno.hora}h</span>
+      
         </div>
+      </div>
+      
+      <div class="pie-turno-boton">
         <div class="editar-turno">
           <svg class="icono" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -215,6 +308,7 @@ function renderizarGrilla() {
         </div>
       </div>
     `;
+    // --- FIN DE MODIFICACIÓN 3 ---
 
     tarjeta.addEventListener("click", () => {
       estado.turnoSeleccionado = turno;
@@ -225,15 +319,6 @@ function renderizarGrilla() {
     contenedor.appendChild(tarjeta);
   });
 }
-
-
-// js/agenda.js
-
-// ... (asegúrate de que los imports y la variable _recargarDashboardStats estén arriba) ...
-
-// js/agenda.js
-
-// ... (asegúrate de que los imports y la variable _recargarDashboardStats estén arriba) ...
 
 export function renderizarModal() {
   const modal = document.getElementById("modalSuperpuesto");
@@ -675,57 +760,57 @@ function setupModalEdicionListeners(turno) {
     }
   };
 
- const cargarHorariosDisponibles = async () => {
-  const servicioId = selectServicio.value;
-  const profesionalId = selectProfesional.value;
-  const fecha = inputFecha.value;
+  const cargarHorariosDisponibles = async () => {
+    const servicioId = selectServicio.value;
+    const profesionalId = selectProfesional.value;
+    const fecha = inputFecha.value;
 
-  inputHoraSelec.value = "";
+    inputHoraSelec.value = "";
 
-  if (!servicioId || !profesionalId || !fecha) {
-    contHorarios.innerHTML = '<p class="sin-horarios">Completa los campos anteriores.</p>';
-    return;
-  }
+    if (!servicioId || !profesionalId || !fecha) {
+      contHorarios.innerHTML = '<p class="sin-horarios">Completa los campos anteriores.</p>';
+      return;
+    }
 
-  contHorarios.innerHTML = '<p class="sin-horarios">Buscando horarios...</p>';
+    contHorarios.innerHTML = '<p class="sin-horarios">Buscando horarios...</p>';
 
-  // 1. OBTENEMOS LOS HORARIOS
-  let horarios = await fetchHorariosDisponibles(profesionalId, servicioId, fecha);
+    // 1. OBTENEMOS LOS HORARIOS
+    let horarios = await fetchHorariosDisponibles(profesionalId, servicioId, fecha);
 
-  // --- FIX DE RE-INSERCIÓN ---
-  // 'turno' SÍ existe en este alcance
-  const horaTurnoOriginal = turno.hora.substring(0, 5); 
+    // --- FIX DE RE-INSERCIÓN ---
+    // 'turno' SÍ existe en este alcance
+    const horaTurnoOriginal = turno.hora.substring(0, 5);
 
-  if (fecha === turno.fecha) { 
+    if (fecha === turno.fecha) {
       const horaOriginalExiste = horarios.some(h => h.inicio === horaTurnoOriginal);
       if (!horaOriginalExiste) {
-          horarios.push({ inicio: horaTurnoOriginal });
-          horarios.sort((a, b) => a.inicio.localeCompare(b.inicio));
+        horarios.push({ inicio: horaTurnoOriginal });
+        horarios.sort((a, b) => a.inicio.localeCompare(b.inicio));
       }
-  }
-  // --- FIN DEL FIX ---
+    }
+    // --- FIN DEL FIX ---
 
-  if (horarios.length === 0) {
-    contHorarios.innerHTML = '<p class="sin-horarios">No hay horarios disponibles.</p>';
-    return;
-  }
+    if (horarios.length === 0) {
+      contHorarios.innerHTML = '<p class="sin-horarios">No hay horarios disponibles.</p>';
+      return;
+    }
 
-  // 2. Renderiza (con la lista modificada)
-  contHorarios.innerHTML = horarios.map(h =>
-    `<button type="button" class="boton-horario" data-hora="${h.inicio}">
+    // 2. Renderiza (con la lista modificada)
+    contHorarios.innerHTML = horarios.map(h =>
+      `<button type="button" class="boton-horario" data-hora="${h.inicio}">
       ${h.inicio}
      </button>`
-  ).join('');
+    ).join('');
 
-  // 3. Asigna listeners
-  contHorarios.querySelectorAll('.boton-horario').forEach(btn => {
-    btn.addEventListener('click', () => {
-      contHorarios.querySelectorAll('.boton-horario').forEach(b => b.classList.remove('seleccionado'));
-      btn.classList.add('seleccionado');
-      inputHoraSelec.value = btn.dataset.hora;
+    // 3. Asigna listeners
+    contHorarios.querySelectorAll('.boton-horario').forEach(btn => {
+      btn.addEventListener('click', () => {
+        contHorarios.querySelectorAll('.boton-horario').forEach(b => b.classList.remove('seleccionado'));
+        btn.classList.add('seleccionado');
+        inputHoraSelec.value = btn.dataset.hora;
+      });
     });
-  });
-};
+  };
 
   // 1. Al cambiar Servicio
   selectServicio.addEventListener("change", async () => {

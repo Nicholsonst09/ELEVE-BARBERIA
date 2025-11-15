@@ -19,6 +19,10 @@ const selectorPeriodo = document.getElementById("period-selector");
 const modalCita = document.getElementById("appointment-modal"); // Legacy
 const formularioCita = document.getElementById("appointment-form"); // Legacy
 
+
+import { inicializarClientes } from './clientes.js';
+import { inicializarServicios } from './servicios.js';
+import { inicializarEmpleados } from './empleados.js';
 // ===================================================
 // INICIALIZACIÓN
 // ===================================================
@@ -63,8 +67,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (document.getElementById("current-date")) ui.initializeDate();
   if (botonesNavegacion.length > 0) setupPrincipalEventListeners();
   if (document.getElementById("total-appointments")) ui.updateStats();
-  if (selectorPeriodo) renderFinancialData("week");
-  
+  // El renderizado financiero se hace dentro de setupPrincipalEventListeners si selectorPeriodo existe.
+
   // Rellenar modales
   if (document.getElementById("service-type")) ui.populateServiceOptions(); // Legacy
   if (document.getElementById("appointment-time")) ui.populateTimeSlots(); // Legacy
@@ -82,7 +86,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 function setupPrincipalEventListeners() {
 
- // Botón "Nuevo Turno"
+  // Botón "Nuevo Turno"
   const btnNuevoTurno = document.getElementById("btnNuevoTurno");
   if (btnNuevoTurno) {
     btnNuevoTurno.addEventListener("click", () => {
@@ -104,80 +108,99 @@ function setupPrincipalEventListeners() {
   });
 
   // Selector de fecha del dashboard
-  selectorFecha.addEventListener("change", async function () {
-    const selectedDate = new Date(this.value + "T00:00:00");
-    const formattedDate = selectedDate.toLocaleDateString("es-ES", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-    document.getElementById("current-date").textContent = formattedDate;
-    estado.fechaActual = selectedDate;
+  if (selectorFecha) { // <-- COMPROBACIÓN AÑADIDA
+    selectorFecha.addEventListener("change", async function () {
+      const selectedDate = new Date(this.value + "T00:00:00");
+      const formattedDate = selectedDate.toLocaleDateString("es-ES", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+      document.getElementById("current-date").textContent = formattedDate;
+      estado.fechaActual = selectedDate;
 
-    // Recarga tanto la grilla de turnos como las stats
-    await Promise.all([
-      recargarTurnosYAgenda(),
-      ui.recargarDashboardStats()
-    ]);
-  });
+      // Recarga tanto la grilla de turnos como las stats
+      await Promise.all([
+        recargarTurnosYAgenda(),
+        ui.recargarDashboardStats()
+      ]);
+    });
+  }
+
 
   // Selector de período (Finanzas)
-  selectorPeriodo.addEventListener("change", async function () {
-    estado.isLoading = true;
-    try {
-      estado.financialData = await api.fetchFinancialData(this.value);
-    } catch (error) {
-      console.error('Error al cambiar período financiero', error);
-    } finally {
-      estado.isLoading = false;
-      renderFinancialData(this.value);
-    }
-  });
+  if (selectorPeriodo) { // <-- COMPROBACIÓN AÑADIDA
+    // Renderizado inicial de finanzas
+    renderFinancialData(selectorPeriodo.value);
+
+    selectorPeriodo.addEventListener("change", async function () {
+      estado.isLoading = true;
+      try {
+        estado.financialData = await api.fetchFinancialData(this.value);
+      } catch (error) {
+        console.error('Error al cambiar período financiero', error);
+      } finally {
+        estado.isLoading = false;
+        renderFinancialData(this.value);
+      }
+    });
+  }
 
   // --- Listeners del Modal "Nuevo Turno" (legacy) ---
 
-  formularioCita.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const clientName = document.getElementById("client-name").value.trim();
-    const clientPhone = document.getElementById("client-phone").value.trim();
-    const serviceType = document.getElementById("service-type").value;
-    const appointmentTime = document.getElementById("appointment-time").value;
+  if (formularioCita) { // Comprobación añadida para el formulario legacy
+    formularioCita.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const clientName = document.getElementById("client-name").value.trim();
+      const clientPhone = document.getElementById("client-phone").value.trim();
+      const serviceType = document.getElementById("service-type").value;
+      const appointmentTime = document.getElementById("appointment-time").value;
 
-    const turnoData = {
-      nombreCliente: clientName,
-      telefono: clientPhone,
-      servicioId: serviceType,
-      horaInicio: appointmentTime,
-      fecha: formatearFechaParaAPI(estado.fechaActual),
-    };
+      const turnoData = {
+        nombreCliente: clientName,
+        telefono: clientPhone,
+        servicioId: serviceType,
+        horaInicio: appointmentTime,
+        fecha: formatearFechaParaAPI(estado.fechaActual),
+      };
 
-    const resultado = await api.createOrUpdateTurno(turnoData);
-    if (resultado) {
-      showNotification("Turno creado (desde modal antiguo)", "success");
-      ui.closeAppointmentModal();
-      recargarTurnosYAgenda();
-      ui.recargarDashboardStats();
-    } else {
-      showNotification("Error al crear turno", "error");
-    }
-  });
+      const resultado = await api.createOrUpdateTurno(turnoData);
+      if (resultado) {
+        showNotification("Turno creado (desde modal antiguo)", "success");
+        ui.closeAppointmentModal();
+        recargarTurnosYAgenda();
+        ui.recargarDashboardStats();
+      } else {
+        showNotification("Error al crear turno", "error");
+      }
+    });
+  }
 
-  document.getElementById("service-type").addEventListener("change", () => {
-    ui.updateDurationAndPrice();
-  });
+  if (document.getElementById("service-type")) {
+    document.getElementById("service-type").addEventListener("change", () => {
+      ui.updateDurationAndPrice();
+    });
+  }
 
-  modalCita.addEventListener("click", (e) => {
-    if (e.target === modalCita) {
-      ui.closeAppointmentModal();
-    }
-  });
+  if (modalCita) { // Comprobación añadida para el modal legacy
+    modalCita.addEventListener("click", (e) => {
+      if (e.target === modalCita) {
+        ui.closeAppointmentModal();
+      }
+    });
+  }
+
 
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && modalCita.classList.contains("activo")) {
+    // Solo comprueba el modal si existe
+    if (e.key === "Escape" && modalCita && modalCita.classList.contains("activo")) {
       ui.closeAppointmentModal();
     }
   });
+  inicializarClientes();
+  inicializarServicios();
+  inicializarEmpleados();
 }
 
 // ===================================================

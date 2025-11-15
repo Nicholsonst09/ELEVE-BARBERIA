@@ -236,3 +236,121 @@ export async function buscarOCrearCliente(nombre, telefono) {
     return null;
   }
 }
+
+
+export async function fetchClientes() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/clientes`)
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+    const data = await response.json()
+    return data.clientes || data
+  } catch (error) {
+    manejarErrorFetch("No se pudieron cargar los clientes", error)
+    return []
+  }
+}
+
+export async function updateCliente(clienteData) {
+  const esEdicion = !!clienteData.id
+  const url = esEdicion ? `${API_BASE_URL}/clientes/${clienteData.id}` : `${API_BASE_URL}/clientes`
+  const method = esEdicion ? "PUT" : "POST"
+
+  try {
+    const response = await fetch(url, {
+      method: method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(clienteData),
+    })
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+    return await response.json()
+  } catch (error) {
+    manejarErrorFetch(`No se pudo ${esEdicion ? "actualizar" : "crear"} el cliente`, error)
+    return null
+  }
+}
+
+export async function deleteCliente(clienteId) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/clientes/${clienteId}`, {
+      method: "DELETE",
+    })
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+    if (response.status === 204) {
+      return { success: true, message: "Cliente eliminado correctamente" }
+    }
+    return await response.json()
+  } catch (error) {
+    manejarErrorFetch("No se pudo eliminar el cliente", error)
+    return null
+  }
+}
+
+export async function createOrUpdateServicio(servicioData) {
+  const esEdicion = !!servicioData.id
+  const url = esEdicion ? `${API_BASE_URL}/servicios/${servicioData.id}` : `${API_BASE_URL}/servicios`
+  const method = esEdicion ? "PUT" : "POST"
+
+  try {
+    const response = await fetch(url, {
+      method: method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(servicioData),
+    })
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+    return await response.json()
+  } catch (error) {
+    manejarErrorFetch(`No se pudo ${esEdicion ? "actualizar" : "crear"} el servicio`, error)
+    return null
+  }
+}
+
+export async function deleteServicio(servicioId) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/servicios/${servicioId}`, {
+      method: "DELETE",
+    })
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+    if (response.status === 204) {
+      return { success: true, message: "Servicio eliminado correctamente" }
+    }
+    return await response.json()
+  } catch (error) {
+    manejarErrorFetch("No se pudo eliminar el servicio", error)
+    return null
+  }
+}
+
+export async function createOrUpdateEmpleado(empleadoData) {
+  const esEdicion = !!empleadoData.id
+  const url = esEdicion ? `${API_BASE_URL}/empleados/${empleadoData.id}` : `${API_BASE_URL}/empleados`
+  const method = esEdicion ? "PUT" : "POST"
+
+  try {
+    const response = await fetch(url, {
+      method: method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(empleadoData),
+    })
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+    return await response.json()
+  } catch (error) {
+    manejarErrorFetch(`No se pudo ${esEdicion ? "actualizar" : "crear"} el empleado`, error)
+    return null
+  }
+}
+
+export async function deleteEmpleado(empleadoId) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/empleados/${empleadoId}`, {
+      method: "DELETE",
+    })
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+    if (response.status === 204) {
+      return { success: true, message: "Empleado eliminado correctamente" }
+    }
+    return await response.json()
+  } catch (error) {
+    manejarErrorFetch("No se pudo eliminar el empleado", error)
+    return null
+  }
+}

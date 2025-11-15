@@ -26,6 +26,8 @@ export let estado = {
     productSales: [],
     performance: {}
   },
+  clientes: [],
+  empleados: [],
   isLoading: true,
   error: null,
 };
