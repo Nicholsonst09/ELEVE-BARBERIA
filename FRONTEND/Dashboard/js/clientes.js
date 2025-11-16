@@ -36,6 +36,13 @@ function setupClientesEventListeners() {
     })
   }
 
+  const btnNuevoCliente = document.getElementById("btn-nuevo-cliente")
+  if (btnNuevoCliente) {
+    btnNuevoCliente.addEventListener("click", () => {
+      abrirModalCliente()
+    })
+  }
+  
   const btnCerrarModal = document.querySelector('#modal-cliente .cerrar-modal')
   if (btnCerrarModal) {
     btnCerrarModal.addEventListener('click', cerrarModalCliente)
