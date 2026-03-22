@@ -1701,41 +1701,76 @@ body {
   padding: 0.25rem;
   margin-left: auto;
 }
-
 @media (max-width: 1300px) {
+    /* 1. Ocultamos la capa flotante (porque inyectamos directo en la fila) */
+    .capa-turnos {
+        display: none !important;
+    }
 
-  /* Hacemos que el contenedor de la grilla principal
-     (sin incluir las etiquetas de hora) sea scroleable */
-  .grilla-turnos {
-    overflow-x: auto;
-    /* Opcional: para que el scroll se vea mejor en iOS */
-    -webkit-overflow-scrolling: touch;
-  }
+    /* 2. Configuración de la fila de la hora para que acepte elementos al lado */
+    .contenido-tiempo {
+        display: flex !important;
+        flex-wrap: wrap;       /* Permite que se pongan uno al lado del otro */
+        gap: 8px;              /* Espacio entre tarjetas */
+        align-items: center;
+        padding: 4px 8px;
+        min-height: 50px;
+    }
 
-  /* Forzamos a que el contenedor de los turnos tenga
-     un ancho mínimo para que las tarjetas no se aplasten */
-  .contenedor-turnos {
-    min-width: 500px;
-    /* Ajusta este valor según necesites */
-  }
+    /* 3. Ocultamos ESTRICTAMENTE la info del cliente y servicio */
+    /* Esto eliminará el "LUCIANO" y "Corte + Barba" */
+    .tarjeta-turno .info-cliente-servicio {
+        display: none !important;
+    }
 
-  /* Ocultamos el bloque de cliente y servicio */
-  .tarjeta-turno .info-cliente-servicio {
-    display: none;
-  }
+    /* 4. Estilo de la tarjeta compacta (Chip) */
+    .tarjeta-turno {
+        position: static !important;
+        width: fit-content !important; /* Se ajusta al tamaño del texto */
+        height: auto !important;
+        margin: 0 !important;
+        padding: 6px 12px !important;
+        
+        /* Flex para alinear Nombre - Hora - Lápiz */
+        display: inline-flex !important;
+        align-items: center;
+        gap: 8px;
+        
+        border-radius: 20px !important; /* Borde redondeado estilo etiqueta */
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        z-index: 10;
+    }
 
-  .tarjeta-turno {
-    padding: 0.5rem;
-    /* Menos padding vertical */
-  }
+    /* 5. Aseguramos que el bloque de Profesional y Hora se vea y esté ordenado */
+    .tarjeta-turno .info-profesional-hora {
+        display: flex !important;
+        align-items: center;
+        gap: 6px;
+        margin: 0 !important;
+    }
+    
+    /* Ajustes de texto para móvil */
+    .profesional-turno span {
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    
+    .hora-turno-apilada {
+        font-size: 0.8rem;
+        background-color: rgba(0,0,0,0.05);
+        padding: 2px 6px;
+        border-radius: 4px;
+    }
 
-  .tarjeta-turno .info-profesional-hora {
-    /* Puedes agregar estilos aquí si es necesario */
-    margin-bottom: 0.25rem;
-  }
-
+    /* 6. El botón de editar */
+    .editar-turno {
+        margin-left: 4px;
+        padding: 0;
+        width: 20px;
+        height: 20px;
+        background: transparent !important; /* Sin fondo gris */
+    }
 }
-
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
   .contenedor-principal {
