@@ -1,24 +1,88 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ELEVÉ - Gestión de Peluquería</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
+
 <body>
     <!-- Actualizando todas las clases a español -->
+    <!-- Overlay de Login - Pantalla dividida -->
+    <div id="login-overlay" class="login-overlay">
+        <!-- Lado izquierdo: Imagen -->
+        <div class="login-imagen">
+            <div class="login-imagen-contenido">
+                <h2 class="login-imagen-titulo">Bienvenido a ELEVÉ</h2>
+                <p class="login-imagen-subtitulo">Tu barbería de confianza</p>
+            </div>
+        </div>
+        
+        <!-- Lado derecho: Formulario -->
+        <div class="login-formulario">
+            <div class="login-card">
+                <div class="login-header">
+                    <h1 class="login-titulo">Iniciar Sesión</h1>
+                    <p class="login-subtitulo">Ingresá tus credenciales para continuar</p>
+                </div>
+                <form id="form-login" class="login-form" autocomplete="off">
+                    <div class="grupo-formulario">
+                        <label class="form-label" for="login-usuario">Usuario</label>
+                        <input
+                            type="text"
+                            id="login-usuario"
+                            class="form-input"
+                            placeholder="Tu nombre de usuario"
+                            required
+                            autocomplete="username"
+                        >
+                    </div>
+                    <div class="grupo-formulario">
+                        <label class="form-label" for="login-password">Contraseña</label>
+                        <div class="input-password-wrapper">
+                            <input
+                                type="password"
+                                id="login-password"
+                                class="form-input"
+                                placeholder="Tu contraseña"
+                                required
+                                autocomplete="current-password"
+                            >
+                            <button type="button" id="toggle-login-password" class="btn-toggle-password" title="Mostrar contraseña">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="login-error" class="login-error"></div>
+                    <button type="submit" class="boton-primario login-btn-submit">
+                        <i class="fas fa-sign-in-alt"></i>
+                        Ingresar
+                    </button>
+                </form>
+                <p class="login-demo-hint">
+                    <span><strong>admin</strong> / admin123</span>
+                    <span><strong>empleado</strong> / empleado123</span>
+                </p>
+            </div>
+        </div>
+    </div>
+
     <header class="encabezado">
         <div class="contenido-encabezado">
             <div class="seccion-logo">
-                <div class="logo">
-                    <i class="fas fa-cut"></i>
-                </div>
-                <div class="texto-logo">
-                    <h1>ELEVÉ</h1>
-                    <p>Gestión de Peluquería</p>
-                </div>
+                <img src="./img/logo-eleve-02.jpg" alt="" width="200px">
+            </div>
+            <div class="header-acciones">
+                <div id="info-usuario-header"></div>
+                <button id="btn-logout" class="boton-icono" title="Cerrar sesión">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
             </div>
         </div>
     </header>
@@ -32,15 +96,24 @@
                 </button>
                 <button class="boton-navegacion" data-tab="financiero">
                     <i class="fas fa-chart-bar"></i>
-                    Finanzas
+                    Dashboard
                 </button>
                 <button class="boton-navegacion" data-tab="clientes">
                     <i class="fas fa-users"></i>
                     Clientes
                 </button>
-                <button class="boton-navegacion" data-tab="productos">
-                    <i class="fas fa-box"></i>
-                    Productos
+                <!-- Agregando botones para Servicios y Empleados -->
+                <button class="boton-navegacion" data-tab="servicios">
+                    <i class="fas fa-cut"></i>
+                    Servicios
+                </button>
+                <button class="boton-navegacion" data-tab="empleados">
+                    <i class="fas fa-user-tie"></i>
+                    Empleados
+                </button>
+                <button class="boton-navegacion" data-tab="usuarios">
+                    <i class="fas fa-shield-alt"></i>
+                    Usuarios
                 </button>
             </nav>
         </aside>
@@ -54,7 +127,7 @@
                     </div>
                     <div class="acciones-pagina">
                         <input type="date" id="date-picker" class="entrada-fecha">
-                        <button class="boton-primario" onclick="openNewAppointmentModal()">
+                        <button class="boton-primario" id="btnNuevoTurno">
                             <i class="fas fa-plus"></i>
                             Nuevo Turno
                         </button>
@@ -72,7 +145,7 @@
                         </div>
                     </div>
                     <div class="tarjeta-estadistica">
-                        <div class="icono-estadistica verde">
+                        <div class="icono-estadistica">
                             <i class="fas fa-clock"></i>
                         </div>
                         <div class="informacion-estadistica">
@@ -81,7 +154,7 @@
                         </div>
                     </div>
                     <div class="tarjeta-estadistica">
-                        <div class="icono-estadistica amarillo">
+                        <div class="icono-estadistica">
                             <i class="fas fa-user"></i>
                         </div>
                         <div class="informacion-estadistica">
@@ -90,7 +163,7 @@
                         </div>
                     </div>
                     <div class="tarjeta-estadistica">
-                        <div class="icono-estadistica morado">
+                        <div class="icono-estadistica">
                             <i class="fas fa-dollar-sign"></i>
                         </div>
                         <div class="informacion-estadistica">
@@ -100,14 +173,76 @@
                     </div>
                 </div>
 
-                <div class="tarjeta">
-                    <div class="encabezado-tarjeta">
-                        <h3>Cronograma del Día</h3>
-                        <p>Vista detallada de todas las citas programadas</p>
-                    </div>
-                    <div class="contenido-tarjeta">
-                        <div id="appointments-list" class="lista-citas">
+                <div class="contenedor-principal-agenda">
+                    <div class="tarjeta">
+                        <div class="navegacion-pestanas" id="navPestanas"></div>
+                        <!-- Encabezado con fecha -->
+                        <div class="encabezado-grilla">
+                            <div class="info-encabezado">
+                                <svg class="icono" id="iconoEncabezado" fill="none" stroke="currentColor"
+                                    viewBox="0 0 24 24">
+                                    <circle cx="12" cy="12" r="10" stroke-width="2" />
+                                    <path d="M12 6v6l4 2" stroke-width="2" stroke-linecap="round" />
+                                </svg>
+                                <div>
+                                    <div class="titulo-encabezado" id="tituloEncabezado"></div>
+                                    <div class="subtitulo-encabezado" id="subtituloEncabezado"></div>
+                                </div>
+                            </div>
+
+                            <div class="navegacion-fecha">
+                                <button class="boton-icono" id="btnDiaAnterior" title="Día anterior">
+                                    <svg class="icono" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path d="M15 19l-7-7 7-7" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" />
+                                    </svg>
+                                </button>
+
+                                <button class="boton-primario" id="btnHoy">
+                                    <svg class="icono" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke-width="2" />
+                                        <line x1="16" y1="2" x2="16" y2="6" stroke-width="2" stroke-linecap="round" />
+                                        <line x1="8" y1="2" x2="8" y2="6" stroke-width="2" stroke-linecap="round" />
+                                        <line x1="3" y1="10" x2="21" y2="10" stroke-width="2" />
+                                    </svg>
+                                    <span class="texto-btn-hoy">Hoy</span>
+                                </button>
+
+                                <button class="boton-icono" id="btnDiaSiguiente" title="Día siguiente">
+                                    <svg class="icono" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path d="M9 5l7 7-7 7" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" />
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
+
+                        <!-- Grilla de turnos -->
+                        <div class="contenedor-grilla">
+                            <div class="envoltorio-grilla">
+                                <div class="cabecera-grilla">
+                                    <div class="celda-cabecera">Hora</div>
+                                    <div class="celda-cabecera">Turnos del día</div>
+                                </div>
+
+                                <div class="cuerpo-grilla" id="cuerpoGrilla">
+
+
+
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal -->
+                <div class="modal" id="modalSuperpuesto">
+                    <div class="contenido-modal">
+                        <div class="encabezado-modal">
+                            <h3 id="tituloModal">Detalles del Turno</h3>
+                            <button class="cerrar-modal" id="btnCerrarModal">&times;</button>
+                        </div>
+                        <div class="cuerpo-modal" id="cuerpoModal"></div>
                     </div>
                 </div>
             </div>
@@ -115,14 +250,15 @@
             <div id="financiero" class="contenido-pestana">
                 <div class="encabezado-pagina">
                     <div class="titulo-pagina">
-                        <h2>Visión General Financiera</h2>
-                        <p>Análisis de ingresos y rendimiento del negocio</p>
+                        <h2>Dashboard</h2>
+                        <p>Rendimiento del Negocio </p>
                     </div>
                     <div class="acciones-pagina">
-                        <select id="period-selector" class="entrada-seleccion">
-                            <option value="week">Esta Semana</option>
-                            <option value="month">Este Mes</option>
-                        </select>
+                        <div class="grupo-periodo" id="period-selector">
+                            <button class="btn-periodo" data-periodo="day">Día</button>
+                            <button class="btn-periodo activo" data-periodo="week">Semana</button>
+                            <button class="btn-periodo" data-periodo="month">Mes</button>
+                        </div>
                     </div>
                 </div>
 
@@ -133,176 +269,602 @@
                             <span>Ingresos Totales</span>
                         </div>
                         <div class="contenido-financiero">
-                            <p class="cantidad-financiera" id="total-revenue">$1,665</p>
-                            <div class="indicador-crecimiento positivo">
-                                <span>↗ 10.8%</span>
-                                <small>vs período anterior</small>
+                            <p class="cantidad-financiera" id="kpi-total-revenue">$0</p>
+                            <div class="indicador-crecimiento positivo" id="kpi-revenue-change">
+                                <span>↗ 0%</span>
                             </div>
                         </div>
                     </div>
                     <div class="tarjeta-financiera servicios">
                         <div class="encabezado-financiero">
-                            <i class="fas fa-cut"></i>
-                            <span>Servicios de Corte</span>
+                            <i class="fas fa-calendar-check"></i>
+                            <span>Turnos Completados</span>
                         </div>
                         <div class="contenido-financiero">
-                            <p class="contador-financiero" id="services-count">45</p>
-                            <p class="ingresos-financieros" id="services-revenue">$1,125</p>
-                            <div class="indicador-crecimiento positivo">
-                                <span>↗ 12.5%</span>
-                                <small>crecimiento</small>
-                            </div>
+                            <p class="contador-financiero" id="kpi-total-appts">0</p>
+                            <p class="ingresos-financieros" id="kpi-avg-revenue-appt">$0 por turno</p>
                         </div>
                     </div>
                     <div class="tarjeta-financiera productos">
                         <div class="encabezado-financiero">
-                            <i class="fas fa-box"></i>
-                            <span>Ventas de Productos</span>
+                            <i class="fas fa-chart-line"></i>
+                            <span>Tasa de Ocupación</span>
                         </div>
                         <div class="contenido-financiero">
-                            <p class="contador-financiero" id="products-count">18</p>
-                            <p class="ingresos-financieros" id="products-revenue">$540</p>
-                            <div class="indicador-crecimiento positivo">
-                                <span>↗ 8.3%</span>
-                                <small>crecimiento</small>
-                            </div>
+                            <p class="contador-financiero" id="kpi-occupancy-rate">0%</p>
+                            <p class="ingresos-financieros" id="kpi-total-hours">0 horas</p>
                         </div>
                     </div>
                 </div>
 
-                <div class="cuadricula-desglose">
-                    <div class="tarjeta">
-                        <div class="encabezado-tarjeta">
-                            <h3><i class="fas fa-cut"></i> Desglose de Servicios</h3>
-                            <p>Rendimiento por tipo de servicio</p>
-                        </div>
-                        <div class="contenido-tarjeta">
-                            <div id="services-breakdown" class="lista-desglose">
+                <div class="cuadricula-metricas-clave">
+                    <div class="tarjeta-metrica">
+                        <div class="encabezado-metrica">
+                            <div class="icono-metrica">
+                                <i class="fas fa-user-plus"></i>
                             </div>
+                        </div>
+                        <div class="valor-metrica" id="metric-nuevos-clientes">0</div>
+                        <div class="etiqueta-metrica">Clientes Nuevos</div>
+                    </div>
+                    <div class="tarjeta-metrica">
+                        <div class="encabezado-metrica">
+                            <div class="icono-metrica">
+                                <i class="fas fa-heart"></i>
+                            </div>
+                        </div>
+                        <div class="valor-metrica" id="metric-fidelidad-kpi">0%</div>
+                        <div class="etiqueta-metrica">Tasa de Fidelidad</div>
+                    </div>
+                    <div class="tarjeta-metrica">
+                        <div class="encabezado-metrica">
+                            <div class="icono-metrica">
+                                <i class="fas fa-calendar-times"></i>
+                            </div>
+                        </div>
+                        <div class="valor-metrica" id="metric-cancelacion-kpi">0%</div>
+                        <div class="etiqueta-metrica">Tasa de Cancelación</div>
+                    </div>
+                    <div class="tarjeta-metrica">
+                        <div class="encabezado-metrica">
+                            <div class="icono-metrica">
+                                <i class="fas fa-user-clock"></i>
+                            </div>
+                        </div>
+                        <div class="valor-metrica" id="metric-ausentes-kpi">0</div>
+                        <div class="etiqueta-metrica">Turnos Ausentes</div>
+                    </div>
+                </div>
+
+
+                <div class="cuadricula-kpi-3-col">
+
+                    <div class="tarjeta-grafico">
+                        <div class="encabezado-grafico">
+                            <i class="fas fa-user-tie"></i>
+                            <h4>Servicios por Empleado</h4>
+                        </div>
+                        <div class="contenedor-grafico">
+                            <div class="grafico-barras" id="grafico-servicios-empleado"></div>
                         </div>
                     </div>
-                    <div class="tarjeta">
-                        <div class="encabezado-tarjeta">
-                            <h3><i class="fas fa-box"></i> Ventas de Productos</h3>
-                            <p>Productos más vendidos</p>
+
+                    <div class="tarjeta-grafico">
+                        <div class="encabezado-grafico">
+                            <i class="fas fa-chart-pie"></i>
+                            <h4>Ocupación por Empleado</h4>
                         </div>
-                        <div class="contenido-tarjeta">
-                            <div id="products-breakdown" class="lista-desglose">
+                        <div class="contenedor-grafico">
+                            <div class="grafico-ocupacion" id="grafico-ocupacion-empleado"></div>
+                        </div>
+                    </div>
+
+                    <div class="tarjeta-grafico">
+                        <div class="encabezado-grafico">
+                            <i class="fas fa-clock"></i>
+                            <h4>Horas Pico (Turnos por Hora)</h4>
+                        </div>
+                        <div class="contenedor-grafico">
+                            <div class="grafico-linea-contenedor" id="grafico-turnos-hora-contenedor"></div>
+                        </div>
+                    </div>
+
+                    <div class="tarjeta-grafico">
+                        <div class="encabezado-grafico">
+                            <i class="fas fa-star"></i>
+                            <h4>Servicios Populares</h4>
+                        </div>
+                        <div class="contenedor-grafico" id="dona-servicios-populares"></div>
+                    </div>
+
+                    <div class="tarjeta-grafico">
+                        <div class="encabezado-grafico">
+                            <i class="fas fa-users"></i>
+                            <h4>Fidelidad de Clientes</h4>
+                        </div>
+                        <div class="contenedor-grafico" id="dona-fidelidad-clientes"></div>
+                    </div>
+
+                    <div class="tarjeta-grafico">
+                        <div class="encabezado-grafico">
+                            <i class="fas fa-tasks"></i>
+                            <h4>Estado de Turnos</h4>
+                        </div>
+                        <div class="contenedor-grafico" id="dona-estado-turnos"></div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- Actualizando sección de Clientes -->
+            <div id="clientes" class="contenido-pestana">
+                <div class="encabezado-pagina">
+                    <div class="titulo-pagina">
+                        <h2>Gestión de Clientes</h2>
+                        <p>Administra la información de tus clientes</p>
+                    </div>
+                    <div class="acciones-pagina">
+                        <button class="boton-primario" id="btn-nuevo-cliente">
+                            <i class="fas fa-plus"></i>
+                            Nuevo Cliente
+                        </button>
+                    </div>
+                </div>
+                <!-- AGREGAR DESPUÉS DEL encabezado-pagina EN CLIENTES -->
+                <div class="metricas-seccion">
+                    <div class="tarjeta-metrica">
+                        <div class="encabezado-metrica">
+                            <div class="icono-metrica">
+                                <i class="fas fa-users"></i>
                             </div>
+                            <span class="tendencia-metrica positiva">Total</span>
                         </div>
+                        <div class="valor-metrica" id="total-clientes">0</div>
+                        <div class="etiqueta-metrica">Clientes Registrados</div>
+                        <div class="detalle-metrica">En la base de datos</div>
+                    </div>
+
+                    <div class="tarjeta-metrica">
+                        <div class="encabezado-metrica">
+                            <div class="icono-metrica">
+                                <i class="fas fa-calendar-check"></i>
+                            </div>
+                            <span class="tendencia-metrica neutral">Mes</span>
+                        </div>
+                        <div class="valor-metrica" id="clientes-mes">0</div>
+                        <div class="etiqueta-metrica">Nuevos Este Mes</div>
+                        <div class="detalle-metrica">Últimos 30 días</div>
+                    </div>
+
+                    <div class="tarjeta-metrica">
+                        <div class="encabezado-metrica">
+                            <div class="icono-metrica">
+                                <i class="fas fa-star"></i>
+                            </div>
+                            <span class="tendencia-metrica positiva">Top</span>
+                        </div>
+                        <div class="valor-metrica" id="clientes-frecuentes">0</div>
+                        <div class="etiqueta-metrica">Clientes Frecuentes</div>
+                        <div class="detalle-metrica">Más de 5 visitas</div>
                     </div>
                 </div>
 
                 <div class="tarjeta">
-                    <div class="encabezado-tarjeta">
-                        <h3><i class="fas fa-chart-line"></i> Resumen de Rendimiento</h3>
-                        <p>Métricas clave del período seleccionado</p>
-                    </div>
                     <div class="contenido-tarjeta">
-                        <div class="cuadricula-rendimiento">
-                            <div class="elemento-rendimiento">
-                                <p class="etiqueta-rendimiento">Promedio por Servicio</p>
-                                <p class="valor-rendimiento" id="avg-service">$25</p>
-                            </div>
-                            <div class="elemento-rendimiento">
-                                <p class="etiqueta-rendimiento">Promedio por Producto</p>
-                                <p class="valor-rendimiento" id="avg-product">$30</p>
-                            </div>
-                            <div class="elemento-rendimiento">
-                                <p class="etiqueta-rendimiento">Servicios por Día</p>
-                                <p class="valor-rendimiento" id="services-per-day">6</p>
-                            </div>
-                            <div class="elemento-rendimiento">
-                                <p class="etiqueta-rendimiento">Ingresos por Día</p>
-                                <p class="valor-rendimiento" id="revenue-per-day">$238</p>
-                            </div>
-                        </div>
+                        <input type="text" id="buscador-clientes" class="entrada-busqueda buscador-lista"
+                            placeholder="Buscar clientes...">
+                        <div id="lista-clientes" class="lista-elementos"></div>
                     </div>
                 </div>
             </div>
 
-            <div id="clientes" class="contenido-pestana">
+            <!-- Agregando sección de Servicios -->
+            <div id="servicios" class="contenido-pestana">
                 <div class="encabezado-pagina">
-                    <h2>Gestión de Clientes</h2>
-                    <p>Próximamente...</p>
+                    <div class="titulo-pagina">
+                        <h2>Gestión de Servicios</h2>
+                        <p>Administra los servicios que ofreces</p>
+                    </div>
+
+                    <div class="acciones-pagina">
+                        <button class="boton-primario" id="btn-nuevo-servicio">
+                            <i class="fas fa-plus"></i>
+                            Nuevo Servicio
+                        </button>
+                    </div>
+                </div>
+                <div class="metricas-seccion">
+                    <div class="tarjeta-metrica">
+                        <div class="encabezado-metrica">
+                            <div class="icono-metrica">
+                                <i class="fas fa-cut"></i>
+                            </div>
+                            <span class="tendencia-metrica positiva">Total</span>
+                        </div>
+                        <div class="valor-metrica" id="total-servicios">0</div>
+                        <div class="etiqueta-metrica">Servicios Activos</div>
+                        <div class="detalle-metrica">Disponibles para agendar</div>
+                    </div>
+
+                    <div class="tarjeta-metrica">
+                        <div class="encabezado-metrica">
+                            <div class="icono-metrica">
+                                <i class="fas fa-dollar-sign"></i>
+                            </div>
+                            <span class="tendencia-metrica neutral">Promedio</span>
+                        </div>
+                        <div class="valor-metrica" id="precio-promedio">$0</div>
+                        <div class="etiqueta-metrica">Precio Promedio</div>
+                        <div class="detalle-metrica">Por servicio</div>
+                    </div>
+
+                    <div class="tarjeta-metrica">
+                        <div class="encabezado-metrica">
+                            <div class="icono-metrica">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <span class="tendencia-metrica neutral">Duración</span>
+                        </div>
+                        <div class="valor-metrica" id="duracion-promedio">0min</div>
+                        <div class="etiqueta-metrica">Duración Promedio</div>
+                        <div class="detalle-metrica">Por servicio</div>
+                    </div>
+                </div>
+
+                <div class="tarjeta">
+                    <div class="contenido-tarjeta">
+                        <input type="text" id="buscador-servicios" class="entrada-busqueda buscador-lista"
+                            placeholder="Buscar servicios...">
+                        <div id="lista-servicios" class="lista-elementos"></div>
+                    </div>
                 </div>
             </div>
 
-            <div id="productos" class="contenido-pestana">
+            <!-- Sección de Empleados -->
+            <div id="empleados" class="contenido-pestana">
                 <div class="encabezado-pagina">
-                    <h2>Gestión de Productos</h2>
-                    <p>Próximamente...</p>
+                    <div class="titulo-pagina">
+                        <h2>Gestión de Empleados</h2>
+                        <p>Administra tu equipo de trabajo</p>
+                    </div>
+                    <div class="acciones-pagina">
+                        <button class="boton-primario" id="btn-nuevo-empleado">
+                            <i class="fas fa-plus"></i>
+                            Nuevo Empleado
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Solo las 4 métricas principales -->
+                <div class="metricas-empleados">
+                    <div class="tarjeta-metrica">
+                        <div class="encabezado-metrica">
+                            <div class="icono-metrica">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <span class="tendencia-metrica positiva">Activo</span>
+                        </div>
+                        <div class="valor-metrica" id="total-empleados">0</div>
+                        <div class="etiqueta-metrica">Total Empleados</div>
+                        <div class="detalle-metrica" id="empleados-activos-detalle">0 activos</div>
+                    </div>
+
+                    <div class="tarjeta-metrica">
+                        <div class="encabezado-metrica">
+                            <div class="icono-metrica">
+                                <i class="fas fa-calendar-check"></i>
+                            </div>
+                            <span class="tendencia-metrica neutral">Hoy</span>
+                        </div>
+                        <div class="valor-metrica" id="turnos-hoy">0</div>
+                        <div class="etiqueta-metrica">Turnos Asignados</div>
+                        <div class="detalle-metrica">Para el día de hoy</div>
+                    </div>
+
+                    <div class="tarjeta-metrica">
+                        <div class="encabezado-metrica">
+                            <div class="icono-metrica">
+                                <i class="fas fa-star"></i>
+                            </div>
+                            <span class="tendencia-metrica positiva">Top</span>
+                        </div>
+                        <div class="valor-metrica" id="promedio-servicios">0</div>
+                        <div class="etiqueta-metrica">Promedio Servicios/Día</div>
+                        <div class="detalle-metrica">Por empleado</div>
+                    </div>
+
+                    <div class="tarjeta-metrica">
+                        <div class="encabezado-metrica">
+                            <div class="icono-metrica">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <span class="tendencia-metrica neutral">Tiempo</span>
+                        </div>
+                        <div class="valor-metrica" id="horas-trabajadas">0h</div>
+                        <div class="etiqueta-metrica">Horas Trabajadas</div>
+                        <div class="detalle-metrica">Esta semana</div>
+                    </div>
+                </div>
+
+                <!-- Lista de empleados -->
+                <div class="tarjeta">
+                    <div class="contenido-tarjeta">
+                        <input type="text" id="buscador-empleados" class="entrada-busqueda buscador-lista"
+                            placeholder="Buscar empleados...">
+                        <div id="lista-empleados" class="lista-elementos"></div>
+                    </div>
                 </div>
             </div>
+
+            <!-- Módulo Usuarios -->
+            <div id="usuarios" class="contenido-pestana">
+                <div class="encabezado-pagina">
+                    <div class="titulo-pagina">
+                        <h2>Usuarios del Sistema</h2>
+                        <p>Administra quién tiene acceso al panel de gestión</p>
+                    </div>
+                    <div class="acciones-pagina">
+                        <button class="boton-primario" id="btn-nuevo-usuario">
+                            <i class="fas fa-plus"></i>
+                            Nuevo Usuario
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Métricas -->
+                <div class="metricas-seccion">
+                    <div class="tarjeta-metrica">
+                        <div class="encabezado-metrica">
+                            <div class="icono-metrica">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <span class="tendencia-metrica neutral">Total</span>
+                        </div>
+                        <div class="valor-metrica" id="total-usuarios">0</div>
+                        <div class="etiqueta-metrica">Usuarios Registrados</div>
+                        <div class="detalle-metrica">Con acceso al sistema</div>
+                    </div>
+
+                    <div class="tarjeta-metrica">
+                        <div class="encabezado-metrica">
+                            <div class="icono-metrica">
+                                <i class="fas fa-shield-alt"></i>
+                            </div>
+                            <span class="tendencia-metrica positiva">Admin</span>
+                        </div>
+                        <div class="valor-metrica" id="total-admins">0</div>
+                        <div class="etiqueta-metrica">Administradores</div>
+                        <div class="detalle-metrica">Acceso completo</div>
+                    </div>
+
+                    <div class="tarjeta-metrica">
+                        <div class="encabezado-metrica">
+                            <div class="icono-metrica">
+                                <i class="fas fa-user-tie"></i>
+                            </div>
+                            <span class="tendencia-metrica neutral">Equipo</span>
+                        </div>
+                        <div class="valor-metrica" id="total-empleados-usuarios">0</div>
+                        <div class="etiqueta-metrica">Empleados</div>
+                        <div class="detalle-metrica">Acceso limitado</div>
+                    </div>
+                </div>
+
+                <!-- Lista de usuarios -->
+                <div class="tarjeta">
+                    <div class="contenido-tarjeta">
+                        <input type="text" id="buscador-usuarios" class="entrada-busqueda buscador-lista"
+                            placeholder="Buscar usuarios...">
+                        <div id="lista-usuarios" class="lista-elementos"></div>
+                    </div>
+                </div>
+            </div>
+
         </main>
     </div>
 
-    <div id="appointment-modal" class="modal">
+    <!-- Actualizar modal de clientes para eliminar onclick -->
+    <div id="modal-cliente" class="modal">
         <div class="contenido-modal">
             <div class="encabezado-modal">
-                <h3>Programar Nuevo Turno</h3>
-                <button class="cerrar-modal" onclick="closeNewAppointmentModal()">
+                <h3 id="titulo-modal-cliente">Editar Cliente</h3>
+                <button class="cerrar-modal">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             <div class="cuerpo-modal">
-                <form id="appointment-form">
+                <form id="form-cliente">
+                    <input type="hidden" id="cliente-id">
                     <div class="grupo-formulario">
-                        <label for="client-name">Cliente</label>
-                        <input type="text" id="client-name" placeholder="Nombre del cliente" required>
+                        <label for="cliente-nombre">Nombre</label>
+                        <input type="text" id="cliente-nombre" placeholder="Nombre completo" required>
                     </div>
                     <div class="grupo-formulario">
-                        <label for="client-phone">Teléfono</label>
-                        <input type="tel" id="client-phone" placeholder="+1234567890" required>
+                        <label for="cliente-telefono">Teléfono</label>
+                        <input type="tel" id="cliente-telefono" placeholder="+54 9 11 1234-5678" required>
                     </div>
                     <div class="grupo-formulario">
-                        <label for="service-type">Servicio</label>
-                        <select id="service-type" required>
-                            <option value="">Seleccionar servicio</option>
-                            <option value="corte-clasico" data-price="18">Corte Clásico - $10000</option>
-                            <option value="corte-barba" data-price="25">Corte + Barba - $12000</option>
-                            <option value="corte-mujer" data-price="30">Corte infantil - $7000</option>
-                            <option value="peinado" data-price="40">Barba - $5000</option>
-                        </select>
-                    </div>
-                    <div class="grupo-formulario">
-                        <label for="appointment-time">Hora</label>
-                        <select id="appointment-time" required>
-                            <option value="">Seleccionar hora</option>
-                            <option value="08:00">08:00</option>
-                            <option value="08:30">08:30</option>
-                            <option value="09:00">09:00</option>
-                            <option value="09:30">09:30</option>
-                            <option value="10:00">10:00</option>
-                            <option value="10:30">10:30</option>
-                            <option value="11:00">11:00</option>
-                            <option value="11:30">11:30</option>
-                            <option value="12:00">12:00</option>
-                            <option value="12:30">12:30</option>
-                            <option value="13:00">13:00</option>
-                            <option value="13:30">13:30</option>
-                            <option value="14:00">14:00</option>
-                            <option value="14:30">14:30</option>
-                            <option value="15:00">15:00</option>
-                            <option value="15:30">15:30</option>
-                            <option value="16:00">16:00</option>
-                            <option value="16:30">16:30</option>
-                            <option value="17:00">17:00</option>
-                            <option value="17:30">17:30</option>
-                            <option value="18:00">18:00</option>
-                            <option value="18:30">18:30</option>
-                            <option value="19:00">19:00</option>
-                        </select>
+                        <label for="cliente-notas">Preferencias</label>
+                        <textarea id="cliente-notas" placeholder="Tipo de corte preferido, alergiás, notas..." rows="3"></textarea>
                     </div>
                 </form>
             </div>
             <div class="pie-modal">
-                <button type="button" class="boton-secundario" onclick="closeNewAppointmentModal()">Cancelar</button>
-                <button type="submit" form="appointment-form" class="boton-primario">Programar Cita</button>
+                <button type="button" class="boton-secundario btn-cancelar-cliente">Cancelar</button>
+                <button type="submit" form="form-cliente" class="boton-primario">Guardar</button>
             </div>
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <!-- Actualizar modal de servicios para eliminar onclick -->
+    <div id="modal-servicio" class="modal">
+        <div class="contenido-modal">
+            <div class="encabezado-modal">
+                <h3 id="titulo-modal-servicio">Nuevo Servicio</h3>
+                <button class="cerrar-modal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="cuerpo-modal">
+                <form id="form-servicio">
+                    <input type="hidden" id="servicio-id">
+                    <div class="grupo-formulario">
+                        <label for="servicio-nombre">Nombre del Servicio</label>
+                        <input type="text" id="servicio-nombre" placeholder="Ej: Corte Clásico" required>
+                    </div>
+                    <div class="grupo-formulario">
+                        <label for="servicio-descripcion">Descripción</label>
+                        <textarea id="servicio-descripcion" placeholder="Descripción del servicio..."
+                            rows="3"></textarea>
+                    </div>
+                    <div class="grupo-formulario">
+                        <label for="servicio-precio">Precio ($)</label>
+                        <input type="number" id="servicio-precio" placeholder="10000" min="0" step="100" required>
+                    </div>
+                    <div class="grupo-formulario">
+                        <label for="servicio-duracion">Duración (minutos)</label>
+                        <input type="number" id="servicio-duracion" placeholder="30" min="5" step="5" required>
+                    </div>
+                    <div class="grupo-formulario">
+                        <div class="label-pros-header">
+                            <label>Profesionales asignados</label>
+                            <span id="contador-pros-servicio" class="pill-contador-pros vacio">0 seleccionados</span>
+                        </div>
+                        <div id="selector-profesionales-servicio" class="selector-profesionales">
+                            <p class="sin-pros-mensaje"><i class="fas fa-spinner fa-spin"></i> Cargando...</p>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="pie-modal">
+                <button type="button" class="boton-secundario btn-cancelar-servicio">Cancelar</button>
+                <button type="submit" form="form-servicio" class="boton-primario">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actualizar modal de empleados para eliminar onclick -->
+    <div id="modal-empleado" class="modal">
+        <div class="contenido-modal">
+            <div class="encabezado-modal">
+                <h3 id="titulo-modal-empleado">Nuevo Empleado</h3>
+                <button class="cerrar-modal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="cuerpo-modal">
+                <form id="form-empleado">
+                    <input type="hidden" id="empleado-id">
+                    <div class="grupo-formulario">
+                        <label for="empleado-nombre">Nombre Completo</label>
+                        <input type="text" id="empleado-nombre" placeholder="Nombre del empleado" required>
+                    </div>
+                    <div class="grupo-formulario">
+                        <label for="empleado-telefono">Teléfono</label>
+                        <input type="tel" id="empleado-telefono" placeholder="+54 9 11 1234-5678">
+                    </div>
+                    <div class="grupo-formulario">
+                        <label for="empleado-email">Email</label>
+                        <input type="email" id="empleado-email" placeholder="empleado@ejemplo.com">
+                    </div>
+                    <div class="grupo-formulario">
+                        <label for="empleado-especialidad">Especialidad</label>
+                        <input type="text" id="empleado-especialidad" placeholder="Ej: Barbero, Estilista">
+                    </div>
+                    <div class="grupo-formulario">
+                        <div class="label-horario-header">
+                            <label>Horario laboral</label>
+                            <span id="pill-horario-empleado" class="pill-contador-pros vacio">Sin configurar</span>
+                        </div>
+                        <div class="horario-semanal" id="horario-semanal-empleado"></div>
+                    </div>
+                </form>
+            </div>
+            <div class="pie-modal">
+                <button type="button" class="boton-secundario btn-cancelar-empleado">Cancelar</button>
+                <button type="submit" form="form-empleado" class="boton-primario">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Usuarios -->
+    <div id="modal-usuario" class="modal">
+        <div class="contenido-modal">
+            <div class="encabezado-modal">
+                <h3 id="titulo-modal-usuario">Nuevo Usuario</h3>
+                <button class="cerrar-modal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="cuerpo-modal">
+                <form id="form-usuario">
+                    <input type="hidden" id="usuario-id">
+
+                    <div class="grupo-formulario">
+                        <label for="usuario-nombre">Nombre Completo</label>
+                        <input type="text" id="usuario-nombre" placeholder="Ej: Juan García" required>
+                    </div>
+
+                    <div class="grupo-formulario">
+                        <label for="usuario-username">Nombre de usuario (para login)</label>
+                        <input type="text" id="usuario-username" placeholder="Ej: jgarcia" required autocomplete="username">
+                    </div>
+
+                    <div class="grupo-formulario">
+                        <label for="usuario-email">Email</label>
+                        <input type="email" id="usuario-email" placeholder="usuario@eleve.com">
+                    </div>
+
+                    <div class="grupo-formulario">
+                        <label for="usuario-tipo">Tipo de Usuario</label>
+                        <select id="usuario-tipo" required>
+                            <option value="" disabled selected>Seleccionar tipo...</option>
+                            <option value="admin">Administrador</option>
+                            <option value="empleado">Empleado</option>
+                        </select>
+                    </div>
+
+                    <div class="grupo-formulario">
+                        <label id="label-password-usuario" for="usuario-password">Contraseña</label>
+                        <div class="input-password-wrapper">
+                            <input type="password" id="usuario-password"
+                                placeholder="Mínimo 6 caracteres" required autocomplete="new-password">
+                            <button type="button" id="toggle-password-usuario" class="btn-toggle-password" title="Mostrar contraseña">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="pie-modal">
+                <button type="button" class="boton-secundario btn-cancelar-usuario">Cancelar</button>
+                <button type="submit" form="form-usuario" class="boton-primario">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmación global -->
+    <div id="modal-confirmar" class="modal modal-confirmar-overlay">
+        <div class="confirmar-card">
+            <div class="confirmar-header">
+                <button id="confirmar-cerrar" class="confirmar-btn-cerrar" aria-label="Cerrar">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <h3 id="confirmar-titulo" class="confirmar-titulo">¿Confirmar acción?</h3>
+            <p  id="confirmar-mensaje" class="confirmar-mensaje"></p>
+            <div class="confirmar-acciones">
+                <button id="confirmar-cancelar" class="confirmar-btn-cancel">Cancelar</button>
+                <button id="confirmar-ok" class="confirmar-btn-ok">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="./js/main.js" type="module"></script>
 </body>
+
 </html>

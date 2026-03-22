@@ -1,0 +1,37 @@
+[
+  {
+    "id": 1,
+    "nombre": "Lucas Martínez",
+    "telefono": "11-4523-8801",
+    "email": "lucas.martinez@gmail.com",
+    "notas": "Prefiere turno tarde"
+  },
+  {
+    "id": 2,
+    "nombre": "Matías Rodríguez",
+    "telefono": "11-3341-9920",
+    "email": "mati.rdz@outlook.com",
+    "notas": ""
+  },
+  {
+    "id": 3,
+    "nombre": "Santiago Gómez",
+    "telefono": "11-6674-2231",
+    "email": "",
+    "notas": "Alérgico a ciertos productos"
+  },
+  {
+    "id": 4,
+    "nombre": "Nicolás López",
+    "telefono": "11-5512-7743",
+    "email": "nlopez@mail.com",
+    "notas": ""
+  },
+  {
+    "id": 5,
+    "nombre": "Agustín Ferreyra",
+    "telefono": "11-2298-3315",
+    "email": "",
+    "notas": "Cliente frecuente, viene cada 3 semanas"
+  }
+]

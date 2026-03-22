@@ -87,7 +87,7 @@ async function agregarTurno(nuevoTurno) {
             .from('turnos')
             .insert([
                 {
-                    cliente_id,
+                    cliente_id: cliente_id,
                     empleado_id,
                     servicio_id,
                     fecha,
@@ -432,11 +432,70 @@ function validarHoraEnHorario(fecha, hora) {
 } 
 */
 
+// Función para obtener turnos con todos los detalles necesarios, filtrando opcionalmente por empleado y fecha
+async function obtenerTurnosConDetalles({empleadoId, fecha}){
+    try{
+        let consulta = supabaseAdmin
+            .from('turnos')
+            .select(`
+                id,
+                fecha,
+                hora_inicio,
+                hora_fin,
+                observaciones,
+                empleados!inner(nombre),           
+                clientes!inner(nombre, telefono),
+                servicios!inner(nombre)
+            `, {count: 'exact'});
+
+            //Filtrar por empleado (si tengo el id)
+            if (empleadoId){
+                consulta = consulta.eq('empleado_id', empleadoId);
+            }
+
+            //Filtrar por fecha (si se da la fecha)
+            if (fecha) {            
+                consulta = consulta.eq('fecha', fecha); // 'fecha' en formato 'YYYY-MM-DD'
+            }
+
+            //Ordenar por fecha y hora
+            const { data: turnos, error, count: total_registros } = await consulta
+            .order('fecha', { ascending: true })
+            .order('hora_inicio', { ascending: true });
+
+            if (error) {
+                throw error;
+            }
+            //Armar la respuesta
+            const turnosPresentables = turnos.map(turno => ({
+                id: turno.id,
+                fecha: turno.fecha,
+                hora: turno.hora_inicio, // Combino fecha y hora en el front para mostrar el turno
+                hora_fin : turno.hora_fin,
+                observaciones: turno.observaciones,
+
+                nombre_empleado: turno.empleados?.nombre || 'N/A',
+                nombre_cliente: turno.clientes?.nombre || 'N/A',
+                telefono_cliente: turno.clientes?.telefono || 'N/A',
+                nombre_servicio: turno.servicios?.nombre || 'N/A'
+            }));
+
+            return {
+                data: turnosPresentables, 
+                total_registros: total_registros,
+            };
+    } catch (error) {
+        console.error("Error al obtener turnos con detalles:", error.message);
+        throw error;
+    }
+}
+
 export default {
     obtenerTurnos,
     obtenerUnTurno,
     agregarTurno,
     modificarTurno,
     eliminarTurno,
-    obtenerHorariosDisponibles
+    obtenerHorariosDisponibles,
+    obtenerTurnosConDetalles
 };

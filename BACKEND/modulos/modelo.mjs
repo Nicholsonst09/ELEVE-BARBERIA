@@ -92,7 +92,7 @@ async function agregarTurno(nuevoTurno) {
                     empleado_id,
                     servicio_id,
                     fecha,
-                    hora_inicio,
+                    hora_inicio ,
                     hora_fin,
                     estado: estado || 'pendiente', //Sería como el valor por defecto si no se especifica
                     observaciones: observaciones || null,
@@ -100,7 +100,7 @@ async function agregarTurno(nuevoTurno) {
                 }
             ])
             .select()
-            .single();
+            .s
 
         if (error) {
             console.error("Error al agregar turno en Supabase:", error);

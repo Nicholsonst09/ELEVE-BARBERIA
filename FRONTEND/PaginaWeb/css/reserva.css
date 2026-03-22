@@ -1,0 +1,492 @@
+/* ============================================
+   reserva.css - Rediseño Minimalista (Bloque Inteligente Móvil/Desktop)
+   ============================================ */
+
+:root {
+    --reserva-bg-base: #000000;
+    --reserva-bg-panel: #0A0A0A;
+    --reserva-bg-card: #141414;
+    --reserva-bg-hover: #1E1E1E;
+    --reserva-bg-active: #282828;
+    
+    --reserva-border-light: rgba(255, 255, 255, 0.08);
+    --reserva-border-hover: rgba(255, 255, 255, 0.25);
+    --reserva-border-active: rgba(255, 255, 255, 0.5);
+    
+    --reserva-text-main: #FFFFFF;
+    --reserva-text-muted: #888888;
+    
+    --reserva-radius-lg: 20px;
+    --reserva-radius-md: 8px; 
+    --reserva-radius-sm: 6px;
+    
+    --reserva-transition: 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* --------------------------------------------
+   RESETEOS Y TITULO PRINCIPAL
+   -------------------------------------------- */
+.contenido-reserva #reservar {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+}
+#reservar{
+    padding: 2rem 1rem;
+}
+.reserva-turno > h2 {
+    font-family: var(--font-principal);
+    font-size: 2rem !important;
+    font-weight: 300 !important;
+    text-align: center !important;
+    margin-bottom: 2rem !important;
+    margin-top: .5rem !important;
+    color: var(--reserva-text-main) !important;
+    letter-spacing: 4px !important;
+    text-transform: uppercase;
+}
+
+/* --------------------------------------------
+   BLOQUE PRINCIPAL (MÓVIL PRIMERO)
+   -------------------------------------------- */
+.reserva-turno article {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch !important; /* Fuerza a ignorar styles.css */
+    justify-content: flex-start !important;
+    gap: 0 !important; /* Sin espacios entre imagen y form */
+    width: 100%;
+    max-width: 500px;
+    
+    /* Altura dinámica y perfecta para celulares */
+    min-height: 550px;
+    max-height: 700px;
+    
+    margin: 0 auto;
+    background: var(--reserva-bg-panel);
+    border: 1px solid var(--reserva-border-light);
+    border-radius: var(--reserva-radius-lg);
+    overflow: hidden; 
+    box-shadow: 0 30px 60px -15px rgba(0,0,0,0.8);
+}
+
+/* Imagen de portada en Móvil */
+.imagen-reserva {
+    display: block !important;
+    width: 100% !important;
+    height: 200px !important; /* Altura de portada */
+    flex-shrink: 0;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.imagen-reserva img {
+    width: 100% !important;
+    height: 100% !important;
+    max-height: none !important; 
+    object-fit: cover !important;
+    display: block !important;
+    border-radius: 0 !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    filter: grayscale(100%) contrast(1.1); 
+}
+
+/* Área de contenido (Formulario con scroll) */
+.contenido-reserva {
+    flex: 1;
+    width: 100% !important;
+    padding: 1.5rem !important;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto; 
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.contenido-reserva::-webkit-scrollbar {
+    display: none;
+}
+
+.contenedor-pasos-reserva {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
+}
+
+/* --------------------------------------------
+   INDICADORES Y ANIMACIONES
+   -------------------------------------------- */
+.indicador-progreso {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    margin-top: 0.5rem;
+    flex-shrink: 0;
+}
+
+.indicador-progreso__paso {
+    font-family: var(--font-mono);
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 500;
+    background: var(--reserva-bg-hover);
+    color: var(--reserva-text-muted);
+    transition: all var(--reserva-transition);
+}
+
+.indicador-progreso__paso--activo {
+    background: var(--reserva-text-main);
+    color: var(--reserva-bg-base);
+}
+
+.indicador-progreso__paso--completado {
+    background: var(--reserva-bg-active);
+    color: var(--reserva-text-main);
+}
+
+.paso { display: none; height: auto; }
+.paso--activo {
+    display: block;
+    animation: slideFade 0.35s forwards cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideFade {
+    0% { opacity: 0; transform: translateY(10px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+/* --------------------------------------------
+   ENCABEZADOS DE PASOS
+   -------------------------------------------- */
+.paso__encabezado {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--reserva-border-light);
+}
+
+.paso__icono {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--reserva-border-light);
+    border-radius: 20px;
+    color: var(--reserva-text-main);
+}
+
+.paso__encabezado .paso__titulo {
+    font-family: var(--font-principal);
+    font-size: 1.1rem !important;
+    letter-spacing: 1px !important;
+    font-weight: 400 !important;
+    color: var(--reserva-text-main) !important;
+    margin: 0 !important;
+    flex: 1;
+    text-transform: uppercase;
+    text-align: left !important;
+}
+
+/* --------------------------------------------
+   GRIDS Y TARJETAS COMPACTAS
+   -------------------------------------------- */
+.servicios-grid, .barberos-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.4rem; 
+}
+
+.fechas-grid, .horarios-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); 
+    gap: 0.4rem;
+}
+
+.tarjeta {
+    background: var(--reserva-bg-card);
+    border: 1px solid var(--reserva-border-light);
+    border-radius: var(--reserva-radius-md);
+    padding: 0.5rem 0.75rem; 
+    cursor: pointer;
+    transition: all var(--reserva-transition);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.tarjeta:hover {
+    background: var(--reserva-bg-hover);
+    border-color: var(--reserva-border-hover);
+    transform: translateY(-1px);
+}
+
+.tarjeta:active {
+    background: var(--reserva-bg-active);
+    transform: translateY(0);
+}
+
+#paso-5 .tarjeta, #paso-6 .tarjeta {
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: default;
+}
+#paso-5 .tarjeta:hover, #paso-6 .tarjeta:hover { transform: none; }
+
+.tarjeta__encabezado {
+    border-bottom: none; 
+    padding-bottom: 0;
+    margin-bottom: 0.15rem; 
+}
+
+.tarjeta__titulo {
+    font-family: var(--font-principal);
+    letter-spacing: -0.03em;
+    font-size: 0.85rem !important; 
+    font-weight: 500 !important;
+    color: var(--reserva-text-main) !important;
+    margin: 0 !important;
+    text-align: left !important; 
+}
+
+.tarjeta__contenido {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+/* Protegemos los textos de la interferencia de styles.css */
+.tarjeta-servicio__descripcion,
+.barbero-especialidad,
+.resumen-item__valor {
+    font-size: 0.7rem !important; 
+    color: var(--reserva-text-muted) !important;
+    line-height: 1.2 !important; 
+    margin-bottom: 0.4rem !important; 
+    padding: 0 !important;
+    font-weight: 400 !important;
+}
+
+.tarjeta-servicio__detalles {
+    display: flex;
+    justify-content: flex-start; 
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: auto;
+}
+
+.etiqueta {
+    font-family: var(--font-mono);
+    letter-spacing: -0.02em;
+    padding: 0.15rem 0.3rem; 
+    border-radius: 4px;
+    font-size: 0.65rem; 
+    font-weight: 500;
+    border: 1px solid var(--reserva-border-light);
+}
+
+.etiqueta--precio {
+    background: var(--reserva-text-main);
+    color: var(--reserva-bg-base);
+    border-color: transparent;
+}
+
+.etiqueta--duracion { color: var(--reserva-text-muted); }
+
+.barbero-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.barbero-avatar {
+    width: 30px; 
+    height: 30px; 
+    border-radius: 50%;
+    background: var(--reserva-bg-hover);
+    border: 1px solid var(--reserva-border-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6rem;
+    color: var(--reserva-text-muted);
+    flex-shrink: 0;
+}
+
+.barbero-detalles h3 {
+    font-size: 0.85rem !important;
+    font-weight: 500 !important;
+    color: var(--reserva-text-main) !important;
+    margin: 0 0 0.1rem 0 !important;
+}
+
+.tarjeta-fecha, .tarjeta-horario {
+    font-family: var(--font-mono);
+    letter-spacing: -0.02em;
+    text-align: center;
+    font-size: 0.75rem; 
+    font-weight: 500;
+    color: var(--reserva-text-main);
+    margin: auto;
+}
+
+.mensaje-sin-horarios {
+    display: none;
+    text-align: center;
+    padding: 1rem;
+}
+
+/* --------------------------------------------
+   BOTONES
+   -------------------------------------------- */
+.btn-volver, .continuar, .btn-confirmar {
+    font-family: inherit;
+    padding: 0.4rem 0.8rem;
+    border-radius: var(--reserva-radius-sm);
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--reserva-transition);
+}
+
+.btn-volver {
+    background: transparent;
+    border: 1px solid var(--reserva-border-light);
+    color: var(--reserva-text-main);
+}
+
+.btn-volver:hover {
+    background: var(--reserva-bg-hover);
+    border-color: var(--reserva-border-hover);
+}
+
+.continuar, .btn-confirmar {
+    background: var(--reserva-text-main);
+    color: var(--reserva-bg-base);
+    border: 1px solid transparent;
+    width: 100%;
+}
+
+.continuar:hover:not(:disabled), .btn-confirmar:hover { background: #E0E0E0; }
+
+.continuar:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: var(--reserva-bg-hover);
+    color: var(--reserva-text-muted);
+    border-color: var(--reserva-border-light);
+}
+
+.continuar { margin-top: 0.75rem; }
+.btn-confirmar { margin-top: 1rem; }
+
+/* --------------------------------------------
+   FORMULARIOS Y RESUMEN
+   -------------------------------------------- */
+.campo { margin-bottom: 0.75rem; }
+.campo__etiqueta {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--reserva-text-muted);
+    margin-bottom: 0.3rem;
+}
+.campo__entrada {
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--reserva-bg-base);
+    border: 1px solid var(--reserva-border-light);
+    color: var(--reserva-text-main);
+    padding: 0.6rem 0.8rem;
+    border-radius: var(--reserva-radius-sm);
+    font-family: inherit;
+    font-size: 0.85rem;
+    transition: all var(--reserva-transition);
+}
+.campo__entrada:focus {
+    outline: none;
+    border-color: var(--reserva-text-main);
+    background: var(--reserva-bg-hover);
+}
+.campo__entrada.invalido { border-color: #EF4444; }
+.error-mensaje {
+    display: block;
+    color: #EF4444;
+    font-size: 0.65rem;
+    margin-top: 0.2rem;
+    min-height: 0.8rem;
+}
+
+.resumen-seccion {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--reserva-border-light);
+}
+.resumen-seccion:last-of-type { border-bottom: none; padding-bottom: 0; }
+.resumen-seccion__titulo {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--reserva-text-muted);
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+.resumen-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.4rem;
+    font-size: 0.8rem;
+}
+.resumen-item:last-child { margin-bottom: 0; }
+.resumen-item__etiqueta { color: var(--reserva-text-muted); }
+.resumen-item__valor { 
+    font-family: var(--font-mono);
+    color: var(--reserva-text-main) !important; 
+    font-weight: 500 !important; 
+    font-size: 0.8rem !important;
+    margin: 0 !important;
+}
+.resumen-item--total {
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px dashed var(--reserva-border-light);
+}
+.resumen-item__valor--precio { font-size: 0.95rem !important; }
+
+/* ============================================
+   MEDIA QUERIES - DESKTOP (PC / TABLETS GRANDES)
+   ============================================ */
+
+@media (min-width: 768px) {
+    .reserva-turno article {
+        flex-direction: row !important;
+        max-width: 1000px;
+        height: 500px; /* Fijo en PC */
+        max-height: none;
+        margin: 4rem auto;
+    }
+
+    .imagen-reserva {
+        width: 45% !important; 
+        height: 100% !important;
+    }
+
+    .contenido-reserva {
+        width: 55% !important;
+        padding: 2.5rem 3rem !important;
+    }
+}
