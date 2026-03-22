@@ -1,5 +1,5 @@
 // URL base de la API
-export const API_BASE_URL = 'http://localhost:3000/api/v1';
+export const API_BASE_URL = 'https://tesis-demo-proyecto.vercel.app/api/v1';
 
 // --- Estado Global de la Aplicación ---
 export let estado = {

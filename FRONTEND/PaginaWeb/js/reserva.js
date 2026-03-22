@@ -1,8 +1,12 @@
-
 // --- Selectores del DOM para Reservas ---
 const volverButtons = document.querySelectorAll('.btn-volver');
 const cargarDatosReserva = document.getElementById('btn-continuar');
 const btnConfirmarTurno = document.getElementById('btn-confirmar-reserva');
+
+// --- Configuración de API ---
+
+// URL de producción obtenida de Vercel + el prefijo de tu API
+const API_BASE_URL = 'https://tesis-demo-proyecto.vercel.app/api/v1';
 
 // --- Estados del turno ---
 let pasoActual = 1;
@@ -77,7 +81,8 @@ async function cargarServicios() {
   const contenedorServicios = document.getElementById("servicios-container");
   contenedorServicios.innerHTML = ""; // Limpiar
   try {
-    const response = await fetch("http://localhost:3000/api/v1/servicios");
+    // 💡 Fetch con concatenación directa de '/servicios'
+    const response = await fetch(`${API_BASE_URL}/servicios`); 
     if (!response.ok) {
       throw new Error(`Error al cargar los servicios: ${response.statusText}`);
     }
@@ -189,7 +194,8 @@ function cargarHorarios(horariosDisponibles) {
 async function obtenerOCrearClienteID(nombre, telefono) {
   const clienteData = { nombre, telefono };
   try {
-    const respuesta = await fetch(`http://localhost:3000/api/v1/clientes/obtener-o-crear`, {
+    // 💡 Fetch con concatenación directa de '/clientes/obtener-o-crear'
+    const respuesta = await fetch(`${API_BASE_URL}/clientes/obtener-o-crear`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(clienteData),
@@ -227,7 +233,8 @@ async function crearTurno() {
   };
 
   try {
-    const respuesta = await fetch(`http://localhost:3000/api/v1/turnos`, {
+    // 💡 Fetch con concatenación directa de '/turnos'
+    const respuesta = await fetch(`${API_BASE_URL}/turnos`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(turnoData),
@@ -255,7 +262,8 @@ async function seleccionarServicio(servicio) {
 
   try {
     // API para obtener barberos por servicio
-    const response = await fetch(`http://localhost:3000/api/v1/servicios/${servicio.id}/empleados`);
+    // 💡 Fetch con concatenación de IDs
+    const response = await fetch(`${API_BASE_URL}/servicios/${servicio.id}/empleados`);
     if (!response.ok) {
       throw new Error(`Error en la solicitud: ${response.statusText}`);
     }
@@ -290,7 +298,8 @@ async function seleccionarFecha(fecha) {
 
   try {
     // API para obtener horarios disponibles
-    const url = `http://localhost:3000/api/v1/turnos/horarios-disponibles/${empleado_id}/${servicio_id}/${fecha}`;
+    // 💡 Fetch con concatenación de IDs y fecha
+    const url = `${API_BASE_URL}/turnos/horarios-disponibles/${empleado_id}/${servicio_id}/${fecha}`;
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`Error en la solicitud: ${response.statusText}`);

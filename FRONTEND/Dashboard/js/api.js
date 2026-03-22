@@ -275,10 +275,7 @@ export async function deleteCliente(clienteId) {
       method: "DELETE",
     })
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
-    if (response.status === 204) {
-      return { success: true, message: "Cliente eliminado correctamente" }
-    }
-    return await response.json()
+    return { success: true }
   } catch (error) {
     manejarErrorFetch("No se pudo eliminar el cliente", error)
     return null

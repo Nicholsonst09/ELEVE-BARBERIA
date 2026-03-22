@@ -522,5 +522,5 @@ const sr = ScrollReveal({
 
 // ✅ Revela elementos específicos con diferentes orígenes
 sr.reveal('.animacion-01', { delay: 200, origin: 'top' });
-sr.reveal('.animacion-02', { delay: 400, origin: 'left', once: false, reset: true });
-sr.reveal('.animacion-03', { delay: 200, origin: 'right', once: false, reset: true }); // 👈 corregido "rigth" → "right"
+sr.reveal('.animacion-02', { delay: 400, origin: 'left', once: false, reset: false });
+sr.reveal('.animacion-03', { delay: 200, origin: 'right', once: false, reset: false }); // 👈 corregido "rigth" → "right"

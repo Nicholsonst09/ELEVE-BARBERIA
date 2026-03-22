@@ -5,16 +5,84 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ELEVÉ - Gestión de Peluquería</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 
 <body>
     <!-- Actualizando todas las clases a español -->
+    <!-- Overlay de Login - Pantalla dividida -->
+    <div id="login-overlay" class="login-overlay">
+        <!-- Lado izquierdo: Imagen -->
+        <div class="login-imagen">
+            <div class="login-imagen-contenido">
+                <h2 class="login-imagen-titulo">Bienvenido a ELEVÉ</h2>
+                <p class="login-imagen-subtitulo">Tu barbería de confianza</p>
+            </div>
+        </div>
+        
+        <!-- Lado derecho: Formulario -->
+        <div class="login-formulario">
+            <div class="login-card">
+                <div class="login-header">
+                    <h1 class="login-titulo">Iniciar Sesión</h1>
+                    <p class="login-subtitulo">Ingresá tus credenciales para continuar</p>
+                </div>
+                <form id="form-login" class="login-form" autocomplete="off">
+                    <div class="grupo-formulario">
+                        <label class="form-label" for="login-usuario">Usuario</label>
+                        <input
+                            type="text"
+                            id="login-usuario"
+                            class="form-input"
+                            placeholder="Tu nombre de usuario"
+                            required
+                            autocomplete="username"
+                        >
+                    </div>
+                    <div class="grupo-formulario">
+                        <label class="form-label" for="login-password">Contraseña</label>
+                        <div class="input-password-wrapper">
+                            <input
+                                type="password"
+                                id="login-password"
+                                class="form-input"
+                                placeholder="Tu contraseña"
+                                required
+                                autocomplete="current-password"
+                            >
+                            <button type="button" id="toggle-login-password" class="btn-toggle-password" title="Mostrar contraseña">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="login-error" class="login-error"></div>
+                    <button type="submit" class="boton-primario login-btn-submit">
+                        <i class="fas fa-sign-in-alt"></i>
+                        Ingresar
+                    </button>
+                </form>
+                <p class="login-demo-hint">
+                    <span><strong>admin</strong> / admin123</span>
+                    <span><strong>empleado</strong> / empleado123</span>
+                </p>
+            </div>
+        </div>
+    </div>
+
     <header class="encabezado">
         <div class="contenido-encabezado">
             <div class="seccion-logo">
                 <img src="./img/logo-eleve-02.jpg" alt="" width="200px">
+            </div>
+            <div class="header-acciones">
+                <div id="info-usuario-header"></div>
+                <button id="btn-logout" class="boton-icono" title="Cerrar sesión">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
             </div>
         </div>
     </header>
@@ -42,6 +110,10 @@
                 <button class="boton-navegacion" data-tab="empleados">
                     <i class="fas fa-user-tie"></i>
                     Empleados
+                </button>
+                <button class="boton-navegacion" data-tab="usuarios">
+                    <i class="fas fa-shield-alt"></i>
+                    Usuarios
                 </button>
             </nav>
         </aside>
@@ -182,10 +254,11 @@
                         <p>Rendimiento del Negocio </p>
                     </div>
                     <div class="acciones-pagina">
-                        <select id="period-selector" class="entrada-seleccion">
-                            <option value="week">Esta Semana</option>
-                            <option value="month" selected>Este Mes</option>
-                        </select>
+                        <div class="grupo-periodo" id="period-selector">
+                            <button class="btn-periodo" data-periodo="day">Día</button>
+                            <button class="btn-periodo activo" data-periodo="week">Semana</button>
+                            <button class="btn-periodo" data-periodo="month">Mes</button>
+                        </div>
                     </div>
                 </div>
 
@@ -278,11 +351,11 @@
 
                     <div class="tarjeta-grafico">
                         <div class="encabezado-grafico">
-                            <i class="fas fa-hand-holding-usd"></i>
-                            <h4>Ingresos por Empleado</h4>
+                            <i class="fas fa-chart-pie"></i>
+                            <h4>Ocupación por Empleado</h4>
                         </div>
                         <div class="contenedor-grafico">
-                            <div class="grafico-barras" id="grafico-ingresos-empleado"></div>
+                            <div class="grafico-ocupacion" id="grafico-ocupacion-empleado"></div>
                         </div>
                     </div>
 
@@ -332,8 +405,6 @@
                         <p>Administra la información de tus clientes</p>
                     </div>
                     <div class="acciones-pagina">
-                        <input type="text" id="buscador-clientes" class="entrada-busqueda"
-                            placeholder="Buscar clientes...">
                         <button class="boton-primario" id="btn-nuevo-cliente">
                             <i class="fas fa-plus"></i>
                             Nuevo Cliente
@@ -381,6 +452,8 @@
 
                 <div class="tarjeta">
                     <div class="contenido-tarjeta">
+                        <input type="text" id="buscador-clientes" class="entrada-busqueda buscador-lista"
+                            placeholder="Buscar clientes...">
                         <div id="lista-clientes" class="lista-elementos"></div>
                     </div>
                 </div>
@@ -395,8 +468,6 @@
                     </div>
 
                     <div class="acciones-pagina">
-                        <input type="text" id="buscador-servicios" class="entrada-busqueda"
-                            placeholder="Buscar servicios...">
                         <button class="boton-primario" id="btn-nuevo-servicio">
                             <i class="fas fa-plus"></i>
                             Nuevo Servicio
@@ -443,6 +514,8 @@
 
                 <div class="tarjeta">
                     <div class="contenido-tarjeta">
+                        <input type="text" id="buscador-servicios" class="entrada-busqueda buscador-lista"
+                            placeholder="Buscar servicios...">
                         <div id="lista-servicios" class="lista-elementos"></div>
                     </div>
                 </div>
@@ -456,8 +529,6 @@
                         <p>Administra tu equipo de trabajo</p>
                     </div>
                     <div class="acciones-pagina">
-                        <input type="text" id="buscador-empleados" class="entrada-busqueda"
-                            placeholder="Buscar empleados...">
                         <button class="boton-primario" id="btn-nuevo-empleado">
                             <i class="fas fa-plus"></i>
                             Nuevo Empleado
@@ -519,7 +590,73 @@
                 <!-- Lista de empleados -->
                 <div class="tarjeta">
                     <div class="contenido-tarjeta">
+                        <input type="text" id="buscador-empleados" class="entrada-busqueda buscador-lista"
+                            placeholder="Buscar empleados...">
                         <div id="lista-empleados" class="lista-elementos"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Módulo Usuarios -->
+            <div id="usuarios" class="contenido-pestana">
+                <div class="encabezado-pagina">
+                    <div class="titulo-pagina">
+                        <h2>Usuarios del Sistema</h2>
+                        <p>Administra quién tiene acceso al panel de gestión</p>
+                    </div>
+                    <div class="acciones-pagina">
+                        <button class="boton-primario" id="btn-nuevo-usuario">
+                            <i class="fas fa-plus"></i>
+                            Nuevo Usuario
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Métricas -->
+                <div class="metricas-seccion">
+                    <div class="tarjeta-metrica">
+                        <div class="encabezado-metrica">
+                            <div class="icono-metrica">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <span class="tendencia-metrica neutral">Total</span>
+                        </div>
+                        <div class="valor-metrica" id="total-usuarios">0</div>
+                        <div class="etiqueta-metrica">Usuarios Registrados</div>
+                        <div class="detalle-metrica">Con acceso al sistema</div>
+                    </div>
+
+                    <div class="tarjeta-metrica">
+                        <div class="encabezado-metrica">
+                            <div class="icono-metrica">
+                                <i class="fas fa-shield-alt"></i>
+                            </div>
+                            <span class="tendencia-metrica positiva">Admin</span>
+                        </div>
+                        <div class="valor-metrica" id="total-admins">0</div>
+                        <div class="etiqueta-metrica">Administradores</div>
+                        <div class="detalle-metrica">Acceso completo</div>
+                    </div>
+
+                    <div class="tarjeta-metrica">
+                        <div class="encabezado-metrica">
+                            <div class="icono-metrica">
+                                <i class="fas fa-user-tie"></i>
+                            </div>
+                            <span class="tendencia-metrica neutral">Equipo</span>
+                        </div>
+                        <div class="valor-metrica" id="total-empleados-usuarios">0</div>
+                        <div class="etiqueta-metrica">Empleados</div>
+                        <div class="detalle-metrica">Acceso limitado</div>
+                    </div>
+                </div>
+
+                <!-- Lista de usuarios -->
+                <div class="tarjeta">
+                    <div class="contenido-tarjeta">
+                        <input type="text" id="buscador-usuarios" class="entrada-busqueda buscador-lista"
+                            placeholder="Buscar usuarios...">
+                        <div id="lista-usuarios" class="lista-elementos"></div>
                     </div>
                 </div>
             </div>
@@ -548,12 +685,8 @@
                         <input type="tel" id="cliente-telefono" placeholder="+54 9 11 1234-5678" required>
                     </div>
                     <div class="grupo-formulario">
-                        <label for="cliente-email">Email</label>
-                        <input type="email" id="cliente-email" placeholder="cliente@ejemplo.com">
-                    </div>
-                    <div class="grupo-formulario">
-                        <label for="cliente-notas">Notas</label>
-                        <textarea id="cliente-notas" placeholder="Notas adicionales..." rows="3"></textarea>
+                        <label for="cliente-notas">Preferencias</label>
+                        <textarea id="cliente-notas" placeholder="Tipo de corte preferido, alergiás, notas..." rows="3"></textarea>
                     </div>
                 </form>
             </div>
@@ -593,6 +726,15 @@
                         <label for="servicio-duracion">Duración (minutos)</label>
                         <input type="number" id="servicio-duracion" placeholder="30" min="5" step="5" required>
                     </div>
+                    <div class="grupo-formulario">
+                        <div class="label-pros-header">
+                            <label>Profesionales asignados</label>
+                            <span id="contador-pros-servicio" class="pill-contador-pros vacio">0 seleccionados</span>
+                        </div>
+                        <div id="selector-profesionales-servicio" class="selector-profesionales">
+                            <p class="sin-pros-mensaje"><i class="fas fa-spinner fa-spin"></i> Cargando...</p>
+                        </div>
+                    </div>
                 </form>
             </div>
             <div class="pie-modal">
@@ -630,11 +772,94 @@
                         <label for="empleado-especialidad">Especialidad</label>
                         <input type="text" id="empleado-especialidad" placeholder="Ej: Barbero, Estilista">
                     </div>
+                    <div class="grupo-formulario">
+                        <div class="label-horario-header">
+                            <label>Horario laboral</label>
+                            <span id="pill-horario-empleado" class="pill-contador-pros vacio">Sin configurar</span>
+                        </div>
+                        <div class="horario-semanal" id="horario-semanal-empleado"></div>
+                    </div>
                 </form>
             </div>
             <div class="pie-modal">
                 <button type="button" class="boton-secundario btn-cancelar-empleado">Cancelar</button>
                 <button type="submit" form="form-empleado" class="boton-primario">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Usuarios -->
+    <div id="modal-usuario" class="modal">
+        <div class="contenido-modal">
+            <div class="encabezado-modal">
+                <h3 id="titulo-modal-usuario">Nuevo Usuario</h3>
+                <button class="cerrar-modal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="cuerpo-modal">
+                <form id="form-usuario">
+                    <input type="hidden" id="usuario-id">
+
+                    <div class="grupo-formulario">
+                        <label for="usuario-nombre">Nombre Completo</label>
+                        <input type="text" id="usuario-nombre" placeholder="Ej: Juan García" required>
+                    </div>
+
+                    <div class="grupo-formulario">
+                        <label for="usuario-username">Nombre de usuario (para login)</label>
+                        <input type="text" id="usuario-username" placeholder="Ej: jgarcia" required autocomplete="username">
+                    </div>
+
+                    <div class="grupo-formulario">
+                        <label for="usuario-email">Email</label>
+                        <input type="email" id="usuario-email" placeholder="usuario@eleve.com">
+                    </div>
+
+                    <div class="grupo-formulario">
+                        <label for="usuario-tipo">Tipo de Usuario</label>
+                        <select id="usuario-tipo" required>
+                            <option value="" disabled selected>Seleccionar tipo...</option>
+                            <option value="admin">Administrador</option>
+                            <option value="empleado">Empleado</option>
+                        </select>
+                    </div>
+
+                    <div class="grupo-formulario">
+                        <label id="label-password-usuario" for="usuario-password">Contraseña</label>
+                        <div class="input-password-wrapper">
+                            <input type="password" id="usuario-password"
+                                placeholder="Mínimo 6 caracteres" required autocomplete="new-password">
+                            <button type="button" id="toggle-password-usuario" class="btn-toggle-password" title="Mostrar contraseña">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="pie-modal">
+                <button type="button" class="boton-secundario btn-cancelar-usuario">Cancelar</button>
+                <button type="submit" form="form-usuario" class="boton-primario">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmación global -->
+    <div id="modal-confirmar" class="modal modal-confirmar-overlay">
+        <div class="confirmar-card">
+            <div class="confirmar-header">
+                <button id="confirmar-cerrar" class="confirmar-btn-cerrar" aria-label="Cerrar">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <h3 id="confirmar-titulo" class="confirmar-titulo">¿Confirmar acción?</h3>
+            <p  id="confirmar-mensaje" class="confirmar-mensaje"></p>
+            <div class="confirmar-acciones">
+                <button id="confirmar-cancelar" class="confirmar-btn-cancel">Cancelar</button>
+                <button id="confirmar-ok" class="confirmar-btn-ok">Confirmar</button>
             </div>
         </div>
     </div>

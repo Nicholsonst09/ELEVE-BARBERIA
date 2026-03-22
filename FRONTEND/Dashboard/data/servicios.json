@@ -1,0 +1,37 @@
+[
+  {
+    "id": 1,
+    "nombre": "Corte Clásico",
+    "descripcion": "Corte de cabello con tijera y máquina",
+    "precio": 3500,
+    "duracion": 30
+  },
+  {
+    "id": 2,
+    "nombre": "Corte + Barba",
+    "descripcion": "Corte de cabello y perfilado de barba",
+    "precio": 5500,
+    "duracion": 45
+  },
+  {
+    "id": 3,
+    "nombre": "Arreglo de Barba",
+    "descripcion": "Perfilado y arreglo de barba con navaja",
+    "precio": 2500,
+    "duracion": 20
+  },
+  {
+    "id": 4,
+    "nombre": "Afeitado con Navaja",
+    "descripcion": "Afeitado tradicional con navaja y toalla caliente",
+    "precio": 3000,
+    "duracion": 30
+  },
+  {
+    "id": 5,
+    "nombre": "Keratina",
+    "descripcion": "Tratamiento de keratina para cabello",
+    "precio": 12000,
+    "duracion": 90
+  }
+]

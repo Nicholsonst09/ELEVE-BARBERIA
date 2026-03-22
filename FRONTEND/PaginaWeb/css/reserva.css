@@ -1,719 +1,492 @@
-/* styles.css - Estilos del Formulario de Reserva */
-
 /* ============================================
-   CONTENEDOR PRINCIPAL
+   reserva.css - Rediseño Minimalista (Bloque Inteligente Móvil/Desktop)
    ============================================ */
-.contenedor-pasos-reserva {
-    backdrop-filter: blur(10px);
+
+:root {
+    --reserva-bg-base: #000000;
+    --reserva-bg-panel: #0A0A0A;
+    --reserva-bg-card: #141414;
+    --reserva-bg-hover: #1E1E1E;
+    --reserva-bg-active: #282828;
+    
+    --reserva-border-light: rgba(255, 255, 255, 0.08);
+    --reserva-border-hover: rgba(255, 255, 255, 0.25);
+    --reserva-border-active: rgba(255, 255, 255, 0.5);
+    
+    --reserva-text-main: #FFFFFF;
+    --reserva-text-muted: #888888;
+    
+    --reserva-radius-lg: 20px;
+    --reserva-radius-md: 8px; 
+    --reserva-radius-sm: 6px;
+    
+    --reserva-transition: 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* --------------------------------------------
+   RESETEOS Y TITULO PRINCIPAL
+   -------------------------------------------- */
+.contenido-reserva #reservar {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+}
+#reservar{
+    padding: 2rem 1rem;
+}
+.reserva-turno > h2 {
+    font-family: var(--font-principal);
+    font-size: 2rem !important;
+    font-weight: 300 !important;
+    text-align: center !important;
+    margin-bottom: 2rem !important;
+    margin-top: .5rem !important;
+    color: var(--reserva-text-main) !important;
+    letter-spacing: 4px !important;
+    text-transform: uppercase;
+}
+
+/* --------------------------------------------
+   BLOQUE PRINCIPAL (MÓVIL PRIMERO)
+   -------------------------------------------- */
+.reserva-turno article {
     display: flex;
     flex-direction: column;
-    justify-content: flex-start;
-    align-items: center;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-    margin: 0 auto;
-    /* Agregando padding específico para móvil - 1rem lateral consistente */
-    padding: 1rem;
-    border-radius: 20px;
+    align-items: stretch !important; /* Fuerza a ignorar styles.css */
+    justify-content: flex-start !important;
+    gap: 0 !important; /* Sin espacios entre imagen y form */
     width: 100%;
-    /* Reduciendo ancho máximo de 500px a 420px */
-    max-width: 420px;
-    /* Reduciendo altura mínima de 550px a 450px */
-    min-height: 450px;
-    background: rgba(0, 0, 0, 0.15);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    max-width: 500px;
+    
+    /* Altura dinámica y perfecta para celulares */
+    min-height: 550px;
+    max-height: 700px;
+    
+    margin: 0 auto;
+    background: var(--reserva-bg-panel);
+    border: 1px solid var(--reserva-border-light);
+    border-radius: var(--reserva-radius-lg);
+    overflow: hidden; 
+    box-shadow: 0 30px 60px -15px rgba(0,0,0,0.8);
 }
 
-.reserva-turno h2 {
-    color: var(--clr-blanco);
-    text-transform: uppercase;
-    font-weight: 300;
-    letter-spacing: 1px;
+/* Imagen de portada en Móvil */
+.imagen-reserva {
+    display: block !important;
+    width: 100% !important;
+    height: 200px !important; /* Altura de portada */
+    flex-shrink: 0;
+    padding: 0 !important;
+    margin: 0 !important;
 }
 
-/* ============================================
-   INDICADOR DE PROGRESO
-   ============================================ */
+.imagen-reserva img {
+    width: 100% !important;
+    height: 100% !important;
+    max-height: none !important; 
+    object-fit: cover !important;
+    display: block !important;
+    border-radius: 0 !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    filter: grayscale(100%) contrast(1.1); 
+}
+
+/* Área de contenido (Formulario con scroll) */
+.contenido-reserva {
+    flex: 1;
+    width: 100% !important;
+    padding: 1.5rem !important;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto; 
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.contenido-reserva::-webkit-scrollbar {
+    display: none;
+}
+
+.contenedor-pasos-reserva {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
+}
+
+/* --------------------------------------------
+   INDICADORES Y ANIMACIONES
+   -------------------------------------------- */
 .indicador-progreso {
     display: flex;
     justify-content: center;
     align-items: center;
-    /* Reduciendo padding de 2rem a 1rem */
-    padding-bottom: 1rem;
-    /* Reduciendo gap de 0.75rem a 0.5rem */
     gap: 0.5rem;
-    width: 100%;
-    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+    margin-top: 0.5rem;
+    flex-shrink: 0;
 }
 
 .indicador-progreso__paso {
-    /* Reduciendo tamaño de 2.5rem a 2rem */
-    width: 2rem;
-    height: 2rem;
+    font-family: var(--font-mono);
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    /* Reduciendo font-size de 0.9rem a 0.8rem */
-    font-size: 0.8rem;
-    font-weight: 600;
-    background-color: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(30px);
-    color: rgba(255, 255, 255, 0.6);
-    border: 2px solid rgba(255, 255, 255, 0.2);
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    cursor: default;
+    font-size: 0.7rem;
+    font-weight: 500;
+    background: var(--reserva-bg-hover);
+    color: var(--reserva-text-muted);
+    transition: all var(--reserva-transition);
 }
 
 .indicador-progreso__paso--activo {
-    background-color: #1a1a1a;
-    color: white;
-    border-color: var(--clr-blanco);
-    transform: scale(1.15);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+    background: var(--reserva-text-main);
+    color: var(--reserva-bg-base);
 }
 
 .indicador-progreso__paso--completado {
-    background-color: rgba(100, 100, 100, 0.4);
-    border-color: rgba(150, 150, 150, 0.5);
-    color: rgba(255, 255, 255, 0.8);
+    background: var(--reserva-bg-active);
+    color: var(--reserva-text-main);
 }
 
-/* ============================================
-   PASOS
-   ============================================ */
-.paso {
-    display: none;
-    width: 100%;
-    animation: fadeIn 0.4s ease-in-out;
-}
-
+.paso { display: none; height: auto; }
 .paso--activo {
     display: block;
+    animation: slideFade 0.35s forwards cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+@keyframes slideFade {
+    0% { opacity: 0; transform: translateY(10px); }
+    100% { opacity: 1; transform: translateY(0); }
 }
 
+/* --------------------------------------------
+   ENCABEZADOS DE PASOS
+   -------------------------------------------- */
 .paso__encabezado {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    gap: 1rem;
-    width: 100%;
-    /* Reduciendo margin-bottom de 1.5rem a 1rem */
-    margin-bottom: 1rem;
-    /* Reduciendo padding-bottom de 1rem a 0.75rem */
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
     padding-bottom: 0.75rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid var(--reserva-border-light);
 }
 
-.paso__encabezado h2 {
-    margin-bottom: 0;
-    color: var(--clr-blanco);
+.paso__icono {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--reserva-border-light);
+    border-radius: 20px;
+    color: var(--reserva-text-main);
+}
+
+.paso__encabezado .paso__titulo {
+    font-family: var(--font-principal);
+    font-size: 1.1rem !important;
+    letter-spacing: 1px !important;
+    font-weight: 400 !important;
+    color: var(--reserva-text-main) !important;
+    margin: 0 !important;
+    flex: 1;
     text-transform: uppercase;
-    font-weight: 300;
-    /* Reduciendo font-size de 1.25rem a 1.1rem */
-    font-size: 1.1rem;
-    letter-spacing: 0.5px;
+    text-align: left !important;
 }
 
-/* ============================================
-   GRIDS - RESPONSIVOS
-   ============================================ */
-.servicios-grid {
+/* --------------------------------------------
+   GRIDS Y TARJETAS COMPACTAS
+   -------------------------------------------- */
+.servicios-grid, .barberos-grid {
     display: grid;
     grid-template-columns: 1fr;
-    /* Reduciendo gap de 1rem a 0.75rem */
-    gap: 0.75rem;
-    /* Reduciendo margin-top de 1rem a 0.5rem */
-    margin-top: 0.5rem;
-    width: 100%;
+    gap: 0.4rem; 
 }
 
-.barberos-grid {
+.fechas-grid, .horarios-grid {
     display: grid;
-    grid-template-columns: 1fr;
-    /* Reduciendo gap de 1rem a 0.75rem */
-    gap: 0.75rem;
-    width: 100%;
+    grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); 
+    gap: 0.4rem;
 }
 
-.fechas-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-    /* Reduciendo gap de 0.75rem a 0.5rem */
-    gap: 0.5rem;
-    width: 100%;
-}
-
-.horarios-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
-    /* Reduciendo gap de 0.75rem a 0.5rem */
-    gap: 0.5rem;
-    width: 100%;
-}
-
-.mensaje-sin-horarios {
-    display: none;
-    color: var(--clr-blanco);
-    text-align: center;
-    padding: 2rem;
-    font-size: 0.95rem;
-}
-
-/* ============================================
-   TARJETAS (Elementos de Selección)
-   ============================================ */
 .tarjeta {
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: var(--reserva-bg-card);
+    border: 1px solid var(--reserva-border-light);
+    border-radius: var(--reserva-radius-md);
+    padding: 0.5rem 0.75rem; 
     cursor: pointer;
-    border-radius: 12px;
-    /* Reduciendo padding de 1rem a 0.75rem */
-    padding: 0.75rem;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    overflow: hidden;
-}
-
-.tarjeta::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 100%);
-    opacity: 0;
-    transition: opacity 0.3s ease;
+    transition: all var(--reserva-transition);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
 }
 
 .tarjeta:hover {
-    border-color: rgba(255, 255, 255, 0.5);
-    background: rgba(255, 255, 255, 0.1);
-    transform: translateY(-4px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-}
-
-.tarjeta:hover::before {
-    opacity: 1;
+    background: var(--reserva-bg-hover);
+    border-color: var(--reserva-border-hover);
+    transform: translateY(-1px);
 }
 
 .tarjeta:active {
-    transform: translateY(-2px);
+    background: var(--reserva-bg-active);
+    transform: translateY(0);
 }
 
+#paso-5 .tarjeta, #paso-6 .tarjeta {
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: default;
+}
+#paso-5 .tarjeta:hover, #paso-6 .tarjeta:hover { transform: none; }
+
 .tarjeta__encabezado {
-    /* Reduciendo padding de 0 0 0.75rem 0 a 0 0 0.5rem 0 */
-    padding: 0 0 0.5rem 0;
-    text-align: center;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
-    /* Reduciendo margin-bottom de 0.75rem a 0.5rem */
-    margin-bottom: 0.5rem;
+    border-bottom: none; 
+    padding-bottom: 0;
+    margin-bottom: 0.15rem; 
 }
 
 .tarjeta__titulo {
-    /* Reduciendo font-size de 1.1rem a 1rem */
-    font-size: 1rem;
-    font-weight: 400;
-    text-transform: uppercase;
-    color: var(--clr-blanco);
-    letter-spacing: 0.5px;
+    font-family: var(--font-principal);
+    letter-spacing: -0.03em;
+    font-size: 0.85rem !important; 
+    font-weight: 500 !important;
+    color: var(--reserva-text-main) !important;
+    margin: 0 !important;
+    text-align: left !important; 
 }
 
 .tarjeta__contenido {
-    /* Reduciendo padding de 0.5rem a 0.25rem */
-    padding: 0.25rem;
-    color: var(--clr-blanco);
-    position: relative;
-    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
 }
 
-/* ============================================
-   TARJETAS ESPECÍFICAS
-   ============================================ */
-.tarjeta-servicio__descripcion {
-    /* Reduciendo font-size de 0.85rem a 0.8rem */
-    font-size: 0.8rem;
-    color: rgba(255, 255, 255, 0.85);
-    /* Reduciendo margin-bottom de 0.75rem a 0.5rem */
-    margin-bottom: 0.5rem;
-    line-height: 1.5;
+/* Protegemos los textos de la interferencia de styles.css */
+.tarjeta-servicio__descripcion,
+.barbero-especialidad,
+.resumen-item__valor {
+    font-size: 0.7rem !important; 
+    color: var(--reserva-text-muted) !important;
+    line-height: 1.2 !important; 
+    margin-bottom: 0.4rem !important; 
+    padding: 0 !important;
+    font-weight: 400 !important;
 }
 
 .tarjeta-servicio__detalles {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start; 
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.4rem;
+    margin-top: auto;
 }
 
 .etiqueta {
-    /* Reduciendo padding de 0.4rem 0.75rem a 0.3rem 0.6rem */
-    padding: 0.3rem 0.6rem;
-    border-radius: 6px;
-    /* Reduciendo font-size de 0.8rem a 0.75rem */
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.5px;
+    font-family: var(--font-mono);
+    letter-spacing: -0.02em;
+    padding: 0.15rem 0.3rem; 
+    border-radius: 4px;
+    font-size: 0.65rem; 
+    font-weight: 500;
+    border: 1px solid var(--reserva-border-light);
 }
 
 .etiqueta--precio {
-    background: rgba(30, 30, 30, 0.6);
-    color: #ffffff;
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: var(--reserva-text-main);
+    color: var(--reserva-bg-base);
+    border-color: transparent;
 }
 
-.etiqueta--duracion {
-    background: rgba(255, 255, 255, 0.1);
-    color: var(--clr-blanco);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-}
+.etiqueta--duracion { color: var(--reserva-text-muted); }
 
-/* ============================================
-   BOTONES
-   ============================================ */
-.continuar,
-.btn-volver {
-    /* Reduciendo padding de 0.65rem 1.25rem a 0.5rem 1rem */
-    padding: 0.5rem 1rem;
-    background-color: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    color: var(--clr-blanco);
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    /* Reduciendo font-size de 0.9rem a 0.85rem */
-    font-size: 0.85rem;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.continuar {
-    margin-left: 0.5rem;
-    background-color: rgba(30, 30, 30, 0.4);
-    border-color: rgba(150, 150, 150, 0.5);
-}
-
-.continuar:hover:not(:disabled),
-.btn-volver:hover {
-    background-color: rgba(255, 255, 255, 0.15);
-    border-color: var(--clr-blanco);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-.continuar:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-    transform: none;
-}
-
-/* ============================================
-   BARBERO
-   ============================================ */
 .barbero-info {
     display: flex;
     align-items: center;
-    /* Reduciendo gap de 1rem a 0.75rem */
-    gap: 0.75rem;
+    gap: 0.5rem;
 }
 
 .barbero-avatar {
-    /* Reduciendo tamaño de 4rem a 3.5rem */
-    width: 3.5rem;
-    height: 3.5rem;
+    width: 30px; 
+    height: 30px; 
     border-radius: 50%;
-    background: linear-gradient(135deg, rgba(80, 80, 80, 0.4), rgba(50, 50, 50, 0.4));
-    backdrop-filter: blur(200px);
+    background: var(--reserva-bg-hover);
+    border: 1px solid var(--reserva-border-light);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 300;
-    color: var(--clr-blanco);
-    /* Reduciendo font-size de 0.85rem a 0.75rem */
-    font-size: 0.75rem;
-    border: 2px solid rgba(255, 255, 255, 0.2);
+    font-size: 0.6rem;
+    color: var(--reserva-text-muted);
     flex-shrink: 0;
 }
 
-.barbero-detalles {
-    flex: 1;
-}
-
 .barbero-detalles h3 {
-    /* Reduciendo font-size de 1.15rem a 1rem */
-    font-size: 1rem;
-    font-weight: 400;
-    /* Reduciendo margin-bottom de 0.25rem a 0.15rem */
-    margin-bottom: 0.15rem;
-    color: var(--clr-blanco);
-    letter-spacing: 0.5px;
+    font-size: 0.85rem !important;
+    font-weight: 500 !important;
+    color: var(--reserva-text-main) !important;
+    margin: 0 0 0.1rem 0 !important;
 }
 
-.barbero-especialidad {
-    /* Reduciendo font-size de 0.85rem a 0.8rem */
-    font-size: 0.8rem;
-    color: rgba(255, 255, 255, 0.7);
-    margin-bottom: 0;
-}
-
-/* ============================================
-   DATOS CLIENTES (Paso 5)
-   ============================================ */
-.tarjeta__contenido .campo {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    /* Reduciendo margin-bottom de 1rem a 0.75rem */
-    margin-bottom: 0.75rem;
-    position: relative;
-    z-index: 10;
-}
-
-.campo label {
-    color: rgba(255, 255, 255, 0.9);
-    /* Reduciendo font-size de 0.9rem a 0.85rem */
-    font-size: 0.85rem;
+.tarjeta-fecha, .tarjeta-horario {
+    font-family: var(--font-mono);
+    letter-spacing: -0.02em;
+    text-align: center;
+    font-size: 0.75rem; 
     font-weight: 500;
-    letter-spacing: 0.5px;
+    color: var(--reserva-text-main);
+    margin: auto;
 }
 
-.campo input {
-    width: 100%;
-    /* Reduciendo padding de 0.85rem 1rem a 0.65rem 0.85rem */
-    padding: 0.65rem 0.85rem;
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.08);
-    color: #fff;
-    /* Reduciendo font-size de 0.95rem a 0.9rem */
-    font-size: 0.9rem;
-    transition: all 0.3s ease;
-    outline: none;
-    pointer-events: auto !important;
-    user-select: text !important;
-    -webkit-user-select: text !important;
-    -moz-user-select: text !important;
-    -ms-user-select: text !important;
-    position: relative;
-    z-index: 20;
-    cursor: text;
+.mensaje-sin-horarios {
+    display: none;
+    text-align: center;
+    padding: 1rem;
 }
 
-.campo input:focus {
-    border-color: rgba(200, 200, 200, 0.8);
-    background: rgba(255, 255, 255, 0.12);
-    box-shadow: 0 0 0 3px rgba(150, 150, 150, 0.2);
-}
-
-.campo input::placeholder {
-    color: rgba(255, 255, 255, 0.4);
-}
-
-.campo input.invalido {
-    border-color: rgba(239, 68, 68, 0.6);
-    background: rgba(239, 68, 68, 0.05);
-}
-
-.error-mensaje {
-    color: #ffcccc;
-    font-size: 0.75rem;
-    min-height: 1rem;
-    display: block;
-    margin-top: 0.25rem;
-}
-
-/* ============================================
-   RESUMEN (Paso 6)
-   ============================================ */
-.resumen-seccion {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
-    /* Reduciendo padding de 1rem 0 a 0.75rem 0 */
-    padding: 0.75rem 0;
-    /* Reduciendo margin-bottom de 0.5rem a 0.25rem */
-    margin-bottom: 0.25rem;
-}
-
-.resumen-seccion:last-of-type {
-    border-bottom: none;
-}
-
-.resumen-seccion__titulo {
-    /* Reduciendo font-size de 0.85rem a 0.8rem */
+/* --------------------------------------------
+   BOTONES
+   -------------------------------------------- */
+.btn-volver, .continuar, .btn-confirmar {
+    font-family: inherit;
+    padding: 0.4rem 0.8rem;
+    border-radius: var(--reserva-radius-sm);
     font-size: 0.8rem;
-    font-weight: 600;
-    /* Reduciendo margin-bottom de 0.75rem a 0.5rem */
-    margin-bottom: 0.5rem;
-    color: rgba(200, 200, 200, 0.9);
-    text-transform: uppercase;
-    letter-spacing: 1px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--reserva-transition);
 }
 
+.btn-volver {
+    background: transparent;
+    border: 1px solid var(--reserva-border-light);
+    color: var(--reserva-text-main);
+}
+
+.btn-volver:hover {
+    background: var(--reserva-bg-hover);
+    border-color: var(--reserva-border-hover);
+}
+
+.continuar, .btn-confirmar {
+    background: var(--reserva-text-main);
+    color: var(--reserva-bg-base);
+    border: 1px solid transparent;
+    width: 100%;
+}
+
+.continuar:hover:not(:disabled), .btn-confirmar:hover { background: #E0E0E0; }
+
+.continuar:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: var(--reserva-bg-hover);
+    color: var(--reserva-text-muted);
+    border-color: var(--reserva-border-light);
+}
+
+.continuar { margin-top: 0.75rem; }
+.btn-confirmar { margin-top: 1rem; }
+
+/* --------------------------------------------
+   FORMULARIOS Y RESUMEN
+   -------------------------------------------- */
+.campo { margin-bottom: 0.75rem; }
+.campo__etiqueta {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--reserva-text-muted);
+    margin-bottom: 0.3rem;
+}
+.campo__entrada {
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--reserva-bg-base);
+    border: 1px solid var(--reserva-border-light);
+    color: var(--reserva-text-main);
+    padding: 0.6rem 0.8rem;
+    border-radius: var(--reserva-radius-sm);
+    font-family: inherit;
+    font-size: 0.85rem;
+    transition: all var(--reserva-transition);
+}
+.campo__entrada:focus {
+    outline: none;
+    border-color: var(--reserva-text-main);
+    background: var(--reserva-bg-hover);
+}
+.campo__entrada.invalido { border-color: #EF4444; }
+.error-mensaje {
+    display: block;
+    color: #EF4444;
+    font-size: 0.65rem;
+    margin-top: 0.2rem;
+    min-height: 0.8rem;
+}
+
+.resumen-seccion {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--reserva-border-light);
+}
+.resumen-seccion:last-of-type { border-bottom: none; padding-bottom: 0; }
+.resumen-seccion__titulo {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--reserva-text-muted);
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
 .resumen-item {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    /* Reduciendo margin-bottom de 0.6rem a 0.4rem */
     margin-bottom: 0.4rem;
-    /* Reduciendo font-size de 0.95rem a 0.85rem */
-    font-size: 0.85rem;
-    gap: 1rem;
+    font-size: 0.8rem;
 }
-
-.resumen-item__etiqueta {
-    font-weight: 400;
-    color: rgba(255, 255, 255, 0.7);
+.resumen-item:last-child { margin-bottom: 0; }
+.resumen-item__etiqueta { color: var(--reserva-text-muted); }
+.resumen-item__valor { 
+    font-family: var(--font-mono);
+    color: var(--reserva-text-main) !important; 
+    font-weight: 500 !important; 
+    font-size: 0.8rem !important;
+    margin: 0 !important;
 }
-
-.resumen-item__valor {
-    font-weight: 600;
-    color: var(--clr-blanco);
-    text-align: right;
+.resumen-item--total {
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px dashed var(--reserva-border-light);
 }
-
-.btn-confirmar {
-    width: 100%;
-    /* Reduciendo margin-top de 1rem a 0.75rem */
-    margin-top: 0.75rem;
-    /* Reduciendo padding de 1rem a 0.75rem */
-    padding: 0.75rem;
-    border-radius: 12px;
-    border: none;
-    background: linear-gradient(135deg, rgba(40, 40, 40, 0.5), rgba(20, 20, 20, 0.4));
-    border: 2px solid rgba(100, 100, 100, 0.6);
-    cursor: pointer;
-    color: var(--clr-blanco);
-    text-transform: uppercase;
-    transition: all 0.3s ease;
-    /* Reduciendo font-size de 1rem a 0.9rem */
-    font-size: 0.9rem;
-    font-weight: 600;
-    letter-spacing: 1px;
-}
-
-.btn-confirmar:hover {
-    background: linear-gradient(135deg, rgba(60, 60, 60, 0.6), rgba(40, 40, 40, 0.5));
-    border-color: rgba(150, 150, 150, 0.8);
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
-}
-
-.btn-confirmar:active {
-    transform: translateY(0);
-}
+.resumen-item__valor--precio { font-size: 0.95rem !important; }
 
 /* ============================================
-   MEDIA QUERIES - TABLET
+   MEDIA QUERIES - DESKTOP (PC / TABLETS GRANDES)
    ============================================ */
-@media (min-width: 640px) {
-    .contenedor-pasos-reserva {
-        /* Aumentando padding en tablet para mejor espaciado */
-        padding: 1.5rem;
-        max-width: 520px;
-        min-height: 500px;
-    }
 
-    .servicios-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1rem;
-    }
-
-    .fechas-grid {
-        grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-        gap: 0.75rem;
-    }
-
-    .horarios-grid {
-        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-        gap: 0.75rem;
-    }
-
-    .paso__encabezado h2 {
-        font-size: 1.2rem;
-    }
-
-    .indicador-progreso__paso {
-        width: 2.25rem;
-        height: 2.25rem;
-        font-size: 0.9rem;
-    }
-}
-
-/* ============================================
-   MEDIA QUERIES - DESKTOP
-   ============================================ */
 @media (min-width: 768px) {
-    .contenedor-pasos-reserva {
-        max-width: 650px;
-        min-height: 550px;
-        /* Aumentando padding en desktop */
-        padding: 1.75rem;
-    }
-
     .reserva-turno article {
-        display: flex;
-        flex-direction: row;
-        align-items: flex-start;
-        justify-content: center;
-        /* Reduciendo gap de 3rem a 2rem */
-        gap: 2rem;
-        max-width: 1400px;
-        margin: 0 auto;
+        flex-direction: row !important;
+        max-width: 1000px;
+        height: 500px; /* Fijo en PC */
+        max-height: none;
+        margin: 4rem auto;
     }
 
     .imagen-reserva {
-        width: 450px;
-        height: auto;
-        flex-shrink: 0;
-    }
-
-    .imagen-reserva img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        border-radius: 20px;
+        width: 45% !important; 
+        height: 100% !important;
     }
 
     .contenido-reserva {
-        flex: 1;
-        max-width: 800px;
-        width: 100%;
-    }
-
-    .servicios-grid {
-        grid-template-columns: repeat(2, 1fr);
-        /* Reduciendo gap de 1.5rem a 1rem */
-        gap: 1rem;
-    }
-
-    .barberos-grid {
-        grid-template-columns: repeat(2, 1fr);
-        /* Reduciendo gap de 1.5rem a 1rem */
-        gap: 1rem;
-    }
-
-    .fechas-grid {
-        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-        gap: 0.75rem;
-    }
-
-    .horarios-grid {
-        grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-        gap: 0.75rem;
-    }
-
-    .paso__encabezado h2 {
-        font-size: 1.3rem;
-    }
-
-    .tarjeta {
-        padding: 1rem;
-    }
-
-    .indicador-progreso {
-        gap: 0.75rem;
-    }
-
-    .indicador-progreso__paso {
-        width: 2.5rem;
-        height: 2.5rem;
-        font-size: 1rem;
-    }
-}
-
-/* ============================================
-   MEDIA QUERIES - LARGE DESKTOP
-   ============================================ */
-@media (min-width: 1024px) {
-    .contenedor-pasos-reserva {
-        max-width: 720px;
-        min-height: 600px;
-        /* Mayor padding en pantallas grandes */
-        padding: 2rem;
-    }
-
-    .servicios-grid,
-    .barberos-grid {
-        grid-template-columns: repeat(2, 1fr);
-        /* Reduciendo gap de 2rem a 1.25rem */
-        gap: 1.25rem;
-    }
-
-    .fechas-grid {
-        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-        gap: 1rem;
-    }
-
-    .horarios-grid {
-        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-        gap: 1rem;
-    }
-}
-
-/* ============================================
-   UTILIDADES Y AJUSTES FINALES
-   ============================================ */
-.tarjeta-fecha,
-.tarjeta-horario {
-    text-align: center;
-    font-weight: 500;
-    /* Reduciendo font-size de 0.95rem a 0.85rem */
-    font-size: 0.85rem;
-    /* Reduciendo padding de 0.5rem a 0.4rem */
-    padding: 0.4rem;
-}
-
-/* Asegurando padding consistente en todas las imágenes de artículos en móvil */
-/* Aplicando padding a todas las imágenes dentro de los artículos en móvil */
-.reserva-turno article img {
-    padding: 1rem !important;
-    box-sizing: border-box;
-}
-
-.imagen-reserva {
-    padding: 1rem !important;
-}
-
-.imagen-reserva img {
-    padding: 0 !important;
-}
-
-/* Removiendo padding en tablet y desktop para mejor layout */
-@media (min-width: 640px) {
-    .reserva-turno article img,
-    .imagen-reserva,
-    .imagen-reserva img {
-        padding: 0 !important;
-    }
-}
-
-/* Mejora de accesibilidad y animaciones suaves */
-* {
-    -webkit-tap-highlight-color: transparent;
-}
-
-.tarjeta::before {
-    z-index: 1;
-}
-
-@media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
+        width: 55% !important;
+        padding: 2.5rem 3rem !important;
     }
 }

@@ -4,9 +4,6 @@ import modeloCliente from "./modelo.cliente.mjs";
 async function obtenerClientes(req, res){
     try {
             const clientes = await modeloCliente.obtenerClientes();
-            if (clientes.length === 0) {
-                return res.status(200).json({ mensaje: "No hay clientes en la base de datos." });
-            }
             res.status(200).json(clientes);
         } catch (error) {
             console.error("Error en controlador.obtenerClientes:", error);
@@ -30,7 +27,7 @@ async function obtenerUnCliente(req, res){
                     res.status(404).json({ mensaje: 'Cliente no encontrado.' });
                 }
     }catch (error) {
-        console.error(`Error en controlador.obtenerUnCliente (ID: ${empleadoId}):`, error);
+        console.error(`Error en controlador.obtenerUnCliente (ID: ${clienteId}):`, error);
         res.status(500).json({ mensaje: 'Error interno del servidor al obtener el cliente.', detalle: error.message });
     }
 }
@@ -63,8 +60,53 @@ async function obtenerOCrear(req, res) {
 
 
 
+// Crear un cliente directamente (ABM)
+async function crearCliente(req, res) {
+    const { nombre, telefono, preferencias } = req.body;
+    if (!nombre || !telefono) {
+        return res.status(400).json({ mensaje: 'Nombre y teléfono son requeridos.' });
+    }
+    try {
+        const cliente = await modeloCliente.crearCliente({ nombre, telefono, preferencias });
+        res.status(201).json(cliente);
+    } catch (error) {
+        console.error('Error en controlador.crearCliente:', error);
+        res.status(500).json({ mensaje: 'Error al crear cliente.', detalle: error.message });
+    }
+}
+
+// Actualizar un cliente existente
+async function actualizarCliente(req, res) {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ mensaje: 'ID inválido.' });
+    try {
+        const cliente = await modeloCliente.actualizarCliente(id, req.body);
+        res.status(200).json(cliente);
+    } catch (error) {
+        console.error(`Error en controlador.actualizarCliente (ID: ${id}):`, error);
+        res.status(500).json({ mensaje: 'Error al actualizar cliente.', detalle: error.message });
+    }
+}
+
+// Eliminar un cliente
+async function eliminarCliente(req, res) {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ mensaje: 'ID inválido.' });
+    try {
+        await modeloCliente.eliminarCliente(id);
+        res.status(204).send();
+    } catch (error) {
+        console.error(`Error en controlador.eliminarCliente (ID: ${id}):`, error);
+        res.status(500).json({ mensaje: 'Error al eliminar cliente.', detalle: error.message });
+    }
+}
+
+
 export default {
     obtenerClientes,
     obtenerUnCliente,
-    obtenerOCrear
+    obtenerOCrear,
+    crearCliente,
+    actualizarCliente,
+    eliminarCliente
 };

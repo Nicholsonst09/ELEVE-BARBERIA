@@ -100,9 +100,57 @@ async function crearCliente(nuevoCliente) {
             console.error("Error al crear cliente en Supabase:", error);
             throw new Error(`Error al crear cliente: ${error.message}`);
         }
-        return data; // Devuelve el objeto del cliente recién creado
+        return data;
     } catch (error) {
         console.error("Error en modelo.crearCliente:", error);
+        throw error;
+    }
+}
+
+// Función para actualizar un cliente existente
+async function actualizarCliente(id, datos) {
+    try {
+        const { data, error } = await supabaseAdmin
+            .from('clientes')
+            .update({
+                nombre: datos.nombre,
+                telefono: datos.telefono,
+                preferencias: datos.preferencias,
+                modificado: new Date().toISOString()
+            })
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    } catch (error) {
+        console.error(`Error al actualizar cliente con ID ${id}:`, error.message);
+        throw error;
+    }
+}
+
+// Función para eliminar un cliente (y sus turnos asociados)
+async function eliminarCliente(id) {
+    try {
+        // Primero eliminar los turnos que referencian a este cliente
+        const { error: errorTurnos } = await supabaseAdmin
+            .from('turnos')
+            .delete()
+            .eq('cliente_id', id);
+
+        if (errorTurnos) throw errorTurnos;
+
+        // Luego eliminar el cliente
+        const { error } = await supabaseAdmin
+            .from('clientes')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+        return true;
+    } catch (error) {
+        console.error(`Error al eliminar cliente con ID ${id}:`, error.message);
         throw error;
     }
 }
@@ -112,5 +160,7 @@ export default {
     obtenerClientes,
     obtenerUnCliente,
     buscarOCrearCliente,
-    crearCliente    
+    crearCliente,
+    actualizarCliente,
+    eliminarCliente
 };

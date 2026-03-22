@@ -30,89 +30,47 @@ export function generateTimeSlots() {
 }
 
 /**
- * Muestra una notificación emergente.
+ * Muestra una notificación Toast.
  * @param {string} message - El mensaje a mostrar.
  * @param {'info'|'success'|'error'|'warning'} type - El tipo de notificación.
  */
 export function showNotification(message, type = "info") {
-  // Elimina notificaciones existentes para evitar duplicados
-  const existingNotifications = document.querySelectorAll(".notificacion")
-  existingNotifications.forEach((notification) => notification.remove())
+  // Elimina toasts existentes para evitar acumulación
+  document.querySelectorAll(".toast").forEach((t) => t.remove())
 
-  const notification = document.createElement("div")
-  notification.className = `notificacion notificacion-${type}`
-  notification.innerHTML = `
-        <div class="contenido-notificacion">
-            <i class="fas ${getNotificationIcon(type)}"></i>
-            <span>${message}</span>
-            <button class="cerrar-notificacion" onclick="this.parentElement.parentElement.remove()">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-    `
-  // Estilos en línea (como en tu script original)
-  notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        z-index: 10000;
-        background: ${getNotificationColor(type)};
-        color: white;
-        padding: 1rem 1.5rem;
-        border-radius: 0rem;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-        transform: translateX(100%);
-        transition: transform 0.3s ease;
-        max-width: 400px;
-    `
-  notification.querySelector(".contenido-notificacion").style.cssText = `
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-    `
-  notification.querySelector(".cerrar-notificacion").style.cssText = `
-        background: none;
-        border: none;
-        color: white;
-        cursor: pointer;
-        padding: 0.25rem;
-        margin-left: auto;
-    `
+  const iconos = {
+    success: "fa-check-circle",
+    error:   "fa-exclamation-circle",
+    warning: "fa-exclamation-triangle",
+    info:    "fa-info-circle",
+  }
 
-  document.body.appendChild(notification)
+  const toast = document.createElement("div")
+  toast.className = `toast toast-${type}`
+  toast.innerHTML = `
+    <i class="fas ${iconos[type] ?? iconos.info} toast-icon"></i>
+    <span class="toast-mensaje">${message}</span>
+    <button class="toast-cerrar" aria-label="Cerrar">
+      <i class="fas fa-times"></i>
+    </button>
+  `
 
-  // Animación de entrada
-  setTimeout(() => {
-    notification.style.transform = "translateX(0)"
-  }, 100)
+  document.body.appendChild(toast)
 
-  // Auto-cierre
-  setTimeout(() => {
-    notification.style.transform = "translateX(100%)"
-    setTimeout(() => {
-      if (notification.parentElement) {
-        notification.remove()
-      }
-    }, 300)
-  }, 5000)
+  // Forzar reflow para que la transición de entrada funcione
+  toast.offsetHeight
+  toast.classList.add("toast-visible")
+
+  // Cerrar manual
+  toast.querySelector(".toast-cerrar").addEventListener("click", () => cerrarToast(toast))
+
+  // Auto-cierre a los 4 s
+  setTimeout(() => cerrarToast(toast), 4000)
 }
 
-function getNotificationIcon(type) {
-  switch (type) {
-    case "success": return "fa-check-circle";
-    case "error": return "fa-exclamation-circle";
-    case "warning": return "fa-exclamation-triangle";
-    default: return "fa-info-circle";
-  }
-}
-
-function getNotificationColor(type) {
-  switch (type) {
-    case "success": return "#48bb78";
-    case "error": return "#e53e3e";
-    case "warning": return "#ed8936";
-    default: return "#4299e1";
-  }
+function cerrarToast(toast) {
+  toast.classList.remove("toast-visible")
+  toast.addEventListener("transitionend", () => toast.remove(), { once: true })
 }
 
 // --- Utilidades de Fecha ---
@@ -178,4 +136,76 @@ export function puedeDiaAnterior(fechaActual) {
   const diaAnterior = new Date(fechaActual);
   diaAnterior.setDate(diaAnterior.getDate() - 1);
   return !esFechaPasada(diaAnterior);
+}
+
+/**
+ * Muestra un popup de confirmación y devuelve una Promise<boolean>.
+ * Reemplaza al window.confirm() nativo.
+ * @param {string} mensaje  - Texto descriptivo de la acción.
+ * @param {string} titulo   - Título del popup (opcional).
+ * @param {string} textoBtnOk - Texto del botón de confirmar (opcional).
+ */
+/**
+ * Pone un botón en estado loading (deshabilita + cambia texto).
+ * Devuelve una función para restaurarlo.
+ * @param {HTMLButtonElement} btn
+ * @param {string} texto - Texto mientras carga. Default "Guardando..."
+ * @returns {() => void} restore - Llámala para volver al estado original.
+ */
+export function setBtnLoading(btn, texto = 'Guardando...') {
+  if (!btn) return () => {}
+  const textoOriginal = btn.innerHTML
+  btn.disabled = true
+  btn.innerHTML = `<span class="spinner-btn"></span>${texto}`
+  return () => {
+    btn.disabled = false
+    btn.innerHTML = textoOriginal
+  }
+}
+
+export function confirmarAccion(
+  mensaje,
+  titulo    = '¿Confirmar acción?',
+  textoBtnOk = 'Confirmar'
+) {
+  return new Promise((resolve) => {
+    const modal     = document.getElementById('modal-confirmar')
+    const tituloEl  = document.getElementById('confirmar-titulo')
+    const mensajeEl = document.getElementById('confirmar-mensaje')
+    const btnOk     = document.getElementById('confirmar-ok')
+    const btnCancel = document.getElementById('confirmar-cancelar')
+    const btnCerrar = document.getElementById('confirmar-cerrar')
+
+    // Fallback por si el HTML no tiene el modal todavía
+    if (!modal) { resolve(window.confirm(mensaje)); return }
+
+    tituloEl.textContent  = titulo
+    mensajeEl.textContent = mensaje
+    btnOk.textContent     = textoBtnOk
+
+    modal.classList.add('activo')
+    document.body.style.overflow = 'hidden'
+
+    function cerrar(resultado) {
+      modal.classList.remove('activo')
+      document.body.style.overflow = ''
+      btnOk.removeEventListener('click', onOk)
+      btnCancel.removeEventListener('click', onCancel)
+      if (btnCerrar) btnCerrar.removeEventListener('click', onCancel)
+      modal.removeEventListener('click', onFondo)
+      document.removeEventListener('keydown', onKey)
+      resolve(resultado)
+    }
+
+    function onOk()     { cerrar(true) }
+    function onCancel() { cerrar(false) }
+    function onFondo(e) { if (e.target === modal) cerrar(false) }
+    function onKey(e)   { if (e.key === 'Escape') cerrar(false) }
+
+    btnOk.addEventListener('click',     onOk)
+    btnCancel.addEventListener('click', onCancel)
+    if (btnCerrar) btnCerrar.addEventListener('click', onCancel)
+    modal.addEventListener('click',     onFondo)
+    document.addEventListener('keydown', onKey)
+  })
 }

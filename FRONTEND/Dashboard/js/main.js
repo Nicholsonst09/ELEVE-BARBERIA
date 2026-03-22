@@ -1,6 +1,8 @@
 // 1. Importar Estado y Utilidades
 import { estado } from './estado.js';
 import { formatearFechaParaAPI, showNotification } from './utilidades.js';
+import { inicializarAuth } from './auth.js';
+import { sembrarDB, dbGetEmpleados, dbGetServicios } from './db.js';
 
 // 2. Importar Servicios API
 import * as api from './api.js';
@@ -23,31 +25,53 @@ const formularioCita = document.getElementById("appointment-form"); // Legacy
 import { inicializarClientes } from './clientes.js';
 import { inicializarServicios } from './servicios.js';
 import { inicializarEmpleados } from './empleados.js';
+import { inicializarUsuarios } from './usuarios.js';
 // ===================================================
 // INICIALIZACIÓN
 // ===================================================
 
 document.addEventListener("DOMContentLoaded", async () => {
+  // Sembrar BD de usuarios desde JSON antes de mostrar el login
+  await inicializarUsuarios();
+
+  // Sembrar BD de clientes, servicios y empleados
+  await sembrarDB();
+
+  // Auth siempre primero — muestra el login o restaura la sesión
+  inicializarAuth();
+
   estado.isLoading = true;
 
+  // Colores asignados por nombre (el backend no devuelve color)
+  const COLORES_PROF = { 'bautista': '#1a1a1a', 'ciro': '#2f6d4e', 'felipe': '#a34b20', 'ricardo': '#2c4ea3' };
+  const PALETA = ['#1a1a1a', '#2f6d4e', '#a34b20', '#2c4ea3', '#6b2fa0', '#b5461a'];
+
+  // Cargar profesionales y servicios desde el backend
+  const [profesionalesAPI, serviciosAPI] = await Promise.all([
+    api.fetchProfesionales().catch(() => []),
+    api.fetchServicios().catch(() => [])
+  ]);
+
+  estado.profesionales = profesionalesAPI.map((p, i) => ({
+    ...p,
+    color: COLORES_PROF[p.nombre.split(' ')[0].toLowerCase()] || PALETA[i % PALETA.length]
+  }));
+  estado.servicios = serviciosAPI;
+
+  if (estado.profesionales.length > 0) {
+    estado.profesionalSeleccionado = 'pendiente';
+  }
+
   try {
-    // Carga de datos iniciales en paralelo
-    const [profesionales, servicios, dashboardStats, financialData] = await Promise.all([
-      api.fetchProfesionales(),
-      api.fetchServicios(),
+    // Carga de stats y finanzas (pueden fallar en modo demo)
+    const [dashboardStats, financialData] = await Promise.all([
       api.fetchDashboardStats(estado.fechaActual),
       api.fetchFinancialData('week')
     ]);
 
     // Mutamos el estado global con los datos cargados
-    estado.profesionales = profesionales;
-    estado.servicios = servicios;
     estado.dashboardStats = dashboardStats;
     estado.financialData = financialData;
-
-    if (estado.profesionales.length > 0) {
-      estado.profesionalSeleccionado = 'pendiente';
-    }
 
     // Carga de turnos (depende de la fecha y profesional)
     const [turnos, turnosPendientesCount] = await Promise.all([
@@ -129,22 +153,31 @@ function setupPrincipalEventListeners() {
   }
 
 
-  // Selector de período (Finanzas)
-  if (selectorPeriodo) { // <-- COMPROBACIÓN AÑADIDA
-    // Renderizado inicial de finanzas
-    renderFinancialData(selectorPeriodo.value);
+  // Selector de período (Finanzas) — botones
+  const grupoPeriodo = document.getElementById('period-selector')
+  if (grupoPeriodo) {
+    const btnsPeriodo = grupoPeriodo.querySelectorAll('.btn-periodo')
+    const periodoActivo = () => grupoPeriodo.querySelector('.btn-periodo.activo')?.dataset.periodo || 'week'
 
-    selectorPeriodo.addEventListener("change", async function () {
-      estado.isLoading = true;
-      try {
-        estado.financialData = await api.fetchFinancialData(this.value);
-      } catch (error) {
-        console.error('Error al cambiar período financiero', error);
-      } finally {
-        estado.isLoading = false;
-        renderFinancialData(this.value);
-      }
-    });
+    // Renderizado inicial
+    renderFinancialData(periodoActivo())
+
+    btnsPeriodo.forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        btnsPeriodo.forEach((b) => b.classList.remove('activo'))
+        btn.classList.add('activo')
+        const periodo = btn.dataset.periodo
+        estado.isLoading = true
+        try {
+          estado.financialData = await api.fetchFinancialData(periodo)
+        } catch (error) {
+          console.error('Error al cambiar período financiero', error)
+        } finally {
+          estado.isLoading = false
+          renderFinancialData(periodo)
+        }
+      })
+    })
   }
 
   // --- Listeners del Modal "Nuevo Turno" (legacy) ---
@@ -201,6 +234,7 @@ function setupPrincipalEventListeners() {
   inicializarClientes();
   inicializarServicios();
   inicializarEmpleados();
+  // inicializarUsuarios ya fue llamado al inicio del DOMContentLoaded
 }
 
 // ===================================================

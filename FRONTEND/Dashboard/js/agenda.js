@@ -19,7 +19,8 @@ import {
   esHoy,
   puedeDiaAnterior,
   showNotification,
-  formatearFechaParaAPI
+  formatearFechaParaAPI,
+  setBtnLoading
 } from './utilidades.js';
 
 
@@ -28,8 +29,18 @@ let _recargarDashboardStats = () => console.warn('recargarDashboardStats no inye
 
 
 // --- Funciones de Lógica de Agenda (Privadas) ---
+/* function obtenerEstiloTurno(horaInicio, horaFin) {
+  const [horaI, minI] = (horaInicio || "09:00").split(":").map(Number);
+  const minutosInicio = (horaI - 9) * 60 + minI;
+  const duracionMinutos = 60; // Duración fija asumida (API no envía horaFin)
 
-function obtenerEstiloTurno(horaInicio, horaFin) {
+  return {
+    top: `${(minutosInicio / 60) * 150}px`,
+    height: `${(duracionMinutos / 60) * 150 - 6}px`
+  };
+} */
+
+function obtenerEstiloTurno(horaInicio, horaFin, alturaSlot = 150) {
   // Descomponemos ambas horas (ej: "09:30")
   const [horaI, minI] = (horaInicio || "09:00").split(":").map(Number);
   const [horaF, minF] = (horaFin || "10:00").split(":").map(Number);
@@ -40,12 +51,11 @@ function obtenerEstiloTurno(horaInicio, horaFin) {
   // Duración real en minutos
   const duracionMinutos = (horaF * 60 + minF) - (horaI * 60 + minI);
 
-  // Cada hora equivale a 150px → 1 min = 150/60 = 2.5px
   return {
-    top: `${(minutosInicio / 60) * 150}px`,
-    height: `${(duracionMinutos / 60) * 150 - 6}px`
+    top: `${(minutosInicio / 60) * alturaSlot}px`,
+    height: `${Math.max((duracionMinutos / 60) * alturaSlot - 2, 20)}px`
   };
-}
+} 
 
 function obtenerEtiquetaEstado(estado) {
   const etiquetas = {
@@ -56,6 +66,8 @@ function obtenerEtiquetaEstado(estado) {
   };
   return etiquetas[estado] || "Pendiente";
 }
+
+
 
 /**
  * Calcula la diferencia en minutos entre dos horas de un día específico.
@@ -84,15 +96,6 @@ function renderizarNavegacion() {
   const navPestanas = document.getElementById("navPestanas");
   const turnosPendientes = estado.turnosPendientesCount;
 
-  const colorMap = {
-    "Bautista": "#3b82f6", // Azul
-    "Ciro": "#16a34a", // Verde
-    "Felipe": "#f97316", // Naranja
-    "Ricardo": "#a855f7", // Violeta
-    "default": "#525252" // Gris (por si acaso)
-  };
-
-
   let html = `
     <button class="pestana-navegacion pendiente ${estado.profesionalSeleccionado === "pendiente" ? "activo" : ""}" data-id="pendiente">
       <svg class="icono" style="color: var(--color-primario);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -106,22 +109,24 @@ function renderizarNavegacion() {
   `;
 
   estado.profesionales.forEach((prof) => {
-    const color = colorMap[prof.nombre] || prof.color || '#ccc';
+    const color = prof.color || '#525252';
+    const primerNombre = prof.nombre.split(' ')[0];
 
     html += `
       <button class="pestana-navegacion ${String(estado.profesionalSeleccionado) === String(prof.id) ? "activo" : ""}" data-id="${prof.id}">
         <div class="punto-color" style="background-color: ${color};"></div>
-        ${prof.nombre}
+        <span class="nombre-prof-tab">${primerNombre}</span>
       </button>
     `;
   });
 
   navPestanas.innerHTML = html;
 
+  // Asigna listeners (esto queda igual)
   navPestanas.querySelectorAll(".pestana-navegacion").forEach((pestana) => {
     pestana.addEventListener("click", () => {
       estado.profesionalSeleccionado = pestana.dataset.id;
-      recargarTurnosYAgenda();
+      recargarTurnosYAgenda(); // Llama a la función pública de recarga
     });
   });
 }
@@ -140,7 +145,8 @@ function renderizarEncabezado() {
   btnHoy.disabled = esHoy(estado.fechaActual);
 }
 
-// Función para detectar superposiciones (Lógica matemática pura, NO TOCAR)
+// Nueva función para detectar superposiciones de turnos
+
 function detectarSuperposiciones(turnos) {
   const horaAMinutos = (hora) => {
     const [h, m] = hora.split(':').map(Number);
@@ -176,6 +182,8 @@ function detectarSuperposiciones(turnos) {
 
     if (turnosSuperpuestos.length > 1) {
       turnosSuperpuestos.forEach((turno, idx) => {
+        // SOLO actualizamos si el nuevo grupo es MÁS GRANDE
+        // que el grupo en el que ya está.
         if (turnosSuperpuestos.length > turno.totalColumnas) {
           turno.columna = idx;
           turno.totalColumnas = turnosSuperpuestos.length;
@@ -187,138 +195,110 @@ function detectarSuperposiciones(turnos) {
   return turnosConPosicion;
 }
 
-// ========================================================
-// FUNCIÓN ACTUALIZADA CON LÓGICA MOBILE/DESKTOP
-// ========================================================
 function renderizarGrilla() {
   const cuerpoGrilla = document.getElementById("cuerpoGrilla");
   const turnosFiltrados = estado.turnos;
-  const esMobile = window.innerWidth <= 1300;
-
-  // 1. Construimos el HTML de fondo (las líneas de hora)
-  // IMPORTANTE: Le agregamos un ID o data-hora al contenido-tiempo para encontrarlo luego
   let ranuraHtml = "";
   horariosDelDia.forEach((hora) => {
     ranuraHtml += `
       <div class="ranura-tiempo">
         <div class="etiqueta-tiempo">${hora}</div>
-        <div class="contenido-tiempo" data-hora="${hora}"></div>
+        <div class="contenido-tiempo"></div>
       </div>
     `;
   });
   cuerpoGrilla.innerHTML = ranuraHtml;
 
-  // 2. Solo creamos la capa flotante si NO es móvil
-  let contenedorOverlay = null;
-  if (!esMobile) {
-      const capaTurnos = document.createElement("div");
-      capaTurnos.className = "capa-turnos";
-      capaTurnos.innerHTML = `
-        <div class="grilla-turnos">
-          <div></div>
-          <div class="contenedor-turnos" id="contenedorTurnos"></div>
-        </div>
-      `;
-      cuerpoGrilla.appendChild(capaTurnos);
-      contenedorOverlay = document.getElementById("contenedorTurnos");
-  }
+  const capaTurnos = document.createElement("div");
+  capaTurnos.className = "capa-turnos";
+  capaTurnos.innerHTML = `
+    <div class="grilla-turnos">
+      <div></div>
+      <div class="contenedor-turnos" id="contenedorTurnos"></div>
+    </div>
+  `;
+  cuerpoGrilla.appendChild(capaTurnos);
+
+  const contenedor = document.getElementById("contenedorTurnos");
 
   if (!turnosFiltrados || turnosFiltrados.length === 0) {
-    // Mensaje simple si no hay turnos (puedes mejorarlo visualmente)
-    return; 
+    contenedor.innerHTML = `<p style="text-align: center; padding-top: 2rem; color: var(--color-secundario);">No hay turnos para mostrar.</p>`;
+    return;
   }
 
-  // Obtenemos posiciones (solo útil para Desktop, pero no hace daño en móvil)
   const turnosConPosicion = detectarSuperposiciones(turnosFiltrados);
 
-  const colorMap = {
-    "Bautista": "#3b82f6", "Ciro": "#16a34a", "Felipe": "#f97316",
-    "Ricardo": "#a855f7", "default": "#525252"
-  };
+  const alturaSlot = parseFloat(
+    getComputedStyle(document.documentElement).getPropertyValue('--altura-slot').trim()
+  ) || 150;
 
   turnosConPosicion.forEach((turno) => {
-    const profesional = estado.profesionales.find(p => p.nombre === turno.nombre_empleado);
-    const duracion = calcularDuracionEnMinutos(turno.fecha, turno.hora, turno.hora_fin);
-    
-    // Crear tarjeta
+    // --- INICIO DE MODIFICACIÓN 2: Lógica de color ---
+    const profesional = estado.profesionales.find(p => String(p.id) === String(turno.empleado_id))
+                     || estado.profesionales.find(p => p.nombre === turno.nombre_empleado);
+    const estilo = obtenerEstiloTurno(turno.hora, turno.hora_fin, alturaSlot);
     const tarjeta = document.createElement("div");
     tarjeta.className = "tarjeta-turno";
-    const colorProfesional = colorMap[turno.nombre_empleado] || profesional?.color || colorMap["default"];
+    tarjeta.style.top = estilo.top;
+    tarjeta.style.height = estilo.height;
+    
+    // Calcular ancho y posición horizontal según superposiciones
+    const anchoColumna = 100 / turno.totalColumnas;
+    const leftPosicion = anchoColumna * turno.columna;
+    tarjeta.style.width = `calc(${anchoColumna}% - 8px)`;
+    tarjeta.style.left = `${leftPosicion}%`;
+    
+    const duracion = calcularDuracionEnMinutos(turno.fecha, turno.hora, turno.hora_fin);
+    
+    // Usar el color del map.
+    const colorProfesional = profesional?.color || '#525252';
     tarjeta.style.borderLeftColor = colorProfesional;
+    // --- FIN DE MODIFICACIÓN 2 ---
 
-    // --- CONTENIDO HTML COMÚN ---
+    // --- INICIO DE MODIFICACIÓN 3: Nuevo HTML ---
     tarjeta.innerHTML = `
       <div class="info-cliente-servicio">
         <div class="cliente-turno">${turno.nombre_cliente}</div>
         <div class="servicio-turno">${turno.nombre_servicio} (${duracion} min)</div> 
       </div>
+
       <div class="info-profesional-hora">
-        ${profesional ? `
+        ${turno.nombre_empleado ? `
           <div class="profesional-turno">
             <svg class="icono" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               <circle cx="12" cy="7" r="4" stroke-width="2"/>
             </svg>
-            <span>${turno.nombre_empleado}</span>
+            <span>${turno.nombre_empleado.split(' ')[0]}</span>
           </div>
-        ` : "<div></div>"}
+        ` : ""}
         <div class="hora-turno-apilada">
-          <span class="hora-texto">${turno.hora.substring(0, 5)}h</span>
+          <span class="hora-texto">${turno.hora.slice(0, 5)}h</span>
+      
         </div>
       </div>
+      
       <div class="pie-turno-boton">
         <div class="editar-turno">
-           <svg class="icono" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="icono" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </div>
       </div>
     `;
+    // --- FIN DE MODIFICACIÓN 3 ---
 
-    // Click para editar
     tarjeta.addEventListener("click", () => {
       estado.turnoSeleccionado = turno;
       estado.modoEdicion = false;
       renderizarModal();
     });
 
-    // --- LÓGICA DE INYECCIÓN ---
-    if (esMobile) {
-        // MODO MÓVIL: Buscamos la fila correcta y la pegamos ahí
-        // La hora viene "09:00:00", cortamos a "09:00"
-        const horaSimple = turno.hora.substring(0, 5);
-        
-        // Buscamos el div con data-hora="09:00"
-        const slotDestino = document.querySelector(`.contenido-tiempo[data-hora="${horaSimple}"]`);
-        
-        if (slotDestino) {
-            slotDestino.appendChild(tarjeta);
-        } else {
-            // Si la hora es intermedia (ej: 09:30) y no tienes ranuras de media hora,
-            // intentamos buscar la hora anterior (simple fallback)
-            const [h, m] = horaSimple.split(':');
-            const horaRedonda = `${h}:00`;
-            const slotAlternativo = document.querySelector(`.contenido-tiempo[data-hora="${horaRedonda}"]`);
-            if (slotAlternativo) slotAlternativo.appendChild(tarjeta);
-        }
-
-    } else {
-        // MODO DESKTOP: Usamos Overlay + Posición Absoluta
-        const estilo = obtenerEstiloTurno(turno.hora, turno.hora_fin);
-        tarjeta.style.position = 'absolute';
-        tarjeta.style.top = estilo.top;
-        tarjeta.style.height = estilo.height;
-
-        const anchoColumna = 100 / turno.totalColumnas;
-        const leftPosicion = anchoColumna * turno.columna;
-        tarjeta.style.width = `calc(${anchoColumna}% - 8px)`;
-        tarjeta.style.left = `${leftPosicion}%`;
-
-        if (contenedorOverlay) contenedorOverlay.appendChild(tarjeta);
-    }
+    contenedor.appendChild(tarjeta);
   });
 }
+
 export function renderizarModal() {
   const modal = document.getElementById("modalSuperpuesto");
   const cuerpoModal = document.getElementById("cuerpoModal");
@@ -398,10 +378,12 @@ export function renderizarModal() {
     setupModalCreacionListeners();
   }
 
-  // --- MODO 2: EDITAR TURNO EXISTENTE ---
+  // --- MODO 2: EDITAR TURNO EXISTENTE (MODIFICADO) ---
   else if (estado.modoEdicion) {
     tituloModal.textContent = "Modificar Turno";
 
+    // HTML casi idéntico al de "Crear Turno", pero con el campo "Estado"
+    // y sin los campos de cliente (ya que el cliente_id no se cambia)
     cuerpoModal.innerHTML = `
         <form id="formEdicion">
           <input type="hidden" id="horaInicioSeleccionada" required>
@@ -467,22 +449,17 @@ export function renderizarModal() {
           </div>
         </form>
       `;
+    // Llamamos a la nueva función de listeners para el modo EDICIÓN
     setupModalEdicionListeners(turno);
   }
 
-  // --- MODO 3: VER DETALLES ---
+  // --- MODO 3: VER DETALLES (Default) ---
   else {
+    // (Esta parte no cambia, sigue como la tenías)
     tituloModal.textContent = "Detalles del Turno";
-    const profesional = {
-      nombre: turno.nombre_empleado
-    };
-    const servicio = {
-      nombre: turno.nombre_servicio
-    };
-    const cliente = {
-      nombre: turno.nombre_cliente,
-      telefono: turno.telefono_cliente
-    };
+    const profesional = { nombre: turno.nombre_empleado };
+    const servicio = { nombre: turno.nombre_servicio };
+    const cliente = { nombre: turno.nombre_cliente, telefono: turno.telefono_cliente };
 
     cuerpoModal.innerHTML = `
       <div class="detalles-turno-container">
@@ -528,6 +505,7 @@ export function renderizarModal() {
     });
 
     document.getElementById("btnCancelarTurno").addEventListener("click", async () => {
+      // (Esta lógica de eliminar no cambia)
       if (!turno.id) {
         showNotification("Error: No se puede cancelar el turno porque falta el 'id' desde la API.", "error");
         return;
@@ -551,7 +529,7 @@ export function renderizarModal() {
 }
 
 // ===============================================
-// Listeners para el Modal de Creación
+// NUEVA FUNCIÓN: Listeners para el Modal de Creación
 // ===============================================
 function setupModalCreacionListeners() {
   const form = document.getElementById("formCreacion");
@@ -561,9 +539,12 @@ function setupModalCreacionListeners() {
   const contHorarios = document.getElementById("horariosContenedor");
   const inputHoraSelec = document.getElementById("horaInicioSeleccionada");
 
+  // --- Lógica de carga encadenada ---
+
   // 1. Al cambiar Servicio
   selectServicio.addEventListener("change", async () => {
     const servicioId = selectServicio.value;
+    // Resetea profesional y horarios
     selectProfesional.innerHTML = '<option value="">Cargando...</option>';
     contHorarios.innerHTML = '<p class="sin-horarios">Selecciona profesional y fecha.</p>';
     inputHoraSelec.value = "";
@@ -592,9 +573,9 @@ function setupModalCreacionListeners() {
   const cargarHorariosDisponibles = async () => {
     const servicioId = selectServicio.value;
     const profesionalId = selectProfesional.value;
-    const fecha = inputFecha.value;
+    const fecha = inputFecha.value; // "YYYY-MM-DD"
 
-    inputHoraSelec.value = "";
+    inputHoraSelec.value = ""; // Resetea la hora seleccionada
 
     if (!servicioId || !profesionalId || !fecha) {
       contHorarios.innerHTML = '<p class="sin-horarios">Completa los campos anteriores.</p>';
@@ -602,6 +583,8 @@ function setupModalCreacionListeners() {
     }
 
     contHorarios.innerHTML = '<p class="sin-horarios">Buscando horarios...</p>';
+
+    // La API espera YYYY-MM-DD, que es el formato del input type="date"
     const horarios = await fetchHorariosDisponibles(profesionalId, servicioId, fecha);
 
     if (horarios.length === 0) {
@@ -609,16 +592,21 @@ function setupModalCreacionListeners() {
       return;
     }
 
+    // Renderiza los botones de horario
     contHorarios.innerHTML = horarios.map(h =>
       `<button type="button" class="boton-horario" data-hora="${h.inicio}">
         ${h.inicio}
      </button>`
     ).join('');
 
+    // Asigna listeners a los nuevos botones de horario
     contHorarios.querySelectorAll('.boton-horario').forEach(btn => {
       btn.addEventListener('click', () => {
+        // Quita 'seleccionado' de todos
         contHorarios.querySelectorAll('.boton-horario').forEach(b => b.classList.remove('seleccionado'));
+        // Agrega 'seleccionado' al clickeado
         btn.classList.add('seleccionado');
+        // Guarda el valor en el input hidden
         inputHoraSelec.value = btn.dataset.hora;
       });
     });
@@ -632,74 +620,95 @@ function setupModalCreacionListeners() {
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
+    const btnSubmit = form.querySelector('[type="submit"]');
+    const restaurar = setBtnLoading(btnSubmit, 'Guardando...');
+
     const nombreCliente = document.getElementById("nombreCliente").value;
     const telefono = document.getElementById("telefono").value;
     const servicioId = selectServicio.value;
-    const horaInicio = inputHoraSelec.value;
-    const fecha = inputFecha.value;
+    const horaInicio = inputHoraSelec.value; // "HH:MM"
+    const fecha = inputFecha.value; // "YYYY-MM-DD"
 
+    // --- Validaciones del Frontend ---
     if (!horaInicio) {
       showNotification("Debes seleccionar un horario disponible.", "error");
       return;
     }
+    // Validamos como tu backend
     if (!nombreCliente || !telefono) {
       showNotification("El nombre y el teléfono son obligatorios.", "error");
       return;
     }
 
+    // --- PASO 1: OBTENER O CREAR EL CLIENTE ---
     const cliente_id = await buscarOCrearCliente(nombreCliente, telefono);
 
     if (!cliente_id) {
+      restaurar();
       showNotification("Error al procesar el cliente. Intenta de nuevo.", "error");
       return;
     }
+    // ¡Éxito! Ahora tenemos el cliente_id
 
+    // --- PASO 2: CONSTRUIR Y ENVIAR EL TURNO ---
+
+    // 1. Calcular hora_fin (CORREGIDO A HH:MM)
     const optServicio = selectServicio.options[selectServicio.selectedIndex];
     const duracion = parseInt(optServicio.dataset.duracion, 10) || 30;
     const precio = parseFloat(optServicio.dataset.precio) || 0;
 
     const fechaHoraInicio = new Date(`${fecha}T${horaInicio}:00`);
     const fechaHoraFin = new Date(fechaHoraInicio.getTime() + duracion * 60000);
+
+    // Formatear hora_fin a "HH:MM" para que coincida con la validación del backend
     const horaFinFormateada = `${fechaHoraFin.getHours().toString().padStart(2, '0')}:${fechaHoraFin.getMinutes().toString().padStart(2, '0')}`;
 
+    // 2. Construir el objeto turnoData (AHORA CORRECTO)
+    // Esto coincide con lo que espera tu `controlador.turno.mjs` en `agregarTurno`
     const turnoData = {
       cliente_id: cliente_id,
       empleado_id: document.getElementById("profesionalId").value,
       servicio_id: servicioId,
       fecha: fecha,
-      hora_inicio: horaInicio,
-      hora_fin: horaFinFormateada,
+      hora_inicio: horaInicio, // <-- Se envía "HH:MM"
+      hora_fin: horaFinFormateada, // <-- Se envía "HH:MM"
       estado: "pendiente",
       observaciones: document.getElementById("observaciones").value || null,
       precio: precio
     };
 
+    // 3. Llamar a la API de turnos
     const resultado = await createOrUpdateTurno(turnoData);
+    restaurar();
 
     if (resultado) {
       showNotification("Turno creado correctamente", "success");
-      estado.turnoSeleccionado = null;
+      estado.turnoSeleccionado = null; // Cierra el modal
       recargarTurnosYAgenda();
       _recargarDashboardStats();
-      renderizarModal();
+      renderizarModal(); // Asegura el cierre
     } else {
       showNotification("Error al crear el turno. Revisa los datos.", "error");
     }
   });
 
+
+  // --- Lógica de Cancelar ---
   document.getElementById("btnCancelarCreacion").addEventListener("click", () => {
-    estado.turnoSeleccionado = null;
+    estado.turnoSeleccionado = null; // Cierra el modal
     renderizarModal();
   });
 }
 
 // ===============================================
-// Listeners para el Modal de Edición
+// NUEVA FUNCIÓN: Listeners para el Modal de Edición
 // ===============================================
 function setupModalEdicionListeners(turno) {
+  // Encontrar el servicio y profesional ID basado en los nombres
   const servicioSeleccionado = estado.servicios.find(s => s.nombre === turno.nombre_servicio);
-  const profesionalSeleccionado = estado.profesionales.find(p => p.nombre === turno.nombre_empleado);
+  const profesionalSeleccionado = estado.profesionales.find(p => String(p.id) === String(turno.empleado_id));
 
+  // Selectores
   const form = document.getElementById("formEdicion");
   const selectServicio = document.getElementById("servicioId");
   const selectProfesional = document.getElementById("profesionalId");
@@ -709,6 +718,9 @@ function setupModalEdicionListeners(turno) {
   const selectEstado = document.getElementById("estado");
   const inputObservaciones = document.getElementById("observaciones");
 
+  // --- Lógica de carga encadenada (IDÉNTICA A LA DE CREACIÓN) ---
+
+  // Función para cargar profesionales (se usa en 2 lugares)
   const cargarProfesionales = async () => {
     const servicioId = selectServicio.value;
     selectProfesional.innerHTML = '<option value="">Cargando...</option>';
@@ -746,30 +758,35 @@ function setupModalEdicionListeners(turno) {
 
     contHorarios.innerHTML = '<p class="sin-horarios">Buscando horarios...</p>';
 
+    // 1. OBTENEMOS LOS HORARIOS
     let horarios = await fetchHorariosDisponibles(profesionalId, servicioId, fecha);
+
+    // --- FIX DE RE-INSERCIÓN ---
+    // 'turno' SÍ existe en este alcance
     const horaTurnoOriginal = turno.hora.substring(0, 5);
 
     if (fecha === turno.fecha) {
       const horaOriginalExiste = horarios.some(h => h.inicio === horaTurnoOriginal);
       if (!horaOriginalExiste) {
-        horarios.push({
-          inicio: horaTurnoOriginal
-        });
+        horarios.push({ inicio: horaTurnoOriginal });
         horarios.sort((a, b) => a.inicio.localeCompare(b.inicio));
       }
     }
+    // --- FIN DEL FIX ---
 
     if (horarios.length === 0) {
       contHorarios.innerHTML = '<p class="sin-horarios">No hay horarios disponibles.</p>';
       return;
     }
 
+    // 2. Renderiza (con la lista modificada)
     contHorarios.innerHTML = horarios.map(h =>
       `<button type="button" class="boton-horario" data-hora="${h.inicio}">
       ${h.inicio}
      </button>`
     ).join('');
 
+    // 3. Asigna listeners
     contHorarios.querySelectorAll('.boton-horario').forEach(btn => {
       btn.addEventListener('click', () => {
         contHorarios.querySelectorAll('.boton-horario').forEach(b => b.classList.remove('seleccionado'));
@@ -779,45 +796,57 @@ function setupModalEdicionListeners(turno) {
     });
   };
 
+  // 1. Al cambiar Servicio
   selectServicio.addEventListener("change", async () => {
     contHorarios.innerHTML = '<p class="sin-horarios">Selecciona profesional y fecha.</p>';
     inputHoraSelec.value = "";
     await cargarProfesionales();
   });
 
+  // 2. Al cambiar Profesional o Fecha
   selectProfesional.addEventListener("change", cargarHorariosDisponibles);
   inputFecha.addEventListener("change", cargarHorariosDisponibles);
 
+  // --- Lógica de INICIALIZACIÓN (Cargar datos del turno) ---
   const inicializarFormulario = async () => {
+    // 1. Poner datos simples
     inputFecha.value = turno.fecha;
     inputObservaciones.value = turno.observaciones || "";
     selectEstado.value = turno.estado || "pendiente";
 
+    // 2. Poner servicio y cargar profesionales
     if (servicioSeleccionado) {
       selectServicio.value = servicioSeleccionado.id;
-      await cargarProfesionales();
+      await cargarProfesionales(); // Carga los profesionales
     }
 
+    // 3. Poner profesional (si existe) y cargar horarios
     if (profesionalSeleccionado) {
       selectProfesional.value = profesionalSeleccionado.id;
-      await cargarHorariosDisponibles();
+      await cargarHorariosDisponibles(); // Carga los horarios
     }
 
-    const horaTurno = turno.hora.substring(0, 5);
+    // 4. Seleccionar la hora guardada
+    const horaTurno = turno.hora.substring(0, 5); // "HH:MM"
     const botonHora = contHorarios.querySelector(`.boton-horario[data-hora="${horaTurno}"]`);
     if (botonHora) {
       botonHora.classList.add('seleccionado');
       inputHoraSelec.value = horaTurno;
     } else {
+      // Si la hora guardada ya no está disponible, se lo indicamos
       showNotification("La hora original de este turno ya no está disponible.", "warning");
-      inputHoraSelec.value = "";
+      inputHoraSelec.value = ""; // Forzamos a que elija una nueva
     }
   };
 
+  // --- Lógica de Envío (Submit de Edición) ---
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    const horaInicio = inputHoraSelec.value;
+    const btnSubmit = form.querySelector('[type="submit"]');
+    const restaurar = setBtnLoading(btnSubmit, 'Guardando...');
+
+    const horaInicio = inputHoraSelec.value; // "HH:MM"
     const fecha = inputFecha.value;
 
     if (!horaInicio) {
@@ -825,13 +854,17 @@ function setupModalEdicionListeners(turno) {
       return;
     }
 
+    // 1. Llama a la función que ya tienes para obtener el ID
     const cliente_id = await buscarOCrearCliente(turno.nombre_cliente, turno.telefono_cliente);
 
     if (!cliente_id) {
+      restaurar();
       showNotification("Error al re-validar la información del cliente.", "error");
       return;
     }
 
+
+    // Calcular hora_fin (Esto ya lo tenías bien)
     const optServicio = selectServicio.options[selectServicio.selectedIndex];
     const duracion = parseInt(optServicio.dataset.duracion, 10) || 30;
     const precio = parseFloat(optServicio.dataset.precio) || 0;
@@ -840,9 +873,10 @@ function setupModalEdicionListeners(turno) {
     const fechaHoraFin = new Date(fechaHoraInicio.getTime() + duracion * 60000);
     const horaFinFormateada = `${fechaHoraFin.getHours().toString().padStart(2, '0')}:${fechaHoraFin.getMinutes().toString().padStart(2, '0')}`;
 
+    // 2. Construye turnoData USANDO EL ID OBTENIDO
     const turnoData = {
       id: turno.id,
-      cliente_id: cliente_id,
+      cliente_id: cliente_id, // <-- AHORA SÍ TIENE EL ID
       empleado_id: document.getElementById("profesionalId").value,
       servicio_id: document.getElementById("servicioId").value,
       fecha: fecha,
@@ -853,7 +887,10 @@ function setupModalEdicionListeners(turno) {
       precio: precio
     };
 
+
+
     const resultado = await createOrUpdateTurno(turnoData);
+    restaurar();
 
     if (resultado) {
       showNotification("Turno actualizado correctamente", "success");
@@ -866,26 +903,35 @@ function setupModalEdicionListeners(turno) {
     }
   });
 
+  // --- Lógica de Cancelar (Edición) ---
   document.getElementById("btnCancelarEdicion").addEventListener("click", () => {
     estado.modoEdicion = false;
-    renderizarModal();
+    renderizarModal(); // Vuelve a la vista de "Detalles"
   });
 
+  // --- Ejecutar la inicialización ---
   inicializarFormulario();
 }
 
 // --- Funciones Públicas de Agenda ---
 
+/**
+ * Renderiza todos los componentes de la pestaña Agenda.
+ */
 export function renderizar() {
   renderizarNavegacion();
   renderizarEncabezado();
   renderizarGrilla();
-  renderizarModal();
+  renderizarModal(); // Renderiza el modal (oculto si no hay turno)
 }
 
+/**
+ * Recarga los datos de los turnos y vuelve a renderizar la agenda.
+ */
 export async function recargarTurnosYAgenda() {
   estado.isLoading = true;
   try {
+    // Pide turnos y conteo en paralelo
     const [turnos, turnosPendientesCount] = await Promise.all([
       fetchTurnos(),
       fetchTurnosPendientesCount(estado.fechaActual)
@@ -898,31 +944,37 @@ export async function recargarTurnosYAgenda() {
     estado.turnosPendientesCount = 0;
   } finally {
     estado.isLoading = false;
-    renderizar();
+    renderizar(); // Vuelve a dibujar todo
   }
 }
 
+/**
+ * Configura los event listeners específicos de la agenda.
+ * @param {Function} recargarDashboardStats - Función importada desde ui.js para recargar stats.
+ */
 export function setupAgendaEventListeners(recargarDashboardStats) {
+
+  // --- 2. AÑADE ESTA LÍNEA PARA ASIGNAR LA FUNCIÓN ---
   _recargarDashboardStats = recargarDashboardStats;
 
   document.getElementById("btnDiaAnterior").addEventListener("click", () => {
     if (puedeDiaAnterior(estado.fechaActual)) {
       estado.fechaActual.setDate(estado.fechaActual.getDate() - 1);
       recargarTurnosYAgenda();
-      _recargarDashboardStats();
+      _recargarDashboardStats(); // <-- Usa la variable guardada
     }
   });
 
   document.getElementById("btnDiaSiguiente").addEventListener("click", () => {
     estado.fechaActual.setDate(estado.fechaActual.getDate() + 1);
     recargarTurnosYAgenda();
-    _recargarDashboardStats();
+    _recargarDashboardStats(); // <-- Usa la variable guardada
   });
 
   document.getElementById("btnHoy").addEventListener("click", () => {
     estado.fechaActual = new Date();
     recargarTurnosYAgenda();
-    _recargarDashboardStats();
+    _recargarDashboardStats(); // <-- Usa la variable guardada
   });
 
   document.getElementById("btnCerrarModal").addEventListener("click", () => {

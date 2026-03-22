@@ -1,0 +1,38 @@
+[
+  {
+    "id": 1,
+    "nombre": "Bautista Sánchez",
+    "telefono": "11-4401-2233",
+    "email": "bautista@eleve.com",
+    "especialidad": "Cortes clásicos",
+    "activo": true,
+    "color": "#1a1a1a"
+  },
+  {
+    "id": 2,
+    "nombre": "Ciro Delgado",
+    "telefono": "11-5522-8844",
+    "email": "ciro@eleve.com",
+    "especialidad": "Barba y afeitado",
+    "activo": true,
+    "color": "#2f6d4e"
+  },
+  {
+    "id": 3,
+    "nombre": "Felipe Romero",
+    "telefono": "11-6633-4455",
+    "email": "felipe@eleve.com",
+    "especialidad": "Coloración y keratina",
+    "activo": true,
+    "color": "#a34b20"
+  },
+  {
+    "id": 4,
+    "nombre": "Ricardo Torres",
+    "telefono": "11-7744-6600",
+    "email": "ricardo@eleve.com",
+    "especialidad": "Cortes modernos",
+    "activo": true,
+    "color": "#2c4ea3"
+  }
+]
