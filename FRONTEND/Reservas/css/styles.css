@@ -1,0 +1,686 @@
+﻿/* ============================================================
+   ELEVÉ BARBERÍA — Reservas · Diseño Total Black
+   ============================================================ */
+
+:root {
+  --bg:        #0a0a0a;
+  --surface:   #141414;
+  --surface2:  #1c1c1c;
+  --border:    rgba(255,255,255,0.08);
+  --border2:   rgba(255,255,255,0.18);
+  --text:      #ffffff;
+  --muted:     #888888;
+  --xmuted:    #444444;
+  --accent:    #ffffff;
+  --error:     #ef4444;
+  --r:         8px;
+  --t:         0.2s cubic-bezier(0.16,1,0.3,1);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; border: none; }
+img { display: block; max-width: 100%; }
+
+/* ---------------------------------------------------------------
+   HEADER
+--------------------------------------------------------------- */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(10,10,10,0.9);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+
+.nav {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.nav__logo {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.nav__links {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.nav__links a {
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+  transition: color var(--t);
+}
+
+.nav__links a:hover { color: var(--text); }
+
+.nav__link-whatsapp {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+/* ---------------------------------------------------------------
+   CTA FLOTANTE WHATSAPP
+--------------------------------------------------------------- */
+.whatsapp-fab {
+  position: fixed;
+  bottom: 1.8rem;
+  right: 1.8rem;
+  z-index: 999;
+  width: 3.2rem;
+  height: 3.2rem;
+  border-radius: 50%;
+  background: #25d366;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.28);
+  transition: transform 0.2s, box-shadow 0.2s;
+  text-decoration: none;
+}
+.whatsapp-fab:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+}
+
+/* ---------------------------------------------------------------
+   HERO
+--------------------------------------------------------------- */
+.hero {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5rem 1.5rem 3rem;
+  text-align: center;
+}
+
+.hero__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.hero__eyebrow {
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.hero__title {
+  font-size: clamp(3.5rem, 9vw, 7rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 0.95;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.btn-cta {
+  display: inline-block;
+  margin-top: 0.5rem;
+  padding: 0.7rem 1.8rem;
+  border: 1px solid var(--border2);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text);
+  transition: background var(--t), border-color var(--t);
+}
+
+.btn-cta:hover {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.35);
+}
+
+/* ---------------------------------------------------------------
+   SECCIÓN RESERVA
+--------------------------------------------------------------- */
+.seccion-reserva {
+  padding: 0 1.5rem 6rem;
+  display: flex;
+  justify-content: center;
+}
+
+/* Card unificado: imagen izquierda + formulario derecho */
+.reserva-card {
+  width: 100%;
+  max-width: 1000px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  min-height: 650px;
+}
+
+/* Imagen dentro del card */
+.reserva-imagen {
+  width: 100%;
+  height: 200px;                /* móvil: portada superior */
+  flex-shrink: 0;
+}
+
+.reserva-imagen img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  filter: grayscale(100%) contrast(1.05);
+}
+
+/* Columna del formulario */
+.reserva-panel {
+  flex: 1;
+  min-height: 0;
+  padding: 1.5rem;
+  overflow: visible;
+  position: relative;
+}
+
+.reserva-panel::-webkit-scrollbar { display: none; }
+
+/* ---------------------------------------------------------------
+   PROGRESO
+--------------------------------------------------------------- */
+.progreso {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2rem;
+}
+
+.progreso__paso {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--xmuted);
+  background: transparent;
+  color: var(--xmuted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 600;
+  transition: all var(--t);
+  flex-shrink: 0;
+}
+
+.progreso__paso--activo {
+  background: var(--text);
+  color: #000;
+  border-color: var(--text);
+}
+
+.progreso__paso--completado {
+  background: var(--surface2);
+  color: var(--muted);
+  border-color: var(--border2);
+}
+
+.progreso__linea {
+  flex: 1;
+  max-width: 28px;
+  height: 1px;
+  background: var(--border);
+}
+
+/* ---------------------------------------------------------------
+   PASOS
+--------------------------------------------------------------- */
+.paso { display: none; flex-direction: column; }
+.paso--activo {
+  display: flex;
+  animation: fd 0.28s ease forwards;
+}
+
+@keyframes fd {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.paso__cab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.paso__titulo {
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text);
+  flex: 1;
+}
+
+.btn-volver {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 6px;
+  padding: 0.28rem 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+  transition: all var(--t);
+  flex-shrink: 0;
+}
+
+.btn-volver:hover {
+  border-color: var(--border2);
+  color: var(--text);
+}
+
+/* ---------------------------------------------------------------
+   TARJETAS
+--------------------------------------------------------------- */
+.servicios-grid,
+.barberos-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.fechas-grid,
+.horarios-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+  gap: 0.4rem;
+}
+
+.tarjeta {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 0.6rem 0.85rem;
+  cursor: pointer;
+  transition: border-color var(--t), background var(--t);
+}
+
+.tarjeta:hover {
+  background: #222;
+  border-color: var(--border2);
+}
+
+.tarjeta__encabezado { margin-bottom: 0.1rem; }
+
+.tarjeta__titulo {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+.tarjeta__contenido { display: flex; flex-direction: column; gap: 0.2rem; }
+
+.tarjeta-servicio__descripcion,
+.barbero-especialidad {
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin: 0;
+}
+
+.tarjeta-servicio__detalles {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+  margin-top: 0.3rem;
+}
+
+.etiqueta {
+  font-size: 0.65rem;
+  font-weight: 500;
+  padding: 0.13rem 0.38rem;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.etiqueta--precio {
+  background: var(--text);
+  color: #000;
+  border-color: transparent;
+}
+
+.barbero-info { display: flex; align-items: center; gap: 0.55rem; }
+
+.barbero-avatar {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.65rem;
+  color: var(--xmuted);
+  flex-shrink: 0;
+}
+
+.barbero-detalles h3 {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+.tarjeta-fecha,
+.tarjeta-horario {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text);
+  text-align: center;
+  padding: 0.4rem 0.2rem;
+}
+
+.sin-horarios {
+  padding: 1.5rem 1rem;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* ---------------------------------------------------------------
+   FORMULARIO
+--------------------------------------------------------------- */
+.form-grupo { margin-bottom: 0.9rem; }
+
+.form-label {
+  display: block;
+  font-size: 0.73rem;
+  font-weight: 500;
+  color: var(--muted);
+  margin-bottom: 0.3rem;
+}
+
+.form-input {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.62rem 0.85rem;
+  border-radius: var(--r);
+  font-family: inherit;
+  font-size: 0.85rem;
+  transition: border-color var(--t);
+}
+
+.form-input::placeholder { color: var(--xmuted); }
+.form-input:focus { outline: none; border-color: var(--border2); }
+.form-input.invalido { border-color: var(--error); }
+
+.form-error {
+  display: block;
+  font-size: 0.67rem;
+  color: var(--error);
+  margin-top: 0.2rem;
+  min-height: 0.9rem;
+}
+
+/* ---------------------------------------------------------------
+   BOTÓN PRINCIPAL
+--------------------------------------------------------------- */
+.btn-confirmar {
+  width: 100%;
+  margin-top: 1rem;
+  padding: 0.72rem 1rem;
+  background: var(--text);
+  color: #000;
+  border: none;
+  border-radius: var(--r);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  transition: opacity var(--t);
+}
+
+.btn-confirmar:hover:not(:disabled) { opacity: 0.88; }
+
+.btn-confirmar:disabled {
+  background: var(--surface2);
+  color: var(--xmuted);
+  cursor: not-allowed;
+}
+
+/* ---------------------------------------------------------------
+   RESUMEN
+--------------------------------------------------------------- */
+.resumen {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 1.1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.resumen__fila {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.resumen__label {
+  font-size: 0.73rem;
+  color: var(--muted);
+}
+
+.resumen__valor {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.resumen__sep {
+  height: 1px;
+  background: var(--border);
+  margin: 0.15rem 0;
+}
+
+.resumen__total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px dashed var(--border);
+  padding-top: 0.6rem;
+  margin-top: 0.15rem;
+}
+
+.resumen__precio {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* ---------------------------------------------------------------
+   CONTACTO
+--------------------------------------------------------------- */
+.seccion-contacto {
+  padding: 5rem 1.5rem 4rem;
+}
+
+.contacto-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 3rem;
+  align-items: start;
+}
+
+.contacto-info { /* columna izquierda */ }
+
+.contacto-mapa {
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  height: 450px;                /* altura fija para que el iframe se vea bien */
+  flex-shrink: 0;
+}
+
+.contacto-mapa iframe {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.contacto-titulo {
+  font-size: clamp(1.6rem, 4vw, 2.4rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  margin-bottom: 2rem;
+}
+
+.contacto-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem 2rem;
+  margin-bottom: 2rem;
+}
+
+.contacto-dato {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.contacto-dato i {
+  font-size: 1.1rem;
+  color: var(--muted);
+  margin-top: 0.1rem;
+  flex-shrink: 0;
+}
+
+.contacto-dato strong {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 0.2rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.contacto-dato p {
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.55;
+}
+
+.link-mapa {
+  display: inline-block;
+  margin-top: 0.35rem;
+  font-size: 0.75rem;
+  color: var(--text);
+  border-bottom: 1px solid var(--border2);
+  transition: border-color var(--t), color var(--t);
+}
+
+.link-mapa:hover {
+  border-color: var(--text);
+}
+
+.contacto-redes {
+  display: flex;
+  gap: 0.6rem;
+  margin-bottom: 2.5rem;
+}
+
+.contacto-redes a {
+  width: 36px; height: 36px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem;
+  color: var(--muted);
+  transition: all var(--t);
+}
+
+.contacto-redes a:hover {
+  border-color: var(--border2);
+  color: var(--text);
+}
+
+.footer-copy {
+  font-size: 0.72rem;
+  color: var(--xmuted);
+}
+
+/* ---------------------------------------------------------------
+   RESPONSIVE
+--------------------------------------------------------------- */
+@media (min-width: 768px) {
+  /* Reserva: imagen izquierda 42%, formulario derecho 58% */
+  .reserva-card {
+    flex-direction: row;
+    height: 600px;
+    min-height: unset;
+    max-height: unset;
+  }
+
+  .reserva-imagen {
+    width: 42%;
+    height: 100%;
+  }
+
+  .reserva-panel {
+    padding: 2.5rem 3rem;
+  }
+
+  /* Contacto: info izquierda, mapa derecha */
+  .contacto-inner {
+    grid-template-columns: 1fr 1.2fr;
+    gap: 4rem;
+  }
+
+  .contacto-mapa {
+    height: 100%;
+    min-height: 420px;
+  }
+}
+
+@media (max-width: 500px) {
+  .contacto-grid { grid-template-columns: 1fr; }
+  .hero__title { font-size: 3rem; }
+}

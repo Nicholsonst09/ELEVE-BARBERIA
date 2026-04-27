@@ -1,5 +1,5 @@
-// URL base de la API
-export const API_BASE_URL = 'https://tesis-demo-proyecto.vercel.app/api/v1';
+// URL base de la API — definida en FRONTEND/shared/config.js
+export { API_BASE_URL } from '../../Configuracion/config.js';
 
 // --- Estado Global de la Aplicación ---
 export let estado = {
@@ -8,6 +8,7 @@ export let estado = {
   turnoSeleccionado: null,
   modoEdicion: false,
   modoCreacion: false,
+  modoRegistrarPago: false,
   profesionales: [],
   turnos: [],
   servicios: [],
