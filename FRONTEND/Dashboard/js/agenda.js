@@ -20,7 +20,8 @@ import {
   puedeDiaAnterior,
   showNotification,
   formatearFechaParaAPI,
-  setBtnLoading
+  setBtnLoading,
+  formatCurrency
 } from './utilidades.js';
 
 
@@ -453,13 +454,46 @@ export function renderizarModal() {
     setupModalEdicionListeners(turno);
   }
 
+  // --- MODO 4: REGISTRAR PAGO ---
+  else if (estado.modoRegistrarPago) {
+    tituloModal.textContent = "Registrar Pago";
+    const servicioDatos = estado.servicios.find(s => s.nombre === turno.nombre_servicio);
+    const precioDatos = Number(turno.precio) || Number(servicioDatos?.precio) || 0;
+    const metodoActual = turno.metodoPago || '';
+
+    cuerpoModal.innerHTML = `
+      <div class="pago-resumen">
+        <div class="pago-resumen-nombre">${turno.nombre_cliente}</div>
+        <div class="pago-resumen-detalle">${turno.nombre_servicio} &middot; ${formatCurrency(precioDatos)}</div>
+      </div>
+      <div class="grupo-formulario">
+        <label class="form-label" for="selectMetodoPago">Método de pago</label>
+        <select id="selectMetodoPago" class="form-select">
+          <option value="">Seleccionar...</option>
+          <option value="efectivo"   ${metodoActual === 'efectivo'       ? 'selected' : ''}>Efectivo</option>
+          <option value="transferencia" ${metodoActual === 'transferencia' ? 'selected' : ''}>Transferencia</option>
+          <option value="tarjeta"    ${metodoActual === 'tarjeta'        ? 'selected' : ''}>Tarjeta</option>
+          <option value="sin_pago"   ${metodoActual === 'sin_pago'       ? 'selected' : ''}>Sin pago</option>
+        </select>
+      </div>
+      <div class="pie-modal">
+        <button class="boton-secundario" id="btnCancelarPago">Cancelar</button>
+        <button class="boton-primario" id="btnConfirmarPago">Confirmar</button>
+      </div>
+    `;
+    setupModalPagoListeners(turno);
+  }
+
   // --- MODO 3: VER DETALLES (Default) ---
   else {
-    // (Esta parte no cambia, sigue como la tenías)
     tituloModal.textContent = "Detalles del Turno";
     const profesional = { nombre: turno.nombre_empleado };
     const servicio = { nombre: turno.nombre_servicio };
     const cliente = { nombre: turno.nombre_cliente, telefono: turno.telefono_cliente };
+
+    // Precio: primero del turno (backend deployado), si no del catálogo local
+    const servicioDatos = estado.servicios.find(s => s.nombre === turno.nombre_servicio);
+    const precioDatos = Number(turno.precio) || Number(servicioDatos?.precio) || 0;
 
     cuerpoModal.innerHTML = `
       <div class="detalles-turno-container">
@@ -485,6 +519,14 @@ export function renderizarModal() {
             <svg class="icono" style="width:16px; height:16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
             <span>${turno.hora ? turno.hora.substring(0, 5) : ''} - ${turno.hora_fin ? turno.hora_fin.substring(0, 5) : ''}</span>
           </div>
+          <div class="detalles-turno-item">
+            <svg class="icono" style="width:16px; height:16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <span>${formatCurrency(precioDatos)}</span>
+          </div>
+          <div class="detalles-turno-item">
+            <svg class="icono" style="width:16px; height:16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <span>${turno.metodoPago ? etiquetaMetodoPago(turno.metodoPago) : 'Sin pago registrado'}</span>
+          </div>
         </div>
         ${turno.observaciones ? `
         <div class="detalles-turno-notas">
@@ -494,6 +536,7 @@ export function renderizarModal() {
         ` : ''}
       </div>
       <div class="pie-modal">
+        <button class="boton-primario" id="btnRegistrarPago">Registrar Pago</button>
         <button class="boton-secundario" id="btnModificar">Modificar</button>
         <button class="boton-secundario eliminar" id="btnCancelarTurno">Eliminar Turno</button>
       </div>
@@ -501,6 +544,11 @@ export function renderizarModal() {
 
     document.getElementById("btnModificar").addEventListener("click", () => {
       estado.modoEdicion = true;
+      renderizarModal();
+    });
+
+    document.getElementById("btnRegistrarPago").addEventListener("click", () => {
+      estado.modoRegistrarPago = true;
       renderizarModal();
     });
 
@@ -526,6 +574,41 @@ export function renderizarModal() {
       }
     });
   }
+}
+
+// ===============================================
+// HELPER: Etiqueta legible para método de pago
+// ===============================================
+function etiquetaMetodoPago(metodo) {
+  const etiquetas = {
+    efectivo: 'Efectivo',
+    transferencia: 'Transferencia',
+    tarjeta: 'Tarjeta',
+    sin_pago: 'Sin pago registrado'
+  };
+  return etiquetas[metodo] || metodo;
+}
+
+// ===============================================
+// NUEVA FUNCIÓN: Listeners para el Modal de Pago
+// ===============================================
+function setupModalPagoListeners(turno) {
+  document.getElementById('btnCancelarPago').addEventListener('click', () => {
+    estado.modoRegistrarPago = false;
+    renderizarModal();
+  });
+
+  document.getElementById('btnConfirmarPago').addEventListener('click', () => {
+    const select = document.getElementById('selectMetodoPago');
+    if (!select.value) {
+      showNotification('Seleccioná un método de pago.', 'error');
+      return;
+    }
+    estado.turnoSeleccionado.metodoPago = select.value;
+    estado.modoRegistrarPago = false;
+    showNotification('Pago registrado correctamente.', 'success');
+    renderizarModal();
+  });
 }
 
 // ===============================================
@@ -706,7 +789,8 @@ function setupModalCreacionListeners() {
 function setupModalEdicionListeners(turno) {
   // Encontrar el servicio y profesional ID basado en los nombres
   const servicioSeleccionado = estado.servicios.find(s => s.nombre === turno.nombre_servicio);
-  const profesionalSeleccionado = estado.profesionales.find(p => String(p.id) === String(turno.empleado_id));
+  const profesionalSeleccionado = estado.profesionales.find(p => String(p.id) === String(turno.empleado_id))
+    || estado.profesionales.find(p => p.nombre === turno.nombre_empleado);
 
   // Selectores
   const form = document.getElementById("formEdicion");
@@ -980,6 +1064,7 @@ export function setupAgendaEventListeners(recargarDashboardStats) {
   document.getElementById("btnCerrarModal").addEventListener("click", () => {
     estado.turnoSeleccionado = null;
     estado.modoEdicion = false;
+    estado.modoRegistrarPago = false;
     renderizarModal();
   });
 
@@ -987,6 +1072,7 @@ export function setupAgendaEventListeners(recargarDashboardStats) {
     if (e.target.id === "modalSuperpuesto") {
       estado.turnoSeleccionado = null;
       estado.modoEdicion = false;
+      estado.modoRegistrarPago = false;
       renderizarModal();
     }
   });

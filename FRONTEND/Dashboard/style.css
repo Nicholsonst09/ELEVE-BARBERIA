@@ -456,12 +456,35 @@ textarea.form-input, .grupo-formulario textarea { min-height: 80px; resize: vert
 
 .pie-modal {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.75rem;
   justify-content: flex-end;
   padding: 1.25rem 1.5rem;
   border-top: 1px solid var(--c-borde-suave);
   background: var(--c-gris-claro);
 }
+
+.pie-modal > * {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: center;
+  justify-content: center;
+}
+
+/* ===================================================
+   REGISTRAR PAGO — Modal de método de pago
+   =================================================== */
+
+.pago-resumen {
+  background: var(--c-gris-claro);
+  border: 1px solid var(--c-borde-suave);
+  border-radius: var(--r-lg);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  text-align: center;
+}
+.pago-resumen-nombre { font-weight: 700; font-size: 1rem; color: var(--c-texto); }
+.pago-resumen-detalle { font-size: 0.875rem; color: var(--c-texto-suave); margin-top: 0.25rem; }
 
 /* ===================================================
    SELECTOR DE PROFESIONALES — Modal Servicios
@@ -936,7 +959,7 @@ textarea.form-input, .grupo-formulario textarea { min-height: 80px; resize: vert
 
 .punto-color { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
 
-.nombre-prof-tab { /* visible en desktop, se oculta en mobile via media query */ }
+
 
 .insignia {
   margin-left: 0.125rem;
@@ -1895,9 +1918,7 @@ textarea.form-input, .grupo-formulario textarea { min-height: 80px; resize: vert
     border-right: 1px solid var(--c-borde);
   }
 
-  .pestana-navegacion:nth-last-child(-n+2) {
-    /* sin override de border-bottom para no tapar el indicador activo */
-  }
+
 
   /* Mostrar nombre en mobile */
   .nombre-prof-tab { display: inline; }
@@ -2261,6 +2282,21 @@ textarea.form-input, .grupo-formulario textarea { min-height: 80px; resize: vert
 }
 
 .login-error.visible { display: block; }
+
+/* Link recuperar contraseña */
+.login-recuperar-link {
+  display: block;
+  text-align: center;
+  margin-top: 0.875rem;
+  font-size: 0.8125rem;
+  color: var(--c-texto-suave, #6b7280);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.login-recuperar-link:hover { color: var(--c-primario); text-decoration: underline; }
+
+/* Panel recuperar (reutiliza clases existentes) */
+.panel-recuperar { animation: loginEnter 0.25s ease; }
 
 /* Botón submit - blanco y negro */
 .login-btn-submit {

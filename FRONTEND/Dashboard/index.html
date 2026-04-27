@@ -27,7 +27,7 @@
         <!-- Lado derecho: Formulario -->
         <div class="login-formulario">
             <div class="login-card">
-                <div class="login-header">
+                <div id="login-header-principal" class="login-header">
                     <h1 class="login-titulo">Iniciar Sesión</h1>
                     <p class="login-subtitulo">Ingresá tus credenciales para continuar</p>
                 </div>
@@ -64,7 +64,49 @@
                         <i class="fas fa-sign-in-alt"></i>
                         Ingresar
                     </button>
+                    <a href="#" id="link-recuperar" class="login-recuperar-link">¿Olvidaste tu contraseña?</a>
                 </form>
+
+                <!-- Panel recuperar contraseña (oculto por defecto) -->
+                <div id="panel-recuperar" class="panel-recuperar" style="display:none">
+                    <div class="login-header">
+                        <h1 class="login-titulo">Recuperar contraseña</h1>
+                        <p id="recuperar-subtitulo" class="login-subtitulo">Ingresá tu mail y te enviamos las instrucciones</p>
+                    </div>
+
+                    <!-- Paso 1: Email -->
+                    <div id="recuperar-paso1">
+                        <div class="grupo-formulario">
+                            <label class="form-label" for="recuperar-email">Correo electrónico</label>
+                            <input type="email" id="recuperar-email" class="form-input" placeholder="tu@mail.com" autocomplete="email">
+                        </div>
+                        <div id="recuperar-error" class="login-error"></div>
+                        <button type="button" id="btn-enviar-mail" class="boton-primario login-btn-submit">
+                            <i class="fas fa-paper-plane"></i>
+                            Enviar instrucciones
+                        </button>
+                    </div>
+
+                    <!-- Paso 2: Nueva contraseña (oculto hasta simular envío) -->
+                    <div id="recuperar-paso2" style="display:none">
+                        <div class="grupo-formulario">
+                            <label class="form-label" for="recuperar-nueva">Nueva contraseña</label>
+                            <input type="password" id="recuperar-nueva" class="form-input" placeholder="Nueva contraseña">
+                        </div>
+                        <div class="grupo-formulario">
+                            <label class="form-label" for="recuperar-confirmar">Confirmar contraseña</label>
+                            <input type="password" id="recuperar-confirmar" class="form-input" placeholder="Repetí la nueva contraseña">
+                        </div>
+                        <div id="recuperar-error2" class="login-error"></div>
+                        <button type="button" id="btn-confirmar-recuperar" class="boton-primario login-btn-submit">
+                            <i class="fas fa-key"></i>
+                            Cambiar contraseña
+                        </button>
+                    </div>
+
+                    <a href="#" id="link-volver-login" class="login-recuperar-link">← Volver al inicio de sesión</a>
+                </div>
+
                 <p class="login-demo-hint">
                     <span><strong>admin</strong> / admin123</span>
                     <span><strong>empleado</strong> / empleado123</span>
