@@ -75,3 +75,15 @@ Estas funcionalidades deben estar completas antes de hacer el deploy definitivo:
 
 - Los dos deploys se hacen desde el **mismo repositorio**, solo cambia la carpeta raíz configurada en cada deploy.
 - No deployar hasta tener los pendientes de arriba resueltos y todo mergeado a `main`.
+
+## Correcciones de rutas para Vercel (Frontend)
+
+Al deployar el frontend en Vercel con Root Directory `FRONTEND`, los assets
+(CSS, JS, imágenes) se resolvían desde la raíz del dominio en vez de desde
+su subcarpeta. Se corrigió agregando `<base href="...">` en cada HTML:
+
+- `Dashboard/index.html` → `<base href="/Dashboard/">`
+- `Reservas/index.html` → `<base href="/Reservas/">`
+
+También se corrigieron rutas de imágenes locales que usaban referencias
+relativas incorrectas (`../PaginaWeb/...`).
