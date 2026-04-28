@@ -1,5 +1,22 @@
 import modelo from "./modelo.turno.mjs";
 import modeloServicio from '../servicios/modelo.servicio.mjs';
+
+// ─── MÁQUINA DE ESTADOS ───────────────────────────────────────────────────────
+const TRANSICIONES_VALIDAS = {
+    'pendiente':  ['confirmado', 'cancelado'],
+    'confirmado': ['realizado',  'cancelado'],
+    'realizado':  [],   // estado final — sin cambios permitidos
+    'cancelado':  []    // estado final — sin cambios permitidos
+};
+
+function validarTransicionEstado(estadoActual, estadoNuevo) {
+    if (estadoActual === estadoNuevo) return true;
+    const permitidos = TRANSICIONES_VALIDAS[estadoActual];
+    if (!permitidos) return false;
+    return permitidos.includes(estadoNuevo);
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Función para manejar la solicitud de obtener todos los turnos
 async function obtenerTurnos(req, res) {
     try {
@@ -99,6 +116,24 @@ async function modificarTurno(req, res) {
         if (!turnoExistente) {
             return res.status(404).json({ mensaje: "El turno que desea modificar no existe." });
         }
+
+        // ── Máquina de estados ───────────────────────────────────────────────
+        // Bloquear toda modificación si el turno ya está en estado final
+        if (['realizado', 'cancelado'].includes(turnoExistente.estado)) {
+            return res.status(400).json({
+                mensaje: `No se puede modificar un turno en estado "${turnoExistente.estado}".`
+            });
+        }
+
+        // Si se intenta cambiar el estado, validar que la transición sea permitida
+        if (estado && !validarTransicionEstado(turnoExistente.estado, estado)) {
+            return res.status(400).json({
+                mensaje: `Transición de estado inválida: no se puede pasar de "${turnoExistente.estado}" a "${estado}".`,
+                transiciones_permitidas: TRANSICIONES_VALIDAS[turnoExistente.estado]
+            });
+        }
+        // ────────────────────────────────────────────────────────────────────
+
         const estadosPermitidos = ["pendiente", "confirmado", "cancelado", "realizado"];
         const expresionHora = /^\d{2}:\d{2}$/;
 
@@ -151,6 +186,15 @@ async function eliminarTurno(req, res) {
         if (!turnoAEliminar) {
             return res.status(404).json({ mensaje: 'Turno no encontrado para eliminar.' });
         }
+
+        // ── Máquina de estados ───────────────────────────────────────────────
+        // No permitir eliminar turnos que ya fueron realizados
+        if (turnoAEliminar.estado === 'realizado') {
+            return res.status(400).json({
+                mensaje: 'No se puede eliminar un turno que ya fue realizado. Solo se puede cancelar.'
+            });
+        }
+        // ────────────────────────────────────────────────────────────────────
 
         const eliminado = await modelo.eliminarTurno(turnoId);
 
