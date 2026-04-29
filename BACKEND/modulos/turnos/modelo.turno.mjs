@@ -442,7 +442,10 @@ async function obtenerTurnosConDetalles({empleadoId, fecha}){
                 fecha,
                 hora_inicio,
                 hora_fin,
+                estado,
+                precio,
                 observaciones,
+                empleado_id,
                 empleados!inner(nombre),           
                 clientes!inner(nombre, telefono),
                 servicios!inner(nombre)
@@ -472,6 +475,9 @@ async function obtenerTurnosConDetalles({empleadoId, fecha}){
                 fecha: turno.fecha,
                 hora: turno.hora_inicio, // Combino fecha y hora en el front para mostrar el turno
                 hora_fin : turno.hora_fin,
+                estado: turno.estado,
+                precio: turno.precio,
+                empleado_id: turno.empleado_id,
                 observaciones: turno.observaciones,
 
                 nombre_empleado: turno.empleados?.nombre || 'N/A',
@@ -513,11 +519,30 @@ async function verificarSolapamiento(empleado_id, fecha, hora_inicio, hora_fin, 
     return conflicto || null;
 }
 
+// Función para actualizar solo el cliente de un turno (usado cuando estado = 'realizado')
+async function modificarSoloCliente(id, cliente_id) {
+    try {
+        const { data, error } = await supabaseAdmin
+            .from('turnos')
+            .update({ cliente_id })
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw new Error(`Error al modificar cliente: ${error.message}`);
+        return data !== null;
+    } catch (error) {
+        console.error(`Error en modelo.modificarSoloCliente (ID: ${id}):`, error);
+        throw error;
+    }
+}
+
 export default {
     obtenerTurnos,
     obtenerUnTurno,
     agregarTurno,
     modificarTurno,
+    modificarSoloCliente,
     eliminarTurno,
     obtenerHorariosDisponibles,
     obtenerTurnosConDetalles,

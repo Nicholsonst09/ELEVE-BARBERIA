@@ -400,8 +400,36 @@ export function renderizarModal() {
     setupModalCreacionListeners();
   }
 
-  // --- MODO 2: EDITAR TURNO EXISTENTE (MODIFICADO) ---
+  // --- MODO 2: EDITAR TURNO EXISTENTE ---
   else if (estado.modoEdicion) {
+
+    // ── Turno REALIZADO: solo se puede cambiar el cliente ──────────────────
+    if (turno.estado === 'realizado') {
+      tituloModal.textContent = "Corregir Cliente";
+      cuerpoModal.innerHTML = `
+        <form id="formEdicionCliente">
+          <p style="color: var(--color-secundario); font-size: 0.85rem; margin-bottom: 1rem;">
+            Este turno ya fue realizado. Solo podés corregir los datos del cliente.
+          </p>
+          <div class="grupo-formulario">
+            <label class="form-label" for="nombreCliente">Nombre del Cliente</label>
+            <input type="text" id="nombreCliente" class="form-input" value="${turno.nombre_cliente || ''}" required>
+          </div>
+          <div class="grupo-formulario">
+            <label class="form-label" for="telefono">Teléfono</label>
+            <input type="tel" id="telefono" class="form-input" value="${turno.telefono_cliente || ''}" required>
+          </div>
+          <div class="pie-modal">
+            <button type="button" class="boton-secundario" id="btnCancelarEdicion">Cancelar</button>
+            <button type="submit" class="boton-primario">Guardar Cliente</button>
+          </div>
+        </form>
+      `;
+      setupModalEdicionClienteListener(turno);
+      return;
+    }
+    // ───────────────────────────────────────────────────────────────────────
+
     tituloModal.textContent = "Modificar Turno";
 
     // HTML casi idéntico al de "Crear Turno", pero con el campo "Estado"
@@ -800,6 +828,52 @@ function setupModalCreacionListeners() {
   document.getElementById("btnCancelarCreacion").addEventListener("click", () => {
     estado.turnoSeleccionado = null; // Cierra el modal
     renderizarModal();
+  });
+}
+
+// ===============================================
+// ===============================================
+// FUNCIÓN: Listener para editar solo el cliente (turno realizado)
+// ===============================================
+function setupModalEdicionClienteListener(turno) {
+  document.getElementById('btnCancelarEdicion').addEventListener('click', () => {
+    estado.modoEdicion = false;
+    renderizarModal();
+  });
+
+  document.getElementById('formEdicionCliente').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btnSubmit = e.target.querySelector('[type="submit"]');
+    const restaurar = setBtnLoading(btnSubmit, 'Guardando...');
+
+    const nombre = document.getElementById('nombreCliente').value.trim();
+    const telefono = document.getElementById('telefono').value.trim();
+
+    if (!nombre || !telefono) {
+      showNotification('Nombre y teléfono son obligatorios.', 'error');
+      restaurar();
+      return;
+    }
+
+    const cliente_id = await buscarOCrearCliente(nombre, telefono);
+    if (!cliente_id) {
+      showNotification('Error al buscar o crear el cliente.', 'error');
+      restaurar();
+      return;
+    }
+
+    const resultado = await createOrUpdateTurno({ id: turno.id, cliente_id });
+    restaurar();
+
+    if (resultado) {
+      estado.turnoSeleccionado = { ...turno, nombre_cliente: nombre, telefono_cliente: telefono };
+      estado.modoEdicion = false;
+      showNotification('Cliente actualizado correctamente.', 'success');
+      recargarTurnosYAgenda();
+      _recargarDashboardStats();
+    } else {
+      showNotification('Error al actualizar el cliente.', 'error');
+    }
   });
 }
 

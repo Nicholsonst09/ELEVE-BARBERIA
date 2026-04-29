@@ -143,11 +143,23 @@ async function modificarTurno(req, res) {
         }
 
         // ── Máquina de estados ───────────────────────────────────────────────
-        // Bloquear toda modificación si el turno ya está en estado final
-        if (['realizado', 'cancelado'].includes(turnoExistente.estado)) {
-            return res.status(400).json({
-                mensaje: `No se puede modificar un turno en estado "${turnoExistente.estado}".`
-            });
+        // Cancelado: completamente bloqueado
+        if (turnoExistente.estado === 'cancelado') {
+            return res.status(400).json({ mensaje: 'No se puede modificar un turno cancelado.' });
+        }
+
+        // Realizado: solo se permite actualizar el cliente
+        if (turnoExistente.estado === 'realizado') {
+            const { cliente_id } = req.body;
+            if (!Number(cliente_id)) {
+                return res.status(400).json({ mensaje: 'El ID de cliente es inválido.' });
+            }
+            const modificado = await modelo.modificarSoloCliente(turnoId, cliente_id);
+            if (modificado) {
+                return res.status(200).json({ mensaje: `Cliente del turno ${turnoId} actualizado con éxito.` });
+            } else {
+                return res.status(500).json({ mensaje: 'No se pudo actualizar el cliente del turno.' });
+            }
         }
 
         // Si se intenta cambiar el estado, validar que la transición sea permitida
@@ -179,10 +191,11 @@ async function modificarTurno(req, res) {
             return res.status(400).json({ mensaje: "Los datos del turno no son válidos." });
         }
 
-        // ── Validación: fecha no pasada ──────────────────────────────────────
+        // ── Validación: fecha no pasada (solo si cambió la fecha) ───────────
         const hoy = new Date().toISOString().split('T')[0];
-        if (fecha < hoy) {
-            return res.status(400).json({ mensaje: 'No se pueden modificar turnos para fechas anteriores a hoy.' });
+        const fechaCambio = fecha !== turnoExistente.fecha;
+        if (fechaCambio && fecha < hoy) {
+            return res.status(400).json({ mensaje: 'No se puede mover un turno a una fecha anterior a hoy.' });
         }
         // ────────────────────────────────────────────────────────────────────
 
