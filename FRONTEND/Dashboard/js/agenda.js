@@ -21,7 +21,8 @@ import {
   showNotification,
   formatearFechaParaAPI,
   setBtnLoading,
-  formatCurrency
+  formatCurrency,
+  confirmarAccion
 } from './utilidades.js';
 
 
@@ -135,7 +136,7 @@ function renderizarNavegacion() {
     const primerNombre = prof.nombre.split(' ')[0];
 
     html += `
-      <button class="pestana-navegacion ${String(estado.profesionalSeleccionado) === String(prof.id) ? "activo" : ""}" data-id="${prof.id}">
+      <button class="pestana-navegacion ${String(estado.profesionalSeleccionado) === String(prof.id) ? "activo" : ""}" data-id="${prof.id}" style="--color-tab: ${color};">
         <div class="punto-color" style="background-color: ${color};"></div>
         <span class="nombre-prof-tab">${primerNombre}</span>
       </button>
@@ -175,43 +176,42 @@ function detectarSuperposiciones(turnos) {
     return h * 60 + m;
   };
 
-  const turnosConPosicion = turnos.map((turno, index) => {
-    const inicioMin = horaAMinutos(turno.hora);
-    const finMin = horaAMinutos(turno.hora_fin);
-    return {
-      ...turno,
-      indiceOriginal: index,
-      inicioMin,
-      finMin,
-      columna: 0,
-      totalColumnas: 1
-    };
-  });
+  if (!turnos.length) return [];
 
-  turnosConPosicion.sort((a, b) => a.inicioMin - b.inicioMin);
+  const turnosConPosicion = turnos.map((turno, index) => ({
+    ...turno,
+    indiceOriginal: index,
+    inicioMin: horaAMinutos(turno.hora),
+    finMin: horaAMinutos(turno.hora_fin),
+    columna: 0,
+    totalColumnas: 1
+  }));
 
-  for (let i = 0; i < turnosConPosicion.length; i++) {
-    const turnoActual = turnosConPosicion[i];
-    const turnosSuperpuestos = [turnoActual];
+  // Ordenar por inicio, luego por duración descendente (más largo primero)
+  turnosConPosicion.sort((a, b) =>
+    a.inicioMin - b.inicioMin || (b.finMin - b.inicioMin) - (a.finMin - a.inicioMin)
+  );
 
-    for (let j = i + 1; j < turnosConPosicion.length; j++) {
-      const turnoComparar = turnosConPosicion[j];
-
-      if (turnoComparar.inicioMin < turnoActual.finMin) {
-        turnosSuperpuestos.push(turnoComparar);
-      }
+  // Asignación greedy: columna más pequeña disponible
+  const colEndTimes = [];
+  for (const turno of turnosConPosicion) {
+    let col = colEndTimes.findIndex(end => end <= turno.inicioMin);
+    if (col === -1) {
+      col = colEndTimes.length;
+      colEndTimes.push(turno.finMin);
+    } else {
+      colEndTimes[col] = turno.finMin;
     }
+    turno.columna = col;
+  }
 
-    if (turnosSuperpuestos.length > 1) {
-      turnosSuperpuestos.forEach((turno, idx) => {
-        // SOLO actualizamos si el nuevo grupo es MÁS GRANDE
-        // que el grupo en el que ya está.
-        if (turnosSuperpuestos.length > turno.totalColumnas) {
-          turno.columna = idx;
-          turno.totalColumnas = turnosSuperpuestos.length;
-        }
-      });
-    }
+  // totalColumnas = max columna de los que se superponen con este + 1
+  for (const turno of turnosConPosicion) {
+    const superpuestos = turnosConPosicion.filter(
+      o => o.inicioMin < turno.finMin && o.finMin > turno.inicioMin
+    );
+    const total = Math.max(...superpuestos.map(o => o.columna)) + 1;
+    superpuestos.forEach(o => { if (total > o.totalColumnas) o.totalColumnas = total; });
   }
 
   return turnosConPosicion;
@@ -219,7 +219,7 @@ function detectarSuperposiciones(turnos) {
 
 function renderizarGrilla() {
   const cuerpoGrilla = document.getElementById("cuerpoGrilla");
-  const turnosFiltrados = estado.turnos;
+  const turnosFiltrados = estado.turnos.filter(t => t.estado !== 'cancelado');
   let ranuraHtml = "";
   horariosDelDia.forEach((hora) => {
     ranuraHtml += `
@@ -291,7 +291,7 @@ function renderizarGrilla() {
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               <circle cx="12" cy="7" r="4" stroke-width="2"/>
             </svg>
-            <span>${turno.totalColumnas > 4 ? turno.nombre_empleado.charAt(0).toUpperCase() + '.' : turno.nombre_empleado.split(' ')[0]}</span>
+            <span>${turno.totalColumnas > 3 ? turno.nombre_empleado.substring(0, 3) + '.' : turno.nombre_empleado.split(' ')[0]}</span>
           </div>
         ` : ""}
         <div class="hora-turno-apilada">
@@ -400,8 +400,36 @@ export function renderizarModal() {
     setupModalCreacionListeners();
   }
 
-  // --- MODO 2: EDITAR TURNO EXISTENTE (MODIFICADO) ---
+  // --- MODO 2: EDITAR TURNO EXISTENTE ---
   else if (estado.modoEdicion) {
+
+    // ── Turno REALIZADO: solo se puede cambiar el cliente ──────────────────
+    if (turno.estado === 'realizado') {
+      tituloModal.textContent = "Corregir Cliente";
+      cuerpoModal.innerHTML = `
+        <form id="formEdicionCliente">
+          <p style="color: var(--color-secundario); font-size: 0.85rem; margin-bottom: 1rem;">
+            Este turno ya fue realizado. Solo podés corregir los datos del cliente.
+          </p>
+          <div class="grupo-formulario">
+            <label class="form-label" for="nombreCliente">Nombre del Cliente</label>
+            <input type="text" id="nombreCliente" class="form-input" value="${turno.nombre_cliente || ''}" required>
+          </div>
+          <div class="grupo-formulario">
+            <label class="form-label" for="telefono">Teléfono</label>
+            <input type="tel" id="telefono" class="form-input" value="${turno.telefono_cliente || ''}" required>
+          </div>
+          <div class="pie-modal">
+            <button type="button" class="boton-secundario" id="btnCancelarEdicion">Cancelar</button>
+            <button type="submit" class="boton-primario">Guardar Cliente</button>
+          </div>
+        </form>
+      `;
+      setupModalEdicionClienteListener(turno);
+      return;
+    }
+    // ───────────────────────────────────────────────────────────────────────
+
     tituloModal.textContent = "Modificar Turno";
 
     // HTML casi idéntico al de "Crear Turno", pero con el campo "Estado"
@@ -557,8 +585,13 @@ export function renderizarModal() {
       </div>
       <div class="pie-modal">
         <button class="boton-primario" id="btnRegistrarPago">Registrar Pago</button>
+        ${turno.estado === 'pendiente' ? '<button class="boton-secundario" id="btnConfirmarTurno"><span class="txt-largo">Confirmar Turno</span><span class="txt-corto">Confirmar</span></button>' : ''}
+        ${turno.estado === 'confirmado' ? '<button class="boton-secundario" id="btnRealizarTurno"><span class="txt-largo">Marcar Realizado</span><span class="txt-corto">Realizado</span></button>' : ''}
         <button class="boton-secundario" id="btnModificar">Modificar</button>
-        <button class="boton-secundario eliminar" id="btnCancelarTurno">Eliminar Turno</button>
+        ${ ['cancelado','realizado'].includes(turno.estado)
+          ? '<button class="boton-secundario eliminar" id="btnEliminarTurno"><span class="txt-largo">Eliminar Turno</span><span class="txt-corto">Eliminar</span></button>'
+          : '<button class="boton-secundario eliminar" id="btnCancelarEstado"><span class="txt-largo">Cancelar Turno</span><span class="txt-corto">Cancelar</span></button>'
+        }
       </div>
     `;
 
@@ -567,32 +600,145 @@ export function renderizarModal() {
       renderizarModal();
     });
 
+    if (turno.estado === 'confirmado') {
+      document.getElementById("btnRealizarTurno").addEventListener("click", async () => {
+        const btn = document.getElementById("btnRealizarTurno");
+        const confirmado = await confirmarAccion(
+          `¿Marcás el turno de ${turno.nombre_cliente} como realizado?`,
+          '¿Marcar como realizado?',
+          'Realizado'
+        );
+        if (!confirmado) return;
+        const restaurar = setBtnLoading(btn, 'Guardando...');
+        try {
+          const resultado = await createOrUpdateTurno({
+            ...turno,
+            id: turno.id,
+            cliente_id: turno.cliente_id,
+            empleado_id: turno.empleado_id,
+            servicio_id: turno.servicio_id,
+            hora_inicio: turno.hora ? turno.hora.substring(0, 5) : turno.hora_inicio,
+            hora_fin: turno.hora_fin ? turno.hora_fin.substring(0, 5) : turno.hora_fin,
+            estado: 'realizado',
+          });
+          restaurar();
+          if (resultado) {
+            estado.turnoSeleccionado = { ...turno, estado: 'realizado' };
+            showNotification('Turno marcado como realizado.', 'success');
+            recargarTurnosYAgenda();
+            _recargarDashboardStats();
+          } else {
+            showNotification('No se pudo actualizar el turno.', 'error');
+          }
+        } catch (error) {
+          restaurar();
+          showNotification('Error al actualizar el turno.', 'error');
+        }
+      });
+    }
+
+    if (turno.estado === 'pendiente') {
+      document.getElementById("btnConfirmarTurno").addEventListener("click", async () => {
+        const btn = document.getElementById("btnConfirmarTurno");
+        const confirmado = await confirmarAccion(
+          `¿Confirmás el turno de ${turno.nombre_cliente}?`,
+          '¿Confirmar turno?',
+          'Confirmar'
+        );
+        if (!confirmado) return;
+        const restaurar = setBtnLoading(btn, 'Confirmando...');
+        try {
+          const resultado = await createOrUpdateTurno({
+            ...turno,
+            id: turno.id,
+            cliente_id: turno.cliente_id,
+            empleado_id: turno.empleado_id,
+            servicio_id: turno.servicio_id,
+            hora_inicio: turno.hora ? turno.hora.substring(0, 5) : turno.hora_inicio,
+            hora_fin: turno.hora_fin ? turno.hora_fin.substring(0, 5) : turno.hora_fin,
+            estado: 'confirmado',
+          });
+          restaurar();
+          if (resultado) {
+            estado.turnoSeleccionado = { ...turno, estado: 'confirmado' };
+            showNotification('Turno confirmado correctamente.', 'success');
+            recargarTurnosYAgenda();
+            _recargarDashboardStats();
+          } else {
+            showNotification('No se pudo confirmar el turno.', 'error');
+          }
+        } catch (error) {
+          restaurar();
+          showNotification('Error al confirmar el turno.', 'error');
+        }
+      });
+    }
+
     document.getElementById("btnRegistrarPago").addEventListener("click", () => {
       estado.modoRegistrarPago = true;
       renderizarModal();
     });
 
-    document.getElementById("btnCancelarTurno").addEventListener("click", async () => {
-      // (Esta lógica de eliminar no cambia)
-      if (!turno.id) {
-        showNotification("Error: No se puede cancelar el turno porque falta el 'id' desde la API.", "error");
-        return;
-      }
-      try {
-        const resultado = await eliminarTurno(turno.id);
-        if (resultado) {
-          showNotification("Turno eliminado con éxito", "success");
-          estado.turnoSeleccionado = null;
-          recargarTurnosYAgenda();
-          _recargarDashboardStats();
-        } else {
-          showNotification("No se pudo eliminar el turno.", "error");
+    if (['cancelado', 'realizado'].includes(turno.estado)) {
+      document.getElementById("btnEliminarTurno").addEventListener("click", async () => {
+        if (!turno.id) return;
+        const confirmado = await confirmarAccion(
+          `¿Eliminás definitivamente el turno de ${turno.nombre_cliente}? Esta acción no se puede deshacer.`,
+          'Eliminar turno',
+          'Eliminar'
+        );
+        if (!confirmado) return;
+        try {
+          const resultado = await eliminarTurno(turno.id);
+          if (resultado) {
+            showNotification('Turno eliminado con éxito.', 'success');
+            estado.turnoSeleccionado = null;
+            recargarTurnosYAgenda();
+            _recargarDashboardStats();
+          } else {
+            showNotification('No se pudo eliminar el turno.', 'error');
+          }
+        } catch (error) {
+          showNotification('Error de red al eliminar el turno.', 'error');
         }
-      } catch (error) {
-        showNotification("Error de red al eliminar el turno.", "error");
-        console.error("Error al eliminar turno:", error);
-      }
-    });
+      });
+    } else {
+      document.getElementById("btnCancelarEstado").addEventListener("click", async () => {
+        if (!turno.id) return;
+        const confirmado = await confirmarAccion(
+          `¿Cancelás el turno de ${turno.nombre_cliente}?`,
+          'Cancelar turno',
+          'Cancelar'
+        );
+        if (!confirmado) return;
+        const btn = document.getElementById("btnCancelarEstado");
+        const restaurar = setBtnLoading(btn, 'Cancelando...');
+        try {
+          const resultado = await createOrUpdateTurno({
+            ...turno,
+            id: turno.id,
+            cliente_id: turno.cliente_id,
+            empleado_id: turno.empleado_id,
+            servicio_id: turno.servicio_id,
+            hora_inicio: turno.hora ? turno.hora.substring(0, 5) : turno.hora_inicio,
+            hora_fin: turno.hora_fin ? turno.hora_fin.substring(0, 5) : turno.hora_fin,
+            estado: 'cancelado',
+          });
+          restaurar();
+          if (resultado) {
+            estado.turnoSeleccionado = { ...turno, estado: 'cancelado' };
+            showNotification('Turno cancelado.', 'success');
+            recargarTurnosYAgenda();
+            _recargarDashboardStats();
+          } else {
+            showNotification('No se pudo cancelar el turno.', 'error');
+          }
+        } catch (error) {
+          restaurar();
+          showNotification('Error al cancelar el turno.', 'error');
+        }
+      });
+    }
   }
 }
 
@@ -804,6 +950,52 @@ function setupModalCreacionListeners() {
 }
 
 // ===============================================
+// ===============================================
+// FUNCIÓN: Listener para editar solo el cliente (turno realizado)
+// ===============================================
+function setupModalEdicionClienteListener(turno) {
+  document.getElementById('btnCancelarEdicion').addEventListener('click', () => {
+    estado.modoEdicion = false;
+    renderizarModal();
+  });
+
+  document.getElementById('formEdicionCliente').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btnSubmit = e.target.querySelector('[type="submit"]');
+    const restaurar = setBtnLoading(btnSubmit, 'Guardando...');
+
+    const nombre = document.getElementById('nombreCliente').value.trim();
+    const telefono = document.getElementById('telefono').value.trim();
+
+    if (!nombre || !telefono) {
+      showNotification('Nombre y teléfono son obligatorios.', 'error');
+      restaurar();
+      return;
+    }
+
+    const cliente_id = await buscarOCrearCliente(nombre, telefono);
+    if (!cliente_id) {
+      showNotification('Error al buscar o crear el cliente.', 'error');
+      restaurar();
+      return;
+    }
+
+    const resultado = await createOrUpdateTurno({ id: turno.id, cliente_id });
+    restaurar();
+
+    if (resultado) {
+      estado.turnoSeleccionado = { ...turno, nombre_cliente: nombre, telefono_cliente: telefono };
+      estado.modoEdicion = false;
+      showNotification('Cliente actualizado correctamente.', 'success');
+      recargarTurnosYAgenda();
+      _recargarDashboardStats();
+    } else {
+      showNotification('Error al actualizar el cliente.', 'error');
+    }
+  });
+}
+
+// ===============================================
 // NUEVA FUNCIÓN: Listeners para el Modal de Edición
 // ===============================================
 function setupModalEdicionListeners(turno) {
@@ -1009,6 +1201,13 @@ function setupModalEdicionListeners(turno) {
     };
 
 
+
+    const confirmado = await confirmarAccion(
+      `¿Guardás los cambios del turno de ${turno.nombre_cliente}?`,
+      '¿Guardar cambios?',
+      'Guardar'
+    );
+    if (!confirmado) { restaurar(); return; }
 
     const resultado = await createOrUpdateTurno(turnoData);
     restaurar();

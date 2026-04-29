@@ -226,10 +226,21 @@ async function obtenerHorariosDisponibles(empleado_id, fecha, duracionServicio) 
                 duracionServicio
             );
     
-            // Filtrar horarios disponibles
+            // Filtrar horarios disponibles (sin solapamiento y con anticipación mínima de 30 min)
+            const ahora = new Date();
+            const hoy = ahora.toISOString().split('T')[0];
+            const minutosAhora = ahora.getHours() * 60 + ahora.getMinutes();
+
             const horariosDisponibles = horariosDelDia.filter(horario => {
-                return !estaOcupado(horario.inicio, horario.fin, turnosOcupados);
-            })
+                if (estaOcupado(horario.inicio, horario.fin, turnosOcupados)) return false;
+                // Si es hoy, excluir slots con menos de 30 min de anticipación
+                if (fecha === hoy) {
+                    const [hh, mm] = horario.inicio.split(':').map(Number);
+                    const minutosSlot = hh * 60 + mm;
+                    if (minutosSlot - minutosAhora < 30) return false;
+                }
+                return true;
+            });
             
             return {
                 fecha, 
@@ -442,7 +453,12 @@ async function obtenerTurnosConDetalles({empleadoId, fecha}){
                 fecha,
                 hora_inicio,
                 hora_fin,
+                estado,
+                precio,
                 observaciones,
+                cliente_id,
+                empleado_id,
+                servicio_id,
                 empleados!inner(nombre),           
                 clientes!inner(nombre, telefono),
                 servicios!inner(nombre)
@@ -470,8 +486,13 @@ async function obtenerTurnosConDetalles({empleadoId, fecha}){
             const turnosPresentables = turnos.map(turno => ({
                 id: turno.id,
                 fecha: turno.fecha,
-                hora: turno.hora_inicio, // Combino fecha y hora en el front para mostrar el turno
+                hora: turno.hora_inicio,
                 hora_fin : turno.hora_fin,
+                estado: turno.estado,
+                precio: turno.precio,
+                cliente_id: turno.cliente_id,
+                empleado_id: turno.empleado_id,
+                servicio_id: turno.servicio_id,
                 observaciones: turno.observaciones,
 
                 nombre_empleado: turno.empleados?.nombre || 'N/A',
@@ -513,11 +534,30 @@ async function verificarSolapamiento(empleado_id, fecha, hora_inicio, hora_fin, 
     return conflicto || null;
 }
 
+// Función para actualizar solo el cliente de un turno (usado cuando estado = 'realizado')
+async function modificarSoloCliente(id, cliente_id) {
+    try {
+        const { data, error } = await supabaseAdmin
+            .from('turnos')
+            .update({ cliente_id })
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw new Error(`Error al modificar cliente: ${error.message}`);
+        return data !== null;
+    } catch (error) {
+        console.error(`Error en modelo.modificarSoloCliente (ID: ${id}):`, error);
+        throw error;
+    }
+}
+
 export default {
     obtenerTurnos,
     obtenerUnTurno,
     agregarTurno,
     modificarTurno,
+    modificarSoloCliente,
     eliminarTurno,
     obtenerHorariosDisponibles,
     obtenerTurnosConDetalles,

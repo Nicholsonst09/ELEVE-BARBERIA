@@ -92,21 +92,21 @@ async function agregarTurno(req, res) {
         return res.status(400).json({ mensaje: `El estado '${estado}' no es un estado de turno permitido.` });
     }
 
-    // ── Validación: fecha no pasada y mínimo 1 hora de anticipación ─────────
-    const ahora = new Date();
-    const hoy = ahora.toISOString().split('T')[0];
-    if (fecha < hoy) {
-        return res.status(400).json({ mensaje: 'No se pueden crear turnos para fechas anteriores a hoy.' });
-    }
-    if (fecha === hoy) {
-        const [hh, mm] = hora_inicio.split(':').map(Number);
-        const minutosSlot = hh * 60 + mm;
-        const minutosAhora = ahora.getHours() * 60 + ahora.getMinutes();
-        if (minutosSlot - minutosAhora < 60) {
-            return res.status(400).json({ mensaje: 'El turno debe reservarse con al menos 1 hora de anticipación.' });
+    // ── Validación: fecha no pasada y mínimo 30 min de anticipación ────────
+        const ahora = new Date();
+        const hoy = ahora.toISOString().split('T')[0];
+        if (fecha < hoy) {
+            return res.status(400).json({ mensaje: 'No se pueden crear turnos para fechas anteriores a hoy.' });
         }
-    }
-    // ────────────────────────────────────────────────────────────────────────
+        if (fecha === hoy) {
+            const [hh, mm] = hora_inicio.split(':').map(Number);
+            const minutosSlot = hh * 60 + mm;
+            const minutosAhora = ahora.getHours() * 60 + ahora.getMinutes();
+            if (minutosSlot - minutosAhora < 30) {
+                return res.status(400).json({ mensaje: 'El turno debe reservarse con al menos 30 minutos de anticipación.' });
+            }
+        }
+        // ────────────────────────────────────────────────────────────────────────
 
     try {
         // ── Anti-solapamiento ────────────────────────────────────────────────
@@ -143,11 +143,23 @@ async function modificarTurno(req, res) {
         }
 
         // ── Máquina de estados ───────────────────────────────────────────────
-        // Bloquear toda modificación si el turno ya está en estado final
-        if (['realizado', 'cancelado'].includes(turnoExistente.estado)) {
-            return res.status(400).json({
-                mensaje: `No se puede modificar un turno en estado "${turnoExistente.estado}".`
-            });
+        // Cancelado: completamente bloqueado
+        if (turnoExistente.estado === 'cancelado') {
+            return res.status(400).json({ mensaje: 'No se puede modificar un turno cancelado.' });
+        }
+
+        // Realizado: solo se permite actualizar el cliente
+        if (turnoExistente.estado === 'realizado') {
+            const { cliente_id } = req.body;
+            if (!Number(cliente_id)) {
+                return res.status(400).json({ mensaje: 'El ID de cliente es inválido.' });
+            }
+            const modificado = await modelo.modificarSoloCliente(turnoId, cliente_id);
+            if (modificado) {
+                return res.status(200).json({ mensaje: `Cliente del turno ${turnoId} actualizado con éxito.` });
+            } else {
+                return res.status(500).json({ mensaje: 'No se pudo actualizar el cliente del turno.' });
+            }
         }
 
         // Si se intenta cambiar el estado, validar que la transición sea permitida
@@ -179,19 +191,27 @@ async function modificarTurno(req, res) {
             return res.status(400).json({ mensaje: "Los datos del turno no son válidos." });
         }
 
-        // ── Validación: fecha no pasada ──────────────────────────────────────
+        // ── Validación: fecha no pasada (solo si cambió la fecha) ───────────
         const hoy = new Date().toISOString().split('T')[0];
-        if (fecha < hoy) {
-            return res.status(400).json({ mensaje: 'No se pueden modificar turnos para fechas anteriores a hoy.' });
+        const fechaCambio = fecha !== turnoExistente.fecha;
+        if (fechaCambio && fecha < hoy) {
+            return res.status(400).json({ mensaje: 'No se puede mover un turno a una fecha anterior a hoy.' });
         }
         // ────────────────────────────────────────────────────────────────────
 
-        // ── Anti-solapamiento ────────────────────────────────────────────────
-        const conflicto = await modelo.verificarSolapamiento(empleado_id, fecha, hora_inicio, hora_fin, turnoId);
-        if (conflicto) {
-            return res.status(409).json({
-                mensaje: `El profesional ya tiene un turno de ${conflicto.hora_inicio.substring(0,5)} a ${conflicto.hora_fin.substring(0,5)} que se superpone con el horario solicitado.`
-            });
+        // ── Anti-solapamiento (solo si cambió algo del horario/empleado) ────
+        const horarioCambio = hora_inicio !== turnoExistente.hora_inicio ||
+                              hora_fin    !== turnoExistente.hora_fin    ||
+                              fechaCambio ||
+                              String(empleado_id) !== String(turnoExistente.empleado_id);
+
+        if (horarioCambio) {
+            const conflicto = await modelo.verificarSolapamiento(empleado_id, fecha, hora_inicio, hora_fin, turnoId);
+            if (conflicto) {
+                return res.status(409).json({
+                    mensaje: `El profesional ya tiene un turno de ${conflicto.hora_inicio.substring(0,5)} a ${conflicto.hora_fin.substring(0,5)} que se superpone con el horario solicitado.`
+                });
+            }
         }
         // ────────────────────────────────────────────────────────────────────
 
