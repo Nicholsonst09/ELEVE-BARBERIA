@@ -50,12 +50,12 @@ document.addEventListener('DOMContentLoaded', () => {
 function generarFechasDisponibles() {
   fechasDisponibles = [];
   const hoy = new Date();
-  for (let i = 0; i < 7; i++) {
+  for (let i = 0; i < 8; i++) {
     const fecha = new Date(hoy);
     fecha.setDate(hoy.getDate() + i);
-    if (fecha.getDay() !== 0) {
-      fechasDisponibles.push(fecha.toISOString().split('T')[0]);
-    }
+    if (fecha.getDay() === 0) continue; // sin domingos
+    fechasDisponibles.push(fecha.toISOString().split('T')[0]);
+    if (fechasDisponibles.length === 7) break;
   }
 }
 
@@ -149,7 +149,21 @@ function cargarHorarios(horarios) {
     return;
   }
 
-  const disponibles = horarios.filter(h => h.disponible);
+  const ahora = new Date();
+  const esHoy = reservaActual.fecha === ahora.toISOString().split('T')[0];
+
+  const disponibles = horarios.filter(h => {
+    if (!h.disponible) return false;
+    // Si es hoy, filtrar horarios que estén a menos de 1 hora de la hora actual
+    if (esHoy) {
+      const [hh, mm] = h.inicio.split(':').map(Number);
+      const minutosSlot = hh * 60 + mm;
+      const minutosAhora = ahora.getHours() * 60 + ahora.getMinutes();
+      if (minutosSlot - minutosAhora < 60) return false;
+    }
+    return true;
+  });
+
   if (!disponibles.length) {
     sinHorarios.style.display = 'block';
     return;

@@ -490,6 +490,29 @@ async function obtenerTurnosConDetalles({empleadoId, fecha}){
     }
 }
 
+// Función para verificar si un turno se solapa con otro del mismo empleado
+async function verificarSolapamiento(empleado_id, fecha, hora_inicio, hora_fin, turno_id_excluir = null) {
+    let query = supabaseAdmin
+        .from('turnos')
+        .select('id, hora_inicio, hora_fin, estado')
+        .eq('empleado_id', empleado_id)
+        .eq('fecha', fecha)
+        .neq('estado', 'cancelado');
+
+    if (turno_id_excluir) {
+        query = query.neq('id', turno_id_excluir);
+    }
+
+    const { data: turnosExistentes, error } = await query;
+    if (error) throw error;
+
+    const conflicto = turnosExistentes.find(t =>
+        hora_inicio < t.hora_fin && hora_fin > t.hora_inicio
+    );
+
+    return conflicto || null;
+}
+
 export default {
     obtenerTurnos,
     obtenerUnTurno,
@@ -497,5 +520,6 @@ export default {
     modificarTurno,
     eliminarTurno,
     obtenerHorariosDisponibles,
-    obtenerTurnosConDetalles
+    obtenerTurnosConDetalles,
+    verificarSolapamiento
 };
