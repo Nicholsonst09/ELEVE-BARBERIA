@@ -320,6 +320,7 @@ h1, h2, h3, h4, h5, h6 {
 .boton-secundario.eliminar { color: var(--c-error); border-color: #fca5a5; }
 .boton-secundario.eliminar:hover { background: var(--c-error-fondo); border-color: var(--c-error); }
 
+
 .boton-icono {
   width: 34px; height: 34px;
   border: 1px solid var(--c-borde);
@@ -465,10 +466,15 @@ textarea.form-input, .grupo-formulario textarea { min-height: 80px; resize: vert
 }
 
 .pie-modal > * {
-  flex: 1 1 auto;
+  flex: 1 1 calc(50% - 0.375rem);
   min-width: 0;
   text-align: center;
   justify-content: center;
+}
+.txt-corto { display: none; }
+@media (max-width: 400px) {
+  .txt-largo { display: none; }
+  .txt-corto { display: inline; }
 }
 
 /* ===================================================
@@ -1779,23 +1785,24 @@ textarea.form-input, .grupo-formulario textarea { min-height: 80px; resize: vert
 /* Contenedor apilador */
 .toast {
   position: fixed;
-  bottom: 24px;
-  right: 24px;
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: 10000;
   display: flex;
   align-items: center;
   gap: 0.75rem;
   padding: 0.875rem 1rem 0.875rem 1.125rem;
-  border-radius: var(--r-md);
+  border-radius: 0;
   box-shadow: var(--sombra-xl);
-  max-width: 360px;
-  min-width: 260px;
+  max-width: 100%;
+  min-width: 0;
   font-size: 0.875rem;
   font-family: var(--font-body);
   color: white;
-  /* Estado inicial: invisible abajo */
+  /* Estado inicial: invisible arriba */
   opacity: 0;
-  transform: translateY(12px);
+  transform: translateY(-100%);
   transition: opacity 0.28s var(--ease), transform 0.28s var(--ease);
   pointer-events: none;
 }
@@ -1819,7 +1826,7 @@ textarea.form-input, .grupo-formulario textarea { min-height: 80px; resize: vert
   position: absolute;
   bottom: 0; left: 0;
   height: 3px;
-  border-radius: 0 0 var(--r-md) var(--r-md);
+  border-radius: 0;
   background: rgba(255,255,255,0.4);
   animation: toastProgress 4s linear forwards;
 }
@@ -2033,7 +2040,7 @@ textarea.form-input, .grupo-formulario textarea { min-height: 80px; resize: vert
   .cuadricula-metricas-clave { grid-template-columns: 1fr; }
   .metricas-seccion, .metricas-empleados { grid-template-columns: 1fr; }
   .cantidad-financiera, .contador-financiero { font-size: 2.25rem; }
-  .toast { bottom: 80px; right: 12px; left: 12px; max-width: 100%; min-width: 0; }
+  .toast { top: 0; bottom: auto; right: 0; left: 0; max-width: 100%; min-width: 0; }
 }
 
 /* ===================================================

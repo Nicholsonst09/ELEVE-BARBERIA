@@ -456,7 +456,9 @@ async function obtenerTurnosConDetalles({empleadoId, fecha}){
                 estado,
                 precio,
                 observaciones,
+                cliente_id,
                 empleado_id,
+                servicio_id,
                 empleados!inner(nombre),           
                 clientes!inner(nombre, telefono),
                 servicios!inner(nombre)
@@ -484,11 +486,13 @@ async function obtenerTurnosConDetalles({empleadoId, fecha}){
             const turnosPresentables = turnos.map(turno => ({
                 id: turno.id,
                 fecha: turno.fecha,
-                hora: turno.hora_inicio, // Combino fecha y hora en el front para mostrar el turno
+                hora: turno.hora_inicio,
                 hora_fin : turno.hora_fin,
                 estado: turno.estado,
                 precio: turno.precio,
+                cliente_id: turno.cliente_id,
                 empleado_id: turno.empleado_id,
+                servicio_id: turno.servicio_id,
                 observaciones: turno.observaciones,
 
                 nombre_empleado: turno.empleados?.nombre || 'N/A',
