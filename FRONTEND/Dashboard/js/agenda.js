@@ -136,7 +136,7 @@ function renderizarNavegacion() {
     const primerNombre = prof.nombre.split(' ')[0];
 
     html += `
-      <button class="pestana-navegacion ${String(estado.profesionalSeleccionado) === String(prof.id) ? "activo" : ""}" data-id="${prof.id}">
+      <button class="pestana-navegacion ${String(estado.profesionalSeleccionado) === String(prof.id) ? "activo" : ""}" data-id="${prof.id}" style="--color-tab: ${color};">
         <div class="punto-color" style="background-color: ${color};"></div>
         <span class="nombre-prof-tab">${primerNombre}</span>
       </button>
@@ -291,7 +291,7 @@ function renderizarGrilla() {
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               <circle cx="12" cy="7" r="4" stroke-width="2"/>
             </svg>
-            <span>${turno.totalColumnas > 4 ? turno.nombre_empleado.charAt(0).toUpperCase() + '.' : turno.nombre_empleado.split(' ')[0]}</span>
+            <span>${turno.totalColumnas > 3 ? turno.nombre_empleado.substring(0, 3) + '.' : turno.nombre_empleado.split(' ')[0]}</span>
           </div>
         ` : ""}
         <div class="hora-turno-apilada">

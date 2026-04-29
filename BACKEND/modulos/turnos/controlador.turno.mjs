@@ -199,12 +199,19 @@ async function modificarTurno(req, res) {
         }
         // ────────────────────────────────────────────────────────────────────
 
-        // ── Anti-solapamiento ────────────────────────────────────────────────
-        const conflicto = await modelo.verificarSolapamiento(empleado_id, fecha, hora_inicio, hora_fin, turnoId);
-        if (conflicto) {
-            return res.status(409).json({
-                mensaje: `El profesional ya tiene un turno de ${conflicto.hora_inicio.substring(0,5)} a ${conflicto.hora_fin.substring(0,5)} que se superpone con el horario solicitado.`
-            });
+        // ── Anti-solapamiento (solo si cambió algo del horario/empleado) ────
+        const horarioCambio = hora_inicio !== turnoExistente.hora_inicio ||
+                              hora_fin    !== turnoExistente.hora_fin    ||
+                              fechaCambio ||
+                              String(empleado_id) !== String(turnoExistente.empleado_id);
+
+        if (horarioCambio) {
+            const conflicto = await modelo.verificarSolapamiento(empleado_id, fecha, hora_inicio, hora_fin, turnoId);
+            if (conflicto) {
+                return res.status(409).json({
+                    mensaje: `El profesional ya tiene un turno de ${conflicto.hora_inicio.substring(0,5)} a ${conflicto.hora_fin.substring(0,5)} que se superpone con el horario solicitado.`
+                });
+            }
         }
         // ────────────────────────────────────────────────────────────────────
 

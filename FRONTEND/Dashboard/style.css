@@ -961,7 +961,7 @@ textarea.form-input, .grupo-formulario textarea { min-height: 80px; resize: vert
 }
 
 .pestana-navegacion:hover { color: var(--c-primario); background: var(--c-gris-claro); border-radius: var(--r-sm) var(--r-sm) 0 0; }
-.pestana-navegacion.activo { color: var(--c-primario); border-bottom-color: var(--c-primario); background: none; }
+.pestana-navegacion.activo { color: var(--c-texto); border-bottom-color: var(--color-tab, var(--c-primario)); background: none; }
 
 .punto-color { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
 
