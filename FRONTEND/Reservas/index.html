@@ -21,8 +21,11 @@
       <a href="#" class="nav__logo">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="6" cy="6" r="3" /><path d="M8.12 8.12 12 12" /><path d="M20 4 8.12 15.88" />
-          <path d="M15.88 8.12 20 12" /><path d="M4 20 15.88 8.12" />
+          <circle cx="6" cy="6" r="3" />
+          <path d="M8.12 8.12 12 12" />
+          <path d="M20 4 8.12 15.88" />
+          <path d="M15.88 8.12 20 12" />
+          <path d="M4 20 15.88 8.12" />
         </svg>
         ELEVÉ
       </a>
@@ -58,100 +61,107 @@
         <!-- Panel derecho: formulario -->
         <div class="reserva-panel">
 
-        <!-- Progreso -->
-        <div class="progreso">
-          <div class="progreso__paso progreso__paso--activo" data-paso="1">1</div>
-          <div class="progreso__linea"></div>
-          <div class="progreso__paso" data-paso="2">2</div>
-          <div class="progreso__linea"></div>
-          <div class="progreso__paso" data-paso="3">3</div>
-          <div class="progreso__linea"></div>
-          <div class="progreso__paso" data-paso="4">4</div>
-          <div class="progreso__linea"></div>
-          <div class="progreso__paso" data-paso="5">5</div>
-          <div class="progreso__linea"></div>
-          <div class="progreso__paso" data-paso="6">6</div>
-        </div>
+          <!-- Progreso -->
+          <div class="progreso">
+            <div class="progreso__paso progreso__paso--activo" data-paso="1">1</div>
+            <div class="progreso__linea"></div>
+            <div class="progreso__paso" data-paso="2">2</div>
+            <div class="progreso__linea"></div>
+            <div class="progreso__paso" data-paso="3">3</div>
+            <div class="progreso__linea"></div>
+            <div class="progreso__paso" data-paso="4">4</div>
+            <div class="progreso__linea"></div>
+            <div class="progreso__paso" data-paso="5">5</div>
+            <div class="progreso__linea"></div>
+            <div class="progreso__paso" data-paso="6">6</div>
+          </div>
 
-        <!-- Paso 1: Servicio -->
-        <div class="paso paso--activo" id="paso-1">
-          <div class="paso__cab">
-            <h2 class="paso__titulo">Seleccioná un servicio</h2>
+          <!-- Paso 1: Servicio -->
+          <div class="paso paso--activo" id="paso-1">
+            <div class="paso__cab">
+              <h2 class="paso__titulo">Seleccioná un servicio</h2>
+            </div>
+            <div class="servicios-grid" id="servicios-container"></div>
           </div>
-          <div class="servicios-grid" id="servicios-container"></div>
-        </div>
 
-        <!-- Paso 2: Barbero -->
-        <div class="paso" id="paso-2">
-          <div class="paso__cab">
-            <h2 class="paso__titulo">Elegí tu barbero</h2>
-            <button class="btn-volver">← Volver</button>
+          <!-- Paso 2: Barbero -->
+          <div class="paso" id="paso-2">
+            <div class="paso__cab">
+              <h2 class="paso__titulo">Elegí tu barbero</h2>
+              <button class="btn-volver">← Volver</button>
+            </div>
+            <div class="barberos-grid" id="barberos-container"></div>
           </div>
-          <div class="barberos-grid" id="barberos-container"></div>
-        </div>
 
-        <!-- Paso 3: Fecha -->
-        <div class="paso" id="paso-3">
-          <div class="paso__cab">
-            <h2 class="paso__titulo">Elegí la fecha</h2>
-            <button class="btn-volver">← Volver</button>
+          <!-- Paso 3: Fecha -->
+          <div class="paso" id="paso-3">
+            <div class="paso__cab">
+              <h2 class="paso__titulo">Elegí la fecha</h2>
+              <button class="btn-volver">← Volver</button>
+            </div>
+            <div class="fechas-grid" id="fechas-container"></div>
           </div>
-          <div class="fechas-grid" id="fechas-container"></div>
-        </div>
 
-        <!-- Paso 4: Horario -->
-        <div class="paso" id="paso-4">
-          <div class="paso__cab">
-            <h2 class="paso__titulo">Elegí el horario</h2>
-            <button class="btn-volver">← Volver</button>
-          </div>
-          <div class="horarios-grid" id="horarios-container"></div>
-          <div class="sin-horarios" id="sin-horarios" style="display:none;">
-            <p>Sin horarios disponibles. Probá otra fecha.</p>
-          </div>
-        </div>
-
-        <!-- Paso 5: Datos -->
-        <div class="paso" id="paso-5">
-          <div class="paso__cab">
-            <h2 class="paso__titulo">Tus datos</h2>
-            <button class="btn-volver">← Volver</button>
-          </div>
-          <div class="form-grupo">
-            <label class="form-label" for="nombre">Nombre completo</label>
-            <input class="form-input" type="text" id="nombre" placeholder="Ej: Juan Pérez" autocomplete="off">
-            <span class="form-error" id="nombre-error"></span>
-          </div>
-          <div class="form-grupo">
-            <label class="form-label" for="telefono">Teléfono</label>
-            <input class="form-input" type="tel" id="telefono" placeholder="Sin 0 y sin 15" autocomplete="off">
-            <span class="form-error" id="telefono-error"></span>
-          </div>
-          <button class="btn-confirmar" id="btn-continuar" disabled>Continuar</button>
-        </div>
-
-        <!-- Paso 6: Resumen -->
-        <div class="paso" id="paso-6">
-          <div class="paso__cab">
-            <h2 class="paso__titulo">Confirmá tu reserva</h2>
-            <button class="btn-volver">← Volver</button>
-          </div>
-          <div class="resumen">
-            <div class="resumen__fila"><span class="resumen__label">Nombre</span><span class="resumen__valor" id="resumen-nombre"></span></div>
-            <div class="resumen__fila"><span class="resumen__label">Teléfono</span><span class="resumen__valor" id="resumen-telefono"></span></div>
-            <div class="resumen__sep"></div>
-            <div class="resumen__fila"><span class="resumen__label">Servicio</span><span class="resumen__valor" id="resumen-servicio"></span></div>
-            <div class="resumen__fila"><span class="resumen__label">Barbero</span><span class="resumen__valor" id="resumen-barbero"></span></div>
-            <div class="resumen__fila"><span class="resumen__label">Fecha</span><span class="resumen__valor" id="resumen-fecha"></span></div>
-            <div class="resumen__fila"><span class="resumen__label">Hora</span><span class="resumen__valor" id="resumen-hora"></span></div>
-            <div class="resumen__fila"><span class="resumen__label">Duración</span><span class="resumen__valor" id="resumen-duracion"></span></div>
-            <div class="resumen__total">
-              <span class="resumen__label">Total</span>
-              <span class="resumen__precio" id="resumen-precio"></span>
+          <!-- Paso 4: Horario -->
+          <div class="paso" id="paso-4">
+            <div class="paso__cab">
+              <h2 class="paso__titulo">Elegí el horario</h2>
+              <button class="btn-volver">← Volver</button>
+            </div>
+            <div class="horarios-grid" id="horarios-container"></div>
+            <div class="sin-horarios" id="sin-horarios" style="display:none;">
+              <p>Sin horarios disponibles. Probá otra fecha.</p>
             </div>
           </div>
-          <button class="btn-confirmar" id="btn-confirmar-reserva">Confirmar reserva</button>
-        </div>
+
+          <!-- Paso 5: Datos -->
+          <div class="paso" id="paso-5">
+            <div class="paso__cab">
+              <h2 class="paso__titulo">Tus datos</h2>
+              <button class="btn-volver">← Volver</button>
+            </div>
+            <div class="form-grupo">
+              <label class="form-label" for="nombre">Nombre completo</label>
+              <input class="form-input" type="text" id="nombre" placeholder="Ej: Juan Pérez" autocomplete="off">
+              <span class="form-error" id="nombre-error"></span>
+            </div>
+            <div class="form-grupo">
+              <label class="form-label" for="telefono">Teléfono</label>
+              <input class="form-input" type="tel" id="telefono" placeholder="Sin 0 y sin 15" autocomplete="off">
+              <span class="form-error" id="telefono-error"></span>
+            </div>
+            <button class="btn-confirmar" id="btn-continuar" disabled>Continuar</button>
+          </div>
+
+          <!-- Paso 6: Resumen -->
+          <div class="paso" id="paso-6">
+            <div class="paso__cab">
+              <h2 class="paso__titulo">Confirmá tu reserva</h2>
+              <button class="btn-volver">← Volver</button>
+            </div>
+            <div class="resumen">
+              <div class="resumen__fila"><span class="resumen__label">Nombre</span><span class="resumen__valor"
+                  id="resumen-nombre"></span></div>
+              <div class="resumen__fila"><span class="resumen__label">Teléfono</span><span class="resumen__valor"
+                  id="resumen-telefono"></span></div>
+              <div class="resumen__sep"></div>
+              <div class="resumen__fila"><span class="resumen__label">Servicio</span><span class="resumen__valor"
+                  id="resumen-servicio"></span></div>
+              <div class="resumen__fila"><span class="resumen__label">Barbero</span><span class="resumen__valor"
+                  id="resumen-barbero"></span></div>
+              <div class="resumen__fila"><span class="resumen__label">Fecha</span><span class="resumen__valor"
+                  id="resumen-fecha"></span></div>
+              <div class="resumen__fila"><span class="resumen__label">Hora</span><span class="resumen__valor"
+                  id="resumen-hora"></span></div>
+              <div class="resumen__fila"><span class="resumen__label">Duración</span><span class="resumen__valor"
+                  id="resumen-duracion"></span></div>
+              <div class="resumen__total">
+                <span class="resumen__label">Total</span>
+                <span class="resumen__precio" id="resumen-precio"></span>
+              </div>
+            </div>
+            <button class="btn-confirmar" id="btn-confirmar-reserva">Confirmar reserva</button>
+          </div>
 
         </div><!-- /reserva-panel -->
       </div><!-- /reserva-card -->
@@ -161,45 +171,47 @@
     <section id="contacto" class="seccion-contacto">
       <div class="contacto-inner">
         <div class="contacto-info">
-        <h2 class="contacto-titulo">Contacto</h2>
-        <div class="contacto-grid">
-          <div class="contacto-dato">
-            <i class="ti ti-map-pin"></i>
-            <div>
-              <strong>Dirección</strong>
-              <p>Av. Pueyrredón 182, Nueva Córdoba</p>
-              <a href="https://maps.google.com/?q=Elev%C3%A9+barber%C3%ADa,+Av.+Pueyrred%C3%B3n+182,+C%C3%B3rdoba" target="_blank" class="link-mapa">Ver en Google Maps →</a>
+          <h2 class="contacto-titulo">Contacto</h2>
+          <div class="contacto-grid">
+            <div class="contacto-dato">
+              <i class="ti ti-map-pin"></i>
+              <div>
+                <strong>Dirección</strong>
+                <p>Av. Pueyrredón 182, Nueva Córdoba</p>
+                <a href="https://maps.google.com/?q=Elev%C3%A9+barber%C3%ADa,+Av.+Pueyrred%C3%B3n+182,+C%C3%B3rdoba"
+                  target="_blank" class="link-mapa">Ver en Google Maps →</a>
+              </div>
+            </div>
+            <div class="contacto-dato">
+              <i class="ti ti-clock"></i>
+              <div>
+                <strong>Horario</strong>
+                <p>Lunes – Sábado: 11:00 – 19:00</p>
+                <p>Domingo: Cerrado</p>
+              </div>
+            </div>
+            <div class="contacto-dato">
+              <i class="ti ti-phone"></i>
+              <div>
+                <strong>Teléfono</strong>
+                <p>+54 2944806944</p>
+              </div>
+            </div>
+            <div class="contacto-dato">
+              <i class="ti ti-mail"></i>
+              <div>
+                <strong>Email</strong>
+                <p>Elevebarberia@hotmail.com</p>
+              </div>
             </div>
           </div>
-          <div class="contacto-dato">
-            <i class="ti ti-clock"></i>
-            <div>
-              <strong>Horario</strong>
-              <p>Lunes – Sábado: 11:00 – 19:00</p>
-              <p>Domingo: Cerrado</p>
-            </div>
+          <div class="contacto-redes">
+            <a href="#" aria-label="Instagram"><i class="ti ti-brand-instagram"></i></a>
+            <a href="#" aria-label="Facebook"><i class="ti ti-brand-facebook"></i></a>
+            <a href="https://wa.me/542944806944" aria-label="WhatsApp" target="_blank"><i
+                class="ti ti-brand-whatsapp"></i></a>
           </div>
-          <div class="contacto-dato">
-            <i class="ti ti-phone"></i>
-            <div>
-              <strong>Teléfono</strong>
-              <p>+54 2944806944</p>
-            </div>
-          </div>
-          <div class="contacto-dato">
-            <i class="ti ti-mail"></i>
-            <div>
-              <strong>Email</strong>
-              <p>Elevebarberia@hotmail.com</p>
-            </div>
-          </div>
-        </div>
-        <div class="contacto-redes">
-          <a href="#" aria-label="Instagram"><i class="ti ti-brand-instagram"></i></a>
-          <a href="#" aria-label="Facebook"><i class="ti ti-brand-facebook"></i></a>
-          <a href="https://wa.me/542944806944" aria-label="WhatsApp" target="_blank"><i class="ti ti-brand-whatsapp"></i></a>
-        </div>
-        <p class="footer-copy">© 2025 Elevé Barbería · Todos los derechos reservados.</p>
+          <p class="footer-copy">© 2025 Elevé Barbería · Todos los derechos reservados.</p>
         </div>
 
         <!-- Mapa -->
@@ -216,11 +228,13 @@
   </main>
 
   <!-- CTA flotante WhatsApp -->
-  <a href="https://wa.me/542944806944" target="_blank" rel="noopener" class="whatsapp-fab" aria-label="Contactar por WhatsApp">
+  <a href="https://wa.me/542944806944" target="_blank" rel="noopener" class="whatsapp-fab"
+    aria-label="Contactar por WhatsApp">
     <i class="ti ti-brand-whatsapp"></i>
   </a>
 
   <script src="./js/reserva.js" type="module"></script>
 
 </body>
+
 </html>

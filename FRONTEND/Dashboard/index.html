@@ -2,14 +2,14 @@
 <html lang="es">
 
 <head>
-    <base href="/Dashboard/"> 
+    <base href="/Dashboard/">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ELEVÉ - Gestión de Peluquería</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="./style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 
@@ -24,7 +24,7 @@
                 <p class="login-imagen-subtitulo">Tu barbería de confianza</p>
             </div>
         </div>
-        
+
         <!-- Lado derecho: Formulario -->
         <div class="login-formulario">
             <div class="login-card">
@@ -35,27 +35,16 @@
                 <form id="form-login" class="login-form" autocomplete="off">
                     <div class="grupo-formulario">
                         <label class="form-label" for="login-usuario">Usuario</label>
-                        <input
-                            type="text"
-                            id="login-usuario"
-                            class="form-input"
-                            placeholder="Tu nombre de usuario"
-                            required
-                            autocomplete="username"
-                        >
+                        <input type="text" id="login-usuario" class="form-input" placeholder="Tu nombre de usuario"
+                            required autocomplete="username">
                     </div>
                     <div class="grupo-formulario">
                         <label class="form-label" for="login-password">Contraseña</label>
                         <div class="input-password-wrapper">
-                            <input
-                                type="password"
-                                id="login-password"
-                                class="form-input"
-                                placeholder="Tu contraseña"
-                                required
-                                autocomplete="current-password"
-                            >
-                            <button type="button" id="toggle-login-password" class="btn-toggle-password" title="Mostrar contraseña">
+                            <input type="password" id="login-password" class="form-input" placeholder="Tu contraseña"
+                                required autocomplete="current-password">
+                            <button type="button" id="toggle-login-password" class="btn-toggle-password"
+                                title="Mostrar contraseña">
                                 <i class="fas fa-eye"></i>
                             </button>
                         </div>
@@ -72,14 +61,16 @@
                 <div id="panel-recuperar" class="panel-recuperar" style="display:none">
                     <div class="login-header">
                         <h1 class="login-titulo">Recuperar contraseña</h1>
-                        <p id="recuperar-subtitulo" class="login-subtitulo">Ingresá tu mail y te enviamos las instrucciones</p>
+                        <p id="recuperar-subtitulo" class="login-subtitulo">Ingresá tu mail y te enviamos las
+                            instrucciones</p>
                     </div>
 
                     <!-- Paso 1: Email -->
                     <div id="recuperar-paso1">
                         <div class="grupo-formulario">
                             <label class="form-label" for="recuperar-email">Correo electrónico</label>
-                            <input type="email" id="recuperar-email" class="form-input" placeholder="tu@mail.com" autocomplete="email">
+                            <input type="email" id="recuperar-email" class="form-input" placeholder="tu@mail.com"
+                                autocomplete="email">
                         </div>
                         <div id="recuperar-error" class="login-error"></div>
                         <button type="button" id="btn-enviar-mail" class="boton-primario login-btn-submit">
@@ -92,11 +83,13 @@
                     <div id="recuperar-paso2" style="display:none">
                         <div class="grupo-formulario">
                             <label class="form-label" for="recuperar-nueva">Nueva contraseña</label>
-                            <input type="password" id="recuperar-nueva" class="form-input" placeholder="Nueva contraseña">
+                            <input type="password" id="recuperar-nueva" class="form-input"
+                                placeholder="Nueva contraseña">
                         </div>
                         <div class="grupo-formulario">
                             <label class="form-label" for="recuperar-confirmar">Confirmar contraseña</label>
-                            <input type="password" id="recuperar-confirmar" class="form-input" placeholder="Repetí la nueva contraseña">
+                            <input type="password" id="recuperar-confirmar" class="form-input"
+                                placeholder="Repetí la nueva contraseña">
                         </div>
                         <div id="recuperar-error2" class="login-error"></div>
                         <button type="button" id="btn-confirmar-recuperar" class="boton-primario login-btn-submit">
@@ -729,7 +722,8 @@
                     </div>
                     <div class="grupo-formulario">
                         <label for="cliente-notas">Preferencias</label>
-                        <textarea id="cliente-notas" placeholder="Tipo de corte preferido, alergiás, notas..." rows="3"></textarea>
+                        <textarea id="cliente-notas" placeholder="Tipo de corte preferido, alergiás, notas..."
+                            rows="3"></textarea>
                     </div>
                 </form>
             </div>
@@ -851,7 +845,8 @@
 
                     <div class="grupo-formulario">
                         <label for="usuario-username">Nombre de usuario (para login)</label>
-                        <input type="text" id="usuario-username" placeholder="Ej: jgarcia" required autocomplete="username">
+                        <input type="text" id="usuario-username" placeholder="Ej: jgarcia" required
+                            autocomplete="username">
                     </div>
 
                     <div class="grupo-formulario">
@@ -871,9 +866,10 @@
                     <div class="grupo-formulario">
                         <label id="label-password-usuario" for="usuario-password">Contraseña</label>
                         <div class="input-password-wrapper">
-                            <input type="password" id="usuario-password"
-                                placeholder="Mínimo 6 caracteres" required autocomplete="new-password">
-                            <button type="button" id="toggle-password-usuario" class="btn-toggle-password" title="Mostrar contraseña">
+                            <input type="password" id="usuario-password" placeholder="Mínimo 6 caracteres" required
+                                autocomplete="new-password">
+                            <button type="button" id="toggle-password-usuario" class="btn-toggle-password"
+                                title="Mostrar contraseña">
                                 <i class="fas fa-eye"></i>
                             </button>
                         </div>
@@ -893,13 +889,13 @@
             <div class="confirmar-header">
                 <button id="confirmar-cerrar" class="confirmar-btn-cerrar" aria-label="Cerrar">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                        <line x1="18" y1="6" x2="6" y2="18"/>
-                        <line x1="6" y1="6" x2="18" y2="18"/>
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
                     </svg>
                 </button>
             </div>
             <h3 id="confirmar-titulo" class="confirmar-titulo">¿Confirmar acción?</h3>
-            <p  id="confirmar-mensaje" class="confirmar-mensaje"></p>
+            <p id="confirmar-mensaje" class="confirmar-mensaje"></p>
             <div class="confirmar-acciones">
                 <button id="confirmar-cancelar" class="confirmar-btn-cancel">Cancelar</button>
                 <button id="confirmar-ok" class="confirmar-btn-ok">Confirmar</button>

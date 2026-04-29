@@ -295,38 +295,38 @@ async function obtenerServicioPorId(servicio_id) {
 // Configuración de horarios por día de la semana
 const HORARIOS_POR_DIA = {
     1: { // Lunes
-        apertura: "13:00",
+        apertura: "09:00",
         cierre: "21:00",
         activo: true
     },
     2: { // Martes
         apertura: "09:00",
-        cierre: "18:00",
+        cierre: "21:00",
         activo: true
     },
     3: { // Miércoles
         apertura: "09:00",
-        cierre: "18:00",
+        cierre: "21:00",
         activo: true
     },
     4: { // Jueves
         apertura: "09:00",
-        cierre: "18:00",
+        cierre: "21:00",
         activo: true
     },
     5: { // Viernes
         apertura: "09:00",
-        cierre: "18:00",
+        cierre: "21:00",
         activo: true
     },
     6: { // Sábado
         apertura: "09:00",
-        cierre: "18:00",
+        cierre: "21:00",
         activo: true
     },
     0: { // Domingo
         apertura: "09:00",
-        cierre: "18:00",
+        cierre: "21:00",
         activo: false // Cerrado 
     }
 };

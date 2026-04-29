@@ -28,6 +28,27 @@ import {
 // Variable para guardar la función que refresca el dashboard
 let _recargarDashboardStats = () => console.warn('recargarDashboardStats no inyectada');
 
+// --- Máquina de estados de turnos ---
+const TRANSICIONES_VALIDAS = {
+  pendiente:  ['confirmado', 'cancelado'],
+  confirmado: ['realizado', 'cancelado'],
+  realizado:  [],
+  cancelado:  [],
+};
+
+const ETIQUETAS_ESTADO = {
+  pendiente:  'Pendiente',
+  confirmado: 'Confirmado',
+  realizado:  'Realizado',
+  cancelado:  'Cancelado',
+};
+
+function validarTransicion(estadoActual, estadoNuevo) {
+  if (estadoActual === estadoNuevo) return true;
+  const permitidos = TRANSICIONES_VALIDAS[estadoActual] || [];
+  return permitidos.includes(estadoNuevo);
+}
+
 
 // --- Funciones de Lógica de Agenda (Privadas) ---
 /* function obtenerEstiloTurno(horaInicio, horaFin) {
@@ -62,7 +83,7 @@ function obtenerEtiquetaEstado(estado) {
   const etiquetas = {
     confirmado: "Confirmado",
     pendiente: "Pendiente",
-    completado: "Completado",
+    realizado: "Realizado",
     cancelado: "Cancelado",
   };
   return etiquetas[estado] || "Pendiente";
@@ -270,7 +291,7 @@ function renderizarGrilla() {
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               <circle cx="12" cy="7" r="4" stroke-width="2"/>
             </svg>
-            <span>${turno.nombre_empleado.split(' ')[0]}</span>
+            <span>${turno.totalColumnas > 4 ? turno.nombre_empleado.charAt(0).toUpperCase() + '.' : turno.nombre_empleado.split(' ')[0]}</span>
           </div>
         ` : ""}
         <div class="hora-turno-apilada">
@@ -432,10 +453,9 @@ export function renderizarModal() {
           <div class="grupo-formulario">
             <label class="form-label" for="estado">Estado</label>
               <select id="estado" class="form-select" required>
-              <option value="pendiente">Pendiente</option>
-              <option value="confirmado">Confirmado</option>
-              <option value="realizado">Completado</option>
-              <option value="cancelado">Cancelado</option>
+              ${[turno.estado || 'pendiente', ...(TRANSICIONES_VALIDAS[turno.estado || 'pendiente'] || [])].map(e =>
+                `<option value="${e}">${ETIQUETAS_ESTADO[e] || e}</option>`
+              ).join('')}
             </select>
           </div>
 
@@ -935,6 +955,23 @@ function setupModalEdicionListeners(turno) {
 
     if (!horaInicio) {
       showNotification("Debes seleccionar un horario disponible.", "error");
+      restaurar();
+      return;
+    }
+
+    // --- Validar transición de estado (máquina de estados) ---
+    const nuevoEstado = document.getElementById("estado").value;
+    const estadoActual = turno.estado || 'pendiente';
+    if (!validarTransicion(estadoActual, nuevoEstado)) {
+      const transicionesPermitidas = TRANSICIONES_VALIDAS[estadoActual];
+      const esEstadoFinal = Array.isArray(transicionesPermitidas) && transicionesPermitidas.length === 0;
+      if (esEstadoFinal || !transicionesPermitidas) {
+        showNotification(`El turno ya no puede modificarse.`, 'error');
+      } else {
+        const permitidos = transicionesPermitidas.map(e => ETIQUETAS_ESTADO[e] || e).join(' / ');
+        showNotification(`Cambio no permitido. Pasá a: ${permitidos}.`, 'error');
+      }
+      restaurar();
       return;
     }
 
@@ -977,11 +1014,23 @@ function setupModalEdicionListeners(turno) {
     restaurar();
 
     if (resultado) {
+      // Actualizar el turno seleccionado con los nuevos valores para que
+      // el modal de detalles muestre el estado actualizado sin cerrar el modal
+      estado.turnoSeleccionado = {
+        ...turno,
+        estado: turnoData.estado,
+        fecha: turnoData.fecha,
+        hora: horaInicio + ':00',
+        hora_fin: horaFinFormateada + ':00',
+        nombre_servicio: selectServicio.options[selectServicio.selectedIndex]?.text || turno.nombre_servicio,
+        nombre_empleado: selectProfesional.options[selectProfesional.selectedIndex]?.text || turno.nombre_empleado,
+        observaciones: turnoData.observaciones,
+        precio: turnoData.precio,
+      };
+      estado.modoEdicion = false;
       showNotification("Turno actualizado correctamente", "success");
-      estado.turnoSeleccionado = null;
       recargarTurnosYAgenda();
       _recargarDashboardStats();
-      renderizarModal();
     } else {
       showNotification("Error al actualizar el turno.", "error");
     }
