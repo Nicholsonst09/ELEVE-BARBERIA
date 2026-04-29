@@ -32,11 +32,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btn-continuar').addEventListener('click', guardarDatosCliente);
   document.getElementById('btn-confirmar-reserva').addEventListener('click', async () => {
-    const turnoCreado = await crearTurno();
-    if (turnoCreado) {
-      mostrarConfirmacion();
-      irAPaso(1);
-      resetearReserva();
+    const btn = document.getElementById('btn-confirmar-reserva');
+    const textoOriginal = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Confirmando reserva...';
+    try {
+      const turnoCreado = await crearTurno();
+      if (turnoCreado) {
+        mostrarConfirmacion();
+        irAPaso(1);
+        resetearReserva();
+      }
+    } finally {
+      btn.disabled = false;
+      btn.textContent = textoOriginal;
     }
   });
 
