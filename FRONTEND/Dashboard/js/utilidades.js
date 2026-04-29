@@ -166,7 +166,8 @@ export function setBtnLoading(btn, texto = 'Guardando...') {
 export function confirmarAccion(
   mensaje,
   titulo    = '¿Confirmar acción?',
-  textoBtnOk = 'Confirmar'
+  textoBtnOk = 'Confirmar',
+  subtexto  = ''
 ) {
   return new Promise((resolve) => {
     const modal     = document.getElementById('modal-confirmar')
@@ -182,6 +183,20 @@ export function confirmarAccion(
     tituloEl.textContent  = titulo
     mensajeEl.textContent = mensaje
     btnOk.textContent     = textoBtnOk
+
+    let subtextoEl = document.getElementById('confirmar-subtexto')
+    if (subtexto) {
+      if (!subtextoEl) {
+        subtextoEl = document.createElement('p')
+        subtextoEl.id = 'confirmar-subtexto'
+        subtextoEl.className = 'confirmar-subtexto'
+        mensajeEl.insertAdjacentElement('afterend', subtextoEl)
+      }
+      subtextoEl.textContent = subtexto
+      subtextoEl.style.display = ''
+    } else if (subtextoEl) {
+      subtextoEl.style.display = 'none'
+    }
 
     modal.classList.add('activo')
     document.body.style.overflow = 'hidden'
