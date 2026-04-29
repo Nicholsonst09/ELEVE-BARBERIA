@@ -226,10 +226,21 @@ async function obtenerHorariosDisponibles(empleado_id, fecha, duracionServicio) 
                 duracionServicio
             );
     
-            // Filtrar horarios disponibles
+            // Filtrar horarios disponibles (sin solapamiento y con anticipación mínima de 30 min)
+            const ahora = new Date();
+            const hoy = ahora.toISOString().split('T')[0];
+            const minutosAhora = ahora.getHours() * 60 + ahora.getMinutes();
+
             const horariosDisponibles = horariosDelDia.filter(horario => {
-                return !estaOcupado(horario.inicio, horario.fin, turnosOcupados);
-            })
+                if (estaOcupado(horario.inicio, horario.fin, turnosOcupados)) return false;
+                // Si es hoy, excluir slots con menos de 30 min de anticipación
+                if (fecha === hoy) {
+                    const [hh, mm] = horario.inicio.split(':').map(Number);
+                    const minutosSlot = hh * 60 + mm;
+                    if (minutosSlot - minutosAhora < 30) return false;
+                }
+                return true;
+            });
             
             return {
                 fecha, 

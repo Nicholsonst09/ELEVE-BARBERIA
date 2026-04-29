@@ -92,21 +92,21 @@ async function agregarTurno(req, res) {
         return res.status(400).json({ mensaje: `El estado '${estado}' no es un estado de turno permitido.` });
     }
 
-    // ── Validación: fecha no pasada y mínimo 1 hora de anticipación ─────────
-    const ahora = new Date();
-    const hoy = ahora.toISOString().split('T')[0];
-    if (fecha < hoy) {
-        return res.status(400).json({ mensaje: 'No se pueden crear turnos para fechas anteriores a hoy.' });
-    }
-    if (fecha === hoy) {
-        const [hh, mm] = hora_inicio.split(':').map(Number);
-        const minutosSlot = hh * 60 + mm;
-        const minutosAhora = ahora.getHours() * 60 + ahora.getMinutes();
-        if (minutosSlot - minutosAhora < 60) {
-            return res.status(400).json({ mensaje: 'El turno debe reservarse con al menos 1 hora de anticipación.' });
+    // ── Validación: fecha no pasada y mínimo 30 min de anticipación ────────
+        const ahora = new Date();
+        const hoy = ahora.toISOString().split('T')[0];
+        if (fecha < hoy) {
+            return res.status(400).json({ mensaje: 'No se pueden crear turnos para fechas anteriores a hoy.' });
         }
-    }
-    // ────────────────────────────────────────────────────────────────────────
+        if (fecha === hoy) {
+            const [hh, mm] = hora_inicio.split(':').map(Number);
+            const minutosSlot = hh * 60 + mm;
+            const minutosAhora = ahora.getHours() * 60 + ahora.getMinutes();
+            if (minutosSlot - minutosAhora < 30) {
+                return res.status(400).json({ mensaje: 'El turno debe reservarse con al menos 30 minutos de anticipación.' });
+            }
+        }
+        // ────────────────────────────────────────────────────────────────────────
 
     try {
         // ── Anti-solapamiento ────────────────────────────────────────────────
