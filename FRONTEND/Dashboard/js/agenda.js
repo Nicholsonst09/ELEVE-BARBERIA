@@ -117,7 +117,7 @@ function calcularDuracionEnMinutos(fecha, horaInicio, horaFin) {
 
 function renderizarNavegacion() {
   const navPestanas = document.getElementById("navPestanas");
-  const turnosPendientes = estado.turnosPendientesCount;
+  const turnosDia = estado.turnosPendientesCount;
 
   let html = `
     <button class="pestana-navegacion pendiente ${estado.profesionalSeleccionado === "pendiente" ? "activo" : ""}" data-id="pendiente">
@@ -126,8 +126,8 @@ function renderizarNavegacion() {
         <line x1="12" y1="8" x2="12" y2="12" stroke-width="2" stroke-linecap="round"/>
         <line x1="12" y1="16" x2="12.01" y2="16" stroke-width="2" stroke-linecap="round"/>
       </svg>
-      <span>Turnos Pendientes</span>
-      ${turnosPendientes > 0 ? `<span class="insignia">${turnosPendientes}</span>` : ""}
+      <span>Turnos del Día</span>
+      ${turnosDia > 0 ? `<span class="insignia">${turnosDia}</span>` : ""}
     </button>
   `;
 
@@ -136,14 +136,26 @@ function renderizarNavegacion() {
     const primerNombre = prof.nombre.split(' ')[0];
 
     html += `
-      <button class="pestana-navegacion ${String(estado.profesionalSeleccionado) === String(prof.id) ? "activo" : ""}" data-id="${prof.id}" style="--color-tab: ${color};">
-        <div class="punto-color" style="background-color: ${color};"></div>
+      <button class="pestana-navegacion ${String(estado.profesionalSeleccionado) === String(prof.id) ? "activo" : ""}" data-id="${prof.id}">
+        <svg class="icono" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px;flex-shrink:0;">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 1 0-4.243 4.243 3 3 0 0 0 4.243-4.243zm0-5.758a3 3 0 1 0-4.243-4.243 3 3 0 0 0 4.243 4.243z"/>
+        </svg>
         <span class="nombre-prof-tab">${primerNombre}</span>
       </button>
     `;
   });
 
   navPestanas.innerHTML = html;
+
+  // Leyenda de estados
+  const leyenda = document.getElementById("leyendaEstados");
+  if (leyenda) {
+    leyenda.innerHTML = `
+      <span class="leyenda-item"><span class="leyenda-dot" style="background:#f59e0b;"></span>Pendiente</span>
+      <span class="leyenda-item"><span class="leyenda-dot" style="background:#0369a1;"></span>Confirmado</span>
+      <span class="leyenda-item"><span class="leyenda-dot" style="background:#111111;"></span>Realizado</span>
+    `;
+  }
 
   // Asigna listeners (esto queda igual)
   navPestanas.querySelectorAll(".pestana-navegacion").forEach((pestana) => {
@@ -155,9 +167,9 @@ function renderizarNavegacion() {
 }
 
 function renderizarEncabezado() {
-  const turnosFiltrados = estado.turnos;
+  const turnosFiltrados = estado.turnos.filter(t => t.estado !== 'cancelado');
   const profesional = estado.profesionales.find(p => p.id == estado.profesionalSeleccionado);
-  const titulo = estado.profesionalSeleccionado === "pendiente" ? "Turnos Pendientes" : (profesional?.nombre || "Turnos del Día");
+  const titulo = estado.profesionalSeleccionado === "pendiente" ? "Turnos del Día" : (profesional?.nombre || "Turnos del Día");
 
   document.getElementById("tituloEncabezado").textContent = `${formatearFecha(estado.fechaActual)} - ${titulo}`;
   document.getElementById("subtituloEncabezado").textContent = `${turnosFiltrados.length} turnos programados`;
@@ -272,9 +284,15 @@ function renderizarGrilla() {
     
     const duracion = calcularDuracionEnMinutos(turno.fecha, turno.hora, turno.hora_fin);
     
-    // Usar el color del map.
-    const colorProfesional = profesional?.color || '#525252';
-    tarjeta.style.borderLeftColor = colorProfesional;
+    // Usar el color según el estado del turno
+    const coloresEstado = {
+      pendiente:  '#f59e0b',
+      confirmado: '#0369a1',
+      realizado:  '#111111',
+      cancelado:  '#dc2626',
+    };
+    const colorEstado = coloresEstado[turno.estado] || '#525252';
+    tarjeta.style.borderLeftColor = colorEstado;
     // --- FIN DE MODIFICACIÓN 2 ---
 
     // --- INICIO DE MODIFICACIÓN 3: Nuevo HTML ---
@@ -288,8 +306,7 @@ function renderizarGrilla() {
         ${turno.nombre_empleado ? `
           <div class="profesional-turno">
             <svg class="icono" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <circle cx="12" cy="7" r="4" stroke-width="2"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 1 0-4.243 4.243 3 3 0 0 0 4.243-4.243zm0-5.758a3 3 0 1 0-4.243-4.243 3 3 0 0 0 4.243 4.243z"/>
             </svg>
             <span>${turno.totalColumnas > 3 ? turno.nombre_empleado.substring(0, 3) + '.' : turno.nombre_empleado.split(' ')[0]}</span>
           </div>
@@ -558,6 +575,9 @@ export function renderizarModal() {
           <div class="detalles-turno-item">
             <svg class="icono" style="width:16px; height:16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
             <span>${cliente.telefono || 'No especificado'}</span>
+            ${cliente.telefono ? `<button class="btn-copiar-tel" data-tel="${cliente.telefono}" title="Copiar número">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:13px;height:13px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+            </button>` : ''}
           </div>
           <div class="detalles-turno-item">
             <svg class="icono" style="width:16px; height:16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
@@ -584,25 +604,44 @@ export function renderizarModal() {
         ` : ''}
       </div>
       <div class="pie-modal">
-        <button class="boton-primario" id="btnRegistrarPago">Registrar Pago</button>
+        ${turno.estado !== 'realizado' ? `<button class="boton-primario" id="btnRegistrarPago">Registrar Pago</button>` : ''}
         ${turno.estado === 'pendiente' ? '<button class="boton-secundario" id="btnConfirmarTurno"><span class="txt-largo">Confirmar Turno</span><span class="txt-corto">Confirmar</span></button>' : ''}
         ${turno.estado === 'confirmado' ? '<button class="boton-secundario" id="btnRealizarTurno"><span class="txt-largo">Marcar Realizado</span><span class="txt-corto">Realizado</span></button>' : ''}
-        <button class="boton-secundario" id="btnModificar">Modificar</button>
-        ${ ['cancelado','realizado'].includes(turno.estado)
+        ${turno.estado !== 'realizado' ? `<button class="boton-secundario" id="btnModificar">Modificar</button>` : ''}
+        ${ turno.estado === 'cancelado'
           ? '<button class="boton-secundario eliminar" id="btnEliminarTurno"><span class="txt-largo">Eliminar Turno</span><span class="txt-corto">Eliminar</span></button>'
-          : '<button class="boton-secundario eliminar" id="btnCancelarEstado"><span class="txt-largo">Cancelar Turno</span><span class="txt-corto">Cancelar</span></button>'
+          : turno.estado !== 'realizado'
+            ? '<button class="boton-secundario eliminar" id="btnCancelarEstado"><span class="txt-largo">Cancelar Turno</span><span class="txt-corto">Cancelar</span></button>'
+            : ''
         }
       </div>
     `;
 
-    document.getElementById("btnModificar").addEventListener("click", () => {
-      estado.modoEdicion = true;
-      renderizarModal();
-    });
+    const btnCopiarTel = cuerpoModal.querySelector('.btn-copiar-tel');
+    if (btnCopiarTel) {
+      btnCopiarTel.addEventListener('click', () => {
+        navigator.clipboard.writeText(btnCopiarTel.dataset.tel).then(() => {
+          showNotification('Número copiado.', 'success');
+        });
+      });
+    }
+
+    if (turno.estado !== 'realizado') {
+      document.getElementById("btnModificar").addEventListener("click", () => {
+        estado.modoEdicion = true;
+        renderizarModal();
+      });
+    }
 
     if (turno.estado === 'confirmado') {
       document.getElementById("btnRealizarTurno").addEventListener("click", async () => {
         const btn = document.getElementById("btnRealizarTurno");
+
+        if (!turno.metodoPago || turno.metodoPago === 'sin_pago') {
+          showNotification('Registrá el pago antes de marcar el turno como realizado.', 'error');
+          return;
+        }
+
         const confirmado = await confirmarAccion(
           `¿Marcás el turno de ${turno.nombre_cliente} como realizado?`,
           '¿Marcar como realizado?',
@@ -708,7 +747,8 @@ export function renderizarModal() {
         const confirmado = await confirmarAccion(
           `¿Cancelás el turno de ${turno.nombre_cliente}?`,
           'Cancelar turno',
-          'Cancelar'
+          'Sí, cancelar',
+          'El turno será eliminado de la grilla.'
         );
         if (!confirmado) return;
         const btn = document.getElementById("btnCancelarEstado");
@@ -726,8 +766,11 @@ export function renderizarModal() {
           });
           restaurar();
           if (resultado) {
-            estado.turnoSeleccionado = { ...turno, estado: 'cancelado' };
             showNotification('Turno cancelado.', 'success');
+            estado.turnoSeleccionado = null;
+            estado.modoEdicion = false;
+            estado.modoRegistrarPago = false;
+            renderizarModal();
             recargarTurnosYAgenda();
             _recargarDashboardStats();
           } else {
@@ -764,16 +807,39 @@ function setupModalPagoListeners(turno) {
     renderizarModal();
   });
 
-  document.getElementById('btnConfirmarPago').addEventListener('click', () => {
+  document.getElementById('btnConfirmarPago').addEventListener('click', async () => {
     const select = document.getElementById('selectMetodoPago');
     if (!select.value) {
       showNotification('Seleccioná un método de pago.', 'error');
       return;
     }
-    estado.turnoSeleccionado.metodoPago = select.value;
-    estado.modoRegistrarPago = false;
-    showNotification('Pago registrado correctamente.', 'success');
-    renderizarModal();
+    const btn = document.getElementById('btnConfirmarPago');
+    const restaurar = setBtnLoading(btn, 'Guardando...');
+    try {
+      const resultado = await createOrUpdateTurno({
+        ...turno,
+        id: turno.id,
+        cliente_id: turno.cliente_id,
+        empleado_id: turno.empleado_id,
+        servicio_id: turno.servicio_id,
+        hora_inicio: turno.hora ? turno.hora.substring(0, 5) : turno.hora_inicio,
+        hora_fin: turno.hora_fin ? turno.hora_fin.substring(0, 5) : turno.hora_fin,
+        metodoPago: select.value,
+      });
+      restaurar();
+      if (resultado) {
+        estado.turnoSeleccionado = { ...turno, metodoPago: select.value };
+        estado.modoRegistrarPago = false;
+        showNotification('Pago registrado correctamente.', 'success');
+        recargarTurnosYAgenda();
+        _recargarDashboardStats();
+      } else {
+        showNotification('No se pudo guardar el pago.', 'error');
+      }
+    } catch (error) {
+      restaurar();
+      showNotification('Error al guardar el pago.', 'error');
+    }
   });
 }
 

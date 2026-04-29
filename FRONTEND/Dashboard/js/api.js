@@ -51,13 +51,13 @@ export async function fetchTurnos() {
 export async function fetchTurnosPendientesCount(fecha) {
   try {
     const params = new URLSearchParams({
-      fecha: formatearFechaParaAPI(fecha),
-      estado: 'pendiente'
+      fecha: formatearFechaParaAPI(fecha)
     });
     const response = await fetch(`${API_BASE_URL}/turnos/detalles?${params.toString()}`);
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const data = await response.json();
-    return data.total_registros || 0;
+    const turnos = data.data || [];
+    return turnos.filter(t => t.estado !== 'cancelado').length;
   } catch (error) {
     manejarErrorFetch('No se pudo obtener el conteo de pendientes', error);
     return 0;
