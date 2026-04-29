@@ -14,7 +14,7 @@ Dashboard/
     ├── api.js       # Llamadas fetch al backend
     ├── utilidades.js# Toasts, confirmarAccion, helpers
     ├── agenda.js / finanzas.js / clientes.js / servicios.js
-    ├── empleados.js / usuarios.js   # Módulos ABM
+    ├── empleados.js / usuarios.js   # Módulos ABM completos
 ```
 
 ---
