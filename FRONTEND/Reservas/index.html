@@ -2,7 +2,7 @@
 <html lang="es">
 
 <head>
-  <base href="/Reservas/">
+<!--   <base href="/Reservas/"> -->
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="format-detection" content="telephone=no">
@@ -161,6 +161,17 @@
               </div>
             </div>
             <button class="btn-confirmar" id="btn-confirmar-reserva">Confirmar reserva</button>
+          </div>
+
+          <!-- Pantalla de confirmación -->
+          <div class="confirmacion-screen" id="confirmacion-screen" style="display:none">
+            <div class="confirmacion__icono">
+              <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <h2 class="confirmacion__titulo">¡Turno confirmado!</h2>
+            <p class="confirmacion__sub">Te esperamos. Recordá llegar<br>unos minutos antes.</p>
+            <div class="confirmacion__detalle" id="confirmacion-detalle"></div>
+            <button class="btn-nueva-reserva" id="btn-nueva-reserva">Hacer otra reserva</button>
           </div>
 
         </div><!-- /reserva-panel -->
