@@ -213,7 +213,156 @@ img { display: block; max-width: 100%; }
   padding: 1.5rem;
   overflow: visible;
   position: relative;
+  transition: background 0.5s ease, color 0.5s ease;
 }
+
+/* Tema claro al confirmar reserva */
+.reserva-panel--confirmada {
+  background: #f8f7f5;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------------------------------------------------------------
+   PANTALLA DE CONFIRMACIÓN
+--------------------------------------------------------------- */
+.confirmacion-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0.5rem 0;
+  animation: fd 0.4s ease forwards;
+}
+
+.confirmacion__icono {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: #111;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.4rem;
+  flex-shrink: 0;
+  animation: confirmacion-pop 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes confirmacion-pop {
+  0%   { transform: scale(0.3); opacity: 0; }
+  65%  { transform: scale(1.1); }
+  100% { transform: scale(1);   opacity: 1; }
+}
+
+.confirmacion__icono svg {
+  width: 26px;
+  height: 26px;
+  stroke: #fff;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  stroke-dasharray: 32;
+  stroke-dashoffset: 32;
+  animation: dibujar-check 0.35s 0.38s ease forwards;
+}
+
+@keyframes dibujar-check {
+  to { stroke-dashoffset: 0; }
+}
+
+.confirmacion__titulo {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #111;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.3rem;
+}
+
+.confirmacion__sub {
+  font-size: 0.77rem;
+  color: #999;
+  line-height: 1.55;
+  margin-bottom: 1.5rem;
+}
+
+.confirmacion__detalle {
+  width: 100%;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 10px;
+  padding: 0.95rem 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.42rem;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.07);
+  text-align: left;
+}
+
+.confirmacion__fila {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.confirmacion__lbl {
+  font-size: 0.71rem;
+  color: #999;
+}
+
+.confirmacion__val {
+  font-size: 0.79rem;
+  font-weight: 500;
+  color: #111;
+  text-align: right;
+}
+
+.confirmacion__sep {
+  height: 1px;
+  background: #efefef;
+  margin: 0.05rem 0;
+}
+
+.confirmacion__total-fila {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 0.6rem;
+  border-top: 1px dashed #ddd;
+  margin-top: 0.15rem;
+}
+
+.confirmacion__total-lbl {
+  font-size: 0.71rem;
+  font-weight: 600;
+  color: #666;
+}
+
+.confirmacion__precio {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #111;
+}
+
+.btn-nueva-reserva {
+  width: 100%;
+  padding: 0.72rem 1rem;
+  background: #111;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.83rem;
+  font-weight: 600;
+  letter-spacing: 0.025em;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+  font-family: inherit;
+}
+
+.btn-nueva-reserva:hover { opacity: 0.8; }
 
 .reserva-panel::-webkit-scrollbar { display: none; }
 
@@ -321,7 +470,19 @@ img { display: block; max-width: 100%; }
   gap: 0.4rem;
 }
 
-.fechas-grid,
+.fechas-grid {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.4rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+}
+
+.fechas-grid .tarjeta {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
 .horarios-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
@@ -654,7 +815,7 @@ img { display: block; max-width: 100%; }
   /* Reserva: imagen izquierda 42%, formulario derecho 58% */
   .reserva-card {
     flex-direction: row;
-    height: 600px;
+    height: 580px;
     min-height: unset;
     max-height: unset;
   }

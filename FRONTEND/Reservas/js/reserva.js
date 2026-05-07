@@ -32,15 +32,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btn-continuar').addEventListener('click', guardarDatosCliente);
   document.getElementById('btn-confirmar-reserva').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-confirmar-reserva');
+    btn.disabled = true;
+    btn.textContent = 'Confirmando reserva...';
+
     const turnoCreado = await crearTurno();
     if (turnoCreado) {
-      mostrarConfirmacion();
-      irAPaso(1);
-      resetearReserva();
+      mostrarPasoConfirmado();
+    } else {
+      btn.disabled = false;
+      btn.textContent = 'Confirmar reserva';
     }
   });
 
   document.querySelectorAll('.btn-volver').forEach(btn => btn.addEventListener('click', volver));
+  document.getElementById('btn-nueva-reserva').addEventListener('click', volver);
   configurarValidacionFormulario();
 });
 
@@ -55,7 +61,7 @@ function generarFechasDisponibles() {
     fecha.setDate(hoy.getDate() + i);
     if (fecha.getDay() === 0) continue; // sin domingos
     fechasDisponibles.push(fecha.toISOString().split('T')[0]);
-    if (fechasDisponibles.length === 7) break;
+    if (fechasDisponibles.length === 6) break;
   }
 }
 
@@ -363,36 +369,53 @@ function guardarDatosCliente() {
 }
 
 // ---------------------------------------------------------------
-// CONFIRMACIÓN VISUAL
+// CONFIRMACIÓN VISUAL (in-place en paso 6)
 // ---------------------------------------------------------------
-function mostrarConfirmacion() {
-  const panel = document.querySelector('.reserva-panel');
-  const msg = document.createElement('div');
-  msg.style.cssText = `
-    position: absolute; inset: 0;
-    background: white;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    gap: 1rem; border-radius: 16px;
-    text-align: center; padding: 2rem;
-    animation: fadeSlide 0.3s ease;
-    z-index: 10;
+let reservaConfirmada = false;
+
+function mostrarPasoConfirmado() {
+  reservaConfirmada = true;
+  const r = reservaActual;
+
+  // Cambiar tema del panel
+  document.querySelector('.reserva-panel').classList.add('reserva-panel--confirmada');
+
+  // Ocultar barra de progreso y paso-6
+  document.querySelector('.progreso').style.display = 'none';
+  document.getElementById('paso-6').style.display = 'none';
+
+  // Rellenar datos de la confirmación
+  document.getElementById('confirmacion-detalle').innerHTML = `
+    <div class="confirmacion__fila">
+      <span class="confirmacion__lbl">Nombre</span>
+      <span class="confirmacion__val">${r.cliente.nombre}</span>
+    </div>
+    <div class="confirmacion__sep"></div>
+    <div class="confirmacion__fila">
+      <span class="confirmacion__lbl">Servicio</span>
+      <span class="confirmacion__val">${r.servicio}</span>
+    </div>
+    <div class="confirmacion__fila">
+      <span class="confirmacion__lbl">Barbero</span>
+      <span class="confirmacion__val">${r.barbero}</span>
+    </div>
+    <div class="confirmacion__sep"></div>
+    <div class="confirmacion__fila">
+      <span class="confirmacion__lbl">Fecha</span>
+      <span class="confirmacion__val">${formatearFecha(r.fecha)}</span>
+    </div>
+    <div class="confirmacion__fila">
+      <span class="confirmacion__lbl">Hora</span>
+      <span class="confirmacion__val">${r.hora_inicio}</span>
+    </div>
+    <div class="confirmacion__total-fila">
+      <span class="confirmacion__total-lbl">Total</span>
+      <span class="confirmacion__precio">$${r.total.toLocaleString('es-AR')}</span>
+    </div>
   `;
-  msg.innerHTML = `
-    <div style="font-size:2.5rem;line-height:1">✓</div>
-    <h2 style="font-size:1.2rem;font-weight:700;color:#111">¡Turno confirmado!</h2>
-    <p style="font-size:0.85rem;color:#777;max-width:260px">
-      ${reservaActual.servicio} con ${reservaActual.barbero}<br>
-      el ${formatearFecha(reservaActual.fecha)} a las ${reservaActual.hora_inicio}.
-    </p>
-  `;
-  panel.style.position = 'relative';
-  panel.appendChild(msg);
-  setTimeout(() => {
-    msg.style.opacity = '0';
-    msg.style.transition = 'opacity 0.4s';
-    setTimeout(() => msg.remove(), 400);
-  }, 3500);
+
+  // Mostrar pantalla de confirmación
+  document.getElementById('confirmacion-screen').style.display = 'flex';
 }
 
 function resetearReserva() {
@@ -428,6 +451,31 @@ function irAPaso(numero) {
 }
 
 function volver() {
+  // Si la reserva ya fue confirmada, volver al paso 1 y resetear todo
+  if (reservaConfirmada) {
+    reservaConfirmada = false;
+
+    // Ocultar pantalla de confirmación
+    document.getElementById('confirmacion-screen').style.display = 'none';
+
+    // Restaurar panel al tema oscuro
+    document.querySelector('.reserva-panel').classList.remove('reserva-panel--confirmada');
+
+    // Restaurar progreso y paso-6
+    document.querySelector('.progreso').style.display = '';
+    document.getElementById('paso-6').style.display = '';
+
+    // Restaurar botón confirmar
+    const btnConfirmar = document.getElementById('btn-confirmar-reserva');
+    btnConfirmar.style.display = '';
+    btnConfirmar.disabled = false;
+    btnConfirmar.textContent = 'Confirmar reserva';
+
+    resetearReserva();
+    irAPaso(1);
+    return;
+  }
+
   if (pasoActual <= 1) return;
 
   // Limpiar datos del paso actual al retroceder
