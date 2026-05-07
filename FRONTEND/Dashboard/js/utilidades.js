@@ -133,9 +133,16 @@ export function esFechaPasada(fecha) {
  * @returns {boolean}
  */
 export function puedeDiaAnterior(fechaActual) {
+  // Permite retroceder hasta ayer (margen de 24h para marcar turnos confirmados como realizados)
+  const ayer = new Date();
+  ayer.setDate(ayer.getDate() - 1);
+  ayer.setHours(0, 0, 0, 0);
+
   const diaAnterior = new Date(fechaActual);
   diaAnterior.setDate(diaAnterior.getDate() - 1);
-  return !esFechaPasada(diaAnterior);
+  diaAnterior.setHours(0, 0, 0, 0);
+
+  return diaAnterior >= ayer;
 }
 
 /**

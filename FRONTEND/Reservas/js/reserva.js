@@ -150,16 +150,18 @@ function cargarHorarios(horarios) {
   }
 
   const ahora = new Date();
-  const esHoy = reservaActual.fecha === ahora.toISOString().split('T')[0];
+  // Fecha local (no UTC) para comparar correctamente en cualquier zona horaria
+  const hoyLocal = `${ahora.getFullYear()}-${String(ahora.getMonth()+1).padStart(2,'0')}-${String(ahora.getDate()).padStart(2,'0')}`;
+  const esHoy = reservaActual.fecha === hoyLocal;
 
   const disponibles = horarios.filter(h => {
     if (!h.disponible) return false;
-    // Si es hoy, filtrar horarios que estén a menos de 1 hora de la hora actual
+    // Si es hoy, solo mostrar slots con al menos 15 minutos de anticipación
     if (esHoy) {
       const [hh, mm] = h.inicio.split(':').map(Number);
       const minutosSlot = hh * 60 + mm;
       const minutosAhora = ahora.getHours() * 60 + ahora.getMinutes();
-      if (minutosSlot - minutosAhora < 60) return false;
+      if (minutosSlot - minutosAhora < 15) return false;
     }
     return true;
   });

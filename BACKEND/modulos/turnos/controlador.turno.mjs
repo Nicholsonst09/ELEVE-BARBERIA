@@ -57,7 +57,7 @@ async function agregarTurno(req, res) {
     const {
         cliente_id, empleado_id, servicio_id,
         hora_inicio, fecha, hora_fin,
-        estado, precio
+        estado, precio, origen
     } = req.body;
 
     const estadosPermitidos = ["pendiente", "confirmado", "cancelado", "realizado"];
@@ -92,7 +92,7 @@ async function agregarTurno(req, res) {
         return res.status(400).json({ mensaje: `El estado '${estado}' no es un estado de turno permitido.` });
     }
 
-    // ── Validación: fecha no pasada y mínimo 30 min de anticipación ────────
+    // ── Validación: fecha no pasada y mínimo de anticipación ──────────────
         const ahora = new Date();
         const hoy = ahora.toISOString().split('T')[0];
         if (fecha < hoy) {
@@ -102,7 +102,11 @@ async function agregarTurno(req, res) {
             const [hh, mm] = hora_inicio.split(':').map(Number);
             const minutosSlot = hh * 60 + mm;
             const minutosAhora = ahora.getHours() * 60 + ahora.getMinutes();
-            if (minutosSlot - minutosAhora < 30) {
+            if (minutosSlot < minutosAhora) {
+                return res.status(400).json({ mensaje: 'No se puede crear un turno para un horario que ya pasó.' });
+            }
+            // Web: además necesita 30 min de anticipación
+            if (origen !== 'admin' && minutosSlot - minutosAhora < 30) {
                 return res.status(400).json({ mensaje: 'El turno debe reservarse con al menos 30 minutos de anticipación.' });
             }
         }
@@ -168,6 +172,20 @@ async function modificarTurno(req, res) {
                 mensaje: `Transición de estado inválida: no se puede pasar de "${turnoExistente.estado}" a "${estado}".`,
                 transiciones_permitidas: TRANSICIONES_VALIDAS[turnoExistente.estado]
             });
+        }
+
+        // Validación: no se puede marcar como realizado antes de la hora de inicio ni después de 24h
+        if (estado === 'realizado') {
+            const ahora = new Date();
+            const horaInicioStr = (turnoExistente.hora_inicio || '').substring(0, 5);
+            const fechaTurno = new Date(`${turnoExistente.fecha}T${horaInicioStr}:00`);
+            if (ahora < fechaTurno) {
+                return res.status(400).json({ mensaje: 'No se puede marcar el turno como realizado antes de su hora de inicio.' });
+            }
+            const diffHoras = (ahora - fechaTurno) / (1000 * 60 * 60);
+            if (diffHoras > 24) {
+                return res.status(400).json({ mensaje: 'No se puede marcar como realizado un turno con más de 24 horas de antigüedad.' });
+            }
         }
         // ────────────────────────────────────────────────────────────────────
 
@@ -274,6 +292,7 @@ async function eliminarTurno(req, res) {
 async function obtenerHorariosDisponibles(req, res) {
     try {
         const { empleado_id, servicio_id, fecha } = req.params;
+        const { origen } = req.query;
 
         const servicio = await modeloServicio.obtenerServicioPorId(servicio_id);
         if (!servicio) {
@@ -312,7 +331,7 @@ async function obtenerHorariosDisponibles(req, res) {
 
         //Validar formato de hora
 
-        const horarios = await modelo.obtenerHorariosDisponibles(parseInt(empleado_id), fecha, duracionServicio);
+        const horarios = await modelo.obtenerHorariosDisponibles(parseInt(empleado_id), fecha, duracionServicio, origen);
 
         res.status(200).json(horarios);
     } catch (error) {
@@ -339,6 +358,16 @@ async function obtenerTurnosConDetalles(req, res) {
     }
 
     try {
+        // Limpiar turnos pendientes vencidos solo si se consulta el día de hoy
+        const hoy = new Date().toISOString().split('T')[0];
+        if (fecha && fecha === hoy) {
+            try {
+                await modelo.cancelarPendientesVencidos(fecha);
+            } catch (e) {
+                console.warn('[limpieza] No se pudo cancelar pendientes vencidos:', e.message);
+            }
+        }
+
         const turnos = await modelo.obtenerTurnosConDetalles({
             empleadoId: idEmpleadoValidado,
             fecha: fecha || null

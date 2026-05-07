@@ -1251,6 +1251,49 @@ textarea.form-input, .grupo-formulario textarea { min-height: 80px; resize: vert
 
 .sin-horarios { font-size: 0.875rem; color: var(--c-secundario); text-align: center; grid-column: 1 / -1; padding: 1rem 0; }
 
+/* --- Cards de fecha (reemplazo del date picker) --- */
+.lista-fechas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
+  gap: 0.5rem;
+}
+
+.boton-fecha {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.55rem 0.25rem;
+  background: var(--c-superficie);
+  border: 1px solid var(--c-borde);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: all 0.15s var(--ease);
+  width: 100%;
+}
+.boton-fecha:hover { border-color: var(--c-primario); background: var(--c-gris-claro); }
+.boton-fecha.seleccionado { background: var(--c-primario); color: white; border-color: var(--c-primario); }
+.boton-fecha.pasado { border-style: dashed; opacity: 0.7; }
+
+.boton-fecha__dia {
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--c-secundario);
+}
+.boton-fecha.seleccionado .boton-fecha__dia { color: rgba(255,255,255,0.8); }
+.boton-fecha.pasado .boton-fecha__dia { color: var(--c-secundario); }
+
+.boton-fecha__num {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+  color: var(--c-texto);
+}
+.boton-fecha.seleccionado .boton-fecha__num { color: white; }
+
 .insignia-estado {
   padding: 0.25rem 0.75rem;
   font-size: 0.6875rem; font-weight: 700;

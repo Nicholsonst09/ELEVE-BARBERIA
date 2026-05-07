@@ -179,7 +179,7 @@ async function eliminarTurno(id) {
     }
 }
 
-async function obtenerHorariosDisponibles(empleado_id, fecha, duracionServicio) {
+async function obtenerHorariosDisponibles(empleado_id, fecha, duracionServicio, origen = 'web') {
     try {
         // Verificar si el negocio está abierto en esa fecha
         const horarioBarberia = obtenerHorariosDelDia(fecha);
@@ -226,18 +226,22 @@ async function obtenerHorariosDisponibles(empleado_id, fecha, duracionServicio) 
                 duracionServicio
             );
     
-            // Filtrar horarios disponibles (sin solapamiento y con anticipación mínima de 30 min)
+            // Filtrar horarios disponibles (sin solapamiento y con anticipación mínima)
             const ahora = new Date();
             const hoy = ahora.toISOString().split('T')[0];
             const minutosAhora = ahora.getHours() * 60 + ahora.getMinutes();
 
             const horariosDisponibles = horariosDelDia.filter(horario => {
                 if (estaOcupado(horario.inicio, horario.fin, turnosOcupados)) return false;
-                // Si es hoy, excluir slots con menos de 30 min de anticipación
                 if (fecha === hoy) {
                     const [hh, mm] = horario.inicio.split(':').map(Number);
                     const minutosSlot = hh * 60 + mm;
-                    if (minutosSlot - minutosAhora < 30) return false;
+                    // Admin: excluir solo los que ya pasaron. Web: excluir los que tienen menos de 30 min
+                    if (origen === 'admin') {
+                        if (minutosSlot < minutosAhora) return false;
+                    } else {
+                        if (minutosSlot - minutosAhora < 30) return false;
+                    }
                 }
                 return true;
             });
@@ -303,32 +307,32 @@ const HORARIOS_POR_DIA = {
     },
     2: { // Martes
         apertura: "09:00",
-        cierre: "18:00",
+        cierre: "21:00",
         activo: true
     },
     3: { // Miércoles
         apertura: "09:00",
-        cierre: "18:00",
+        cierre: "21:00",
         activo: true
     },
     4: { // Jueves
         apertura: "09:00",
-        cierre: "18:00",
+        cierre: "21:00",
         activo: true
     },
     5: { // Viernes
         apertura: "09:00",
-        cierre: "18:00",
+        cierre: "21:00",
         activo: true
     },
     6: { // Sábado
         apertura: "09:00",
-        cierre: "18:00",
+        cierre: "21:00",
         activo: true
     },
     0: { // Domingo
         apertura: "09:00",
-        cierre: "18:00",
+        cierre: "21:00",
         activo: false // Cerrado 
     }
 };
@@ -552,6 +556,40 @@ async function modificarSoloCliente(id, cliente_id) {
     }
 }
 
+// Función para cancelar turnos pendientes de una fecha que superaron el umbral de confirmación (15 min antes)
+async function cancelarPendientesVencidos(fecha) {
+    try {
+        const ahora = new Date();
+        const umbral = new Date(ahora.getTime() + 15 * 60000);
+        const horaUmbral = `${umbral.getHours().toString().padStart(2, '0')}:${umbral.getMinutes().toString().padStart(2, '0')}`;
+
+        const { data: vencidos, error: errorBusqueda } = await supabaseAdmin
+            .from('turnos')
+            .select('id')
+            .eq('fecha', fecha)
+            .eq('estado', 'pendiente')
+            .lte('hora_inicio', horaUmbral);
+
+        if (errorBusqueda) throw errorBusqueda;
+        if (!vencidos || vencidos.length === 0) return 0;
+
+        const ids = vencidos.map(t => t.id);
+
+        const { error: errorActualizacion } = await supabaseAdmin
+            .from('turnos')
+            .update({ estado: 'cancelado' })
+            .in('id', ids);
+
+        if (errorActualizacion) throw errorActualizacion;
+
+        console.log(`[limpieza] ${ids.length} turno(s) pendiente(s) vencido(s) cancelado(s) para fecha ${fecha}.`);
+        return ids.length;
+    } catch (error) {
+        console.error('Error en modelo.cancelarPendientesVencidos:', error.message);
+        throw error;
+    }
+}
+
 export default {
     obtenerTurnos,
     obtenerUnTurno,
@@ -561,5 +599,6 @@ export default {
     eliminarTurno,
     obtenerHorariosDisponibles,
     obtenerTurnosConDetalles,
-    verificarSolapamiento
+    verificarSolapamiento,
+    cancelarPendientesVencidos
 };

@@ -113,6 +113,35 @@ function calcularDuracionEnMinutos(fecha, horaInicio, horaFin) {
 }
 
 
+/**
+ * Verifica si un turno pendiente aún puede ser confirmado.
+ * La ventana de confirmación cierra 30 minutos antes de la hora del turno.
+ * Para turnos de otro día (no hoy), siempre devuelve true.
+ * @param {Object} turno
+ * @returns {boolean}
+ */
+function estaEnVentanaDeConfirmacion(turno) {
+  const hoy = formatearFechaParaAPI(new Date());
+  if (turno.fecha !== hoy) return true;
+
+  const ahora = new Date();
+  const [h, m] = turno.hora.split(':').map(Number);
+  const horaTurno = new Date();
+  horaTurno.setHours(h, m, 0, 0);
+
+  const minutosRestantes = (horaTurno - ahora) / 60000;
+  return minutosRestantes > 15;
+}
+
+function yaComenzóElTurno(turno) {
+  const horaStr = (turno.hora || turno.hora_inicio || '').substring(0, 5);
+  const fechaTurno = new Date(`${turno.fecha}T${horaStr}:00`);
+  const ahora = new Date();
+  if (ahora < fechaTurno) return false; // todavía no empezó
+  const diffHoras = (ahora - fechaTurno) / (1000 * 60 * 60);
+  return diffHoras <= 24; // dentro de las 24h posteriores al turno
+}
+
 // --- Funciones de Renderizado de Agenda (Privadas) ---
 
 function renderizarNavegacion() {
@@ -392,8 +421,9 @@ export function renderizarModal() {
         </div>
 
         <div class="grupo-formulario">
-            <label class="form-label" for="fecha">Fecha</label>
-            <input type="date" id="fecha" class="form-input" value="${fechaPorDefecto}" required>
+            <label class="form-label">Fecha</label>
+            <input type="hidden" id="fecha">
+            <div id="fechaContenedor" class="lista-fechas"></div>
         </div>
         
         <div class="grupo-formulario">
@@ -484,8 +514,9 @@ export function renderizarModal() {
           </div>
 
           <div class="grupo-formulario">
-              <label class="form-label" for="fecha">Fecha</label>
-              <input type="date" id="fecha" class="form-input" required>
+              <label class="form-label">Fecha</label>
+              <input type="hidden" id="fecha">
+              <div id="fechaContenedor" class="lista-fechas"></div>
           </div>
           
           <div class="grupo-formulario">
@@ -605,7 +636,11 @@ export function renderizarModal() {
       </div>
       <div class="pie-modal">
         ${turno.estado !== 'realizado' ? `<button class="boton-primario" id="btnRegistrarPago">Registrar Pago</button>` : ''}
-        ${turno.estado === 'pendiente' ? '<button class="boton-secundario" id="btnConfirmarTurno"><span class="txt-largo">Confirmar Turno</span><span class="txt-corto">Confirmar</span></button>' : ''}
+        ${turno.estado === 'pendiente'
+          ? (estaEnVentanaDeConfirmacion(turno)
+            ? '<button class="boton-secundario" id="btnConfirmarTurno"><span class="txt-largo">Confirmar Turno</span><span class="txt-corto">Confirmar</span></button>'
+            : '<button class="boton-secundario" id="btnConfirmarTurno" disabled title="Venció la ventana de confirmación (30 min antes del turno)"><span class="txt-largo">Plazo vencido</span><span class="txt-corto">Vencido</span></button>')
+          : ''}
         ${turno.estado === 'confirmado' ? '<button class="boton-secundario" id="btnRealizarTurno"><span class="txt-largo">Marcar Realizado</span><span class="txt-corto">Realizado</span></button>' : ''}
         ${turno.estado !== 'realizado' ? `<button class="boton-secundario" id="btnModificar">Modificar</button>` : ''}
         ${ turno.estado === 'cancelado'
@@ -636,6 +671,11 @@ export function renderizarModal() {
     if (turno.estado === 'confirmado') {
       document.getElementById("btnRealizarTurno").addEventListener("click", async () => {
         const btn = document.getElementById("btnRealizarTurno");
+
+        if (!yaComenzóElTurno(turno)) {
+          showNotification('No se puede marcar como realizado antes de la hora de inicio del turno.', 'error');
+          return;
+        }
 
         if (!turno.metodoPago || turno.metodoPago === 'sin_pago') {
           showNotification('Registrá el pago antes de marcar el turno como realizado.', 'error');
@@ -678,6 +718,10 @@ export function renderizarModal() {
 
     if (turno.estado === 'pendiente') {
       document.getElementById("btnConfirmarTurno").addEventListener("click", async () => {
+        if (!estaEnVentanaDeConfirmacion(turno)) {
+          showNotification('No se puede confirmar: el plazo venció 15 minutos antes del turno.', 'error');
+          return;
+        }
         const btn = document.getElementById("btnConfirmarTurno");
         const confirmado = await confirmarAccion(
           `¿Confirmás el turno de ${turno.nombre_cliente}?`,
@@ -713,12 +757,14 @@ export function renderizarModal() {
       });
     }
 
-    document.getElementById("btnRegistrarPago").addEventListener("click", () => {
-      estado.modoRegistrarPago = true;
-      renderizarModal();
-    });
+    if (turno.estado !== 'realizado') {
+      document.getElementById("btnRegistrarPago").addEventListener("click", () => {
+        estado.modoRegistrarPago = true;
+        renderizarModal();
+      });
+    }
 
-    if (['cancelado', 'realizado'].includes(turno.estado)) {
+    if (turno.estado === 'cancelado') {
       document.getElementById("btnEliminarTurno").addEventListener("click", async () => {
         if (!turno.id) return;
         const confirmado = await confirmarAccion(
@@ -741,7 +787,7 @@ export function renderizarModal() {
           showNotification('Error de red al eliminar el turno.', 'error');
         }
       });
-    } else {
+    } else if (turno.estado !== 'realizado') {
       document.getElementById("btnCancelarEstado").addEventListener("click", async () => {
         if (!turno.id) return;
         const confirmado = await confirmarAccion(
@@ -844,6 +890,79 @@ function setupModalPagoListeners(turno) {
 }
 
 // ===============================================
+// HELPERS: Cards de fecha para modales
+// ===============================================
+
+/**
+ * Genera un array de fechas "YYYY-MM-DD" para mostrar como cards.
+ * Incluye hoy + los próximos 6 días hábiles (sin domingos).
+ * Si se pasa fechaExtra (ej: turno de ayer) y es anterior a hoy, se agrega al inicio.
+ */
+function generarFechasCards(fechaExtra = null) {
+  const fechas = [];
+  const hoy = new Date();
+  const hoyStr = formatearFechaParaAPI(hoy);
+
+  if (fechaExtra && fechaExtra < hoyStr) {
+    fechas.push(fechaExtra);
+  }
+
+  let count = 0;
+  for (let i = 0; count < 7; i++) {
+    const d = new Date(hoy);
+    d.setDate(hoy.getDate() + i);
+    if (d.getDay() === 0) continue; // sin domingos
+    fechas.push(formatearFechaParaAPI(d));
+    count++;
+  }
+
+  return fechas;
+}
+
+/**
+ * Renderiza cards de fecha en un contenedor.
+ * @param {HTMLElement} contenedor
+ * @param {string[]} fechas - Array de "YYYY-MM-DD"
+ * @param {HTMLInputElement} inputHidden - Input hidden que guarda el valor
+ * @param {Function} onSelect - Callback al seleccionar una fecha
+ * @param {string|null} fechaSeleccionada - Fecha a preseleccionar
+ */
+function renderizarCardsFecha(contenedor, fechas, inputHidden, onSelect, fechaSeleccionada = null) {
+  const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+  const hoyStr = formatearFechaParaAPI(new Date());
+
+  contenedor.innerHTML = '';
+  fechas.forEach(f => {
+    const [y, m, d] = f.split('-').map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    const esPasado = f < hoyStr;
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'boton-fecha' + (esPasado ? ' pasado' : '');
+    btn.dataset.fecha = f;
+    btn.innerHTML = `
+      <span class="boton-fecha__dia">${DIAS[dateObj.getDay()]}</span>
+      <span class="boton-fecha__num">${d}/${m}</span>
+    `;
+
+    if (f === fechaSeleccionada) {
+      btn.classList.add('seleccionado');
+      inputHidden.value = f;
+    }
+
+    btn.addEventListener('click', () => {
+      contenedor.querySelectorAll('.boton-fecha').forEach(b => b.classList.remove('seleccionado'));
+      btn.classList.add('seleccionado');
+      inputHidden.value = f;
+      onSelect();
+    });
+
+    contenedor.appendChild(btn);
+  });
+}
+
+// ===============================================
 // NUEVA FUNCIÓN: Listeners para el Modal de Creación
 // ===============================================
 function setupModalCreacionListeners() {
@@ -851,6 +970,7 @@ function setupModalCreacionListeners() {
   const selectServicio = document.getElementById("servicioId");
   const selectProfesional = document.getElementById("profesionalId");
   const inputFecha = document.getElementById("fecha");
+  const contFechas = document.getElementById("fechaContenedor");
   const contHorarios = document.getElementById("horariosContenedor");
   const inputHoraSelec = document.getElementById("horaInicioSeleccionada");
 
@@ -900,7 +1020,15 @@ function setupModalCreacionListeners() {
     contHorarios.innerHTML = '<p class="sin-horarios">Buscando horarios...</p>';
 
     // La API espera YYYY-MM-DD, que es el formato del input type="date"
-    const horarios = await fetchHorariosDisponibles(profesionalId, servicioId, fecha);
+    let horarios = await fetchHorariosDisponibles(profesionalId, servicioId, fecha, 'admin');
+
+    // Filtrar slots pasados si la fecha seleccionada es hoy
+    const _ahora = new Date();
+    const _hoyStr = `${_ahora.getFullYear()}-${String(_ahora.getMonth()+1).padStart(2,'0')}-${String(_ahora.getDate()).padStart(2,'0')}`;
+    if (fecha === _hoyStr) {
+      const _ahoraHHMM = `${String(_ahora.getHours()).padStart(2,'0')}:${String(_ahora.getMinutes()).padStart(2,'0')}`;
+      horarios = horarios.filter(h => h.inicio >= _ahoraHHMM);
+    }
 
     if (horarios.length === 0) {
       contHorarios.innerHTML = '<p class="sin-horarios">No hay horarios disponibles.</p>';
@@ -928,7 +1056,10 @@ function setupModalCreacionListeners() {
   };
 
   selectProfesional.addEventListener("change", cargarHorariosDisponibles);
-  inputFecha.addEventListener("change", cargarHorariosDisponibles);
+
+  // Inicializar cards de fecha (hoy + próximos 6 días hábiles)
+  const fechaPorDefecto = formatearFechaParaAPI(estado.fechaActual);
+  renderizarCardsFecha(contFechas, generarFechasCards(), inputFecha, cargarHorariosDisponibles, fechaPorDefecto);
 
 
   // --- Lógica de Envío (Submit) ---
@@ -989,7 +1120,8 @@ function setupModalCreacionListeners() {
       hora_fin: horaFinFormateada, // <-- Se envía "HH:MM"
       estado: "pendiente",
       observaciones: document.getElementById("observaciones").value || null,
-      precio: precio
+      precio: precio,
+      origen: 'admin'
     };
 
     // 3. Llamar a la API de turnos
@@ -1121,17 +1253,34 @@ function setupModalEdicionListeners(turno) {
     contHorarios.innerHTML = '<p class="sin-horarios">Buscando horarios...</p>';
 
     // 1. OBTENEMOS LOS HORARIOS
-    let horarios = await fetchHorariosDisponibles(profesionalId, servicioId, fecha);
+    let horarios = await fetchHorariosDisponibles(profesionalId, servicioId, fecha, 'admin');
+
+    const _ahora = new Date();
+    const _hoyStr = `${_ahora.getFullYear()}-${String(_ahora.getMonth()+1).padStart(2,'0')}-${String(_ahora.getDate()).padStart(2,'0')}`;
+    const _ahoraHHMM = `${String(_ahora.getHours()).padStart(2,'0')}:${String(_ahora.getMinutes()).padStart(2,'0')}`;
+
+    if (fecha < _hoyStr) {
+      // Fecha pasada: no hay slots nuevos disponibles, solo mostrar el original
+      horarios = [];
+    } else if (fecha === _hoyStr) {
+      // Hoy: filtrar los slots que ya pasaron
+      horarios = horarios.filter(h => h.inicio >= _ahoraHHMM);
+    }
 
     // --- FIX DE RE-INSERCIÓN ---
-    // 'turno' SÍ existe en este alcance
+    // Si la fecha del formulario coincide con la fecha original del turno,
+    // garantizar que el slot original siempre aparezca (para poder confirmar el horario actual)
     const horaTurnoOriginal = turno.hora.substring(0, 5);
 
     if (fecha === turno.fecha) {
-      const horaOriginalExiste = horarios.some(h => h.inicio === horaTurnoOriginal);
-      if (!horaOriginalExiste) {
-        horarios.push({ inicio: horaTurnoOriginal });
-        horarios.sort((a, b) => a.inicio.localeCompare(b.inicio));
+      // Para hoy: solo re-insertar si el slot original todavía no pasó
+      const slotOriginalValido = fecha !== _hoyStr || horaTurnoOriginal >= _ahoraHHMM;
+      if (slotOriginalValido) {
+        const horaOriginalExiste = horarios.some(h => h.inicio === horaTurnoOriginal);
+        if (!horaOriginalExiste) {
+          horarios.push({ inicio: horaTurnoOriginal });
+          horarios.sort((a, b) => a.inicio.localeCompare(b.inicio));
+        }
       }
     }
     // --- FIN DEL FIX ---
@@ -1165,16 +1314,19 @@ function setupModalEdicionListeners(turno) {
     await cargarProfesionales();
   });
 
-  // 2. Al cambiar Profesional o Fecha
+  // 2. Al cambiar Profesional
   selectProfesional.addEventListener("change", cargarHorariosDisponibles);
-  inputFecha.addEventListener("change", cargarHorariosDisponibles);
 
   // --- Lógica de INICIALIZACIÓN (Cargar datos del turno) ---
   const inicializarFormulario = async () => {
     // 1. Poner datos simples
-    inputFecha.value = turno.fecha;
     inputObservaciones.value = turno.observaciones || "";
     selectEstado.value = turno.estado || "pendiente";
+
+    // Inicializar cards de fecha con la fecha original del turno preseleccionada
+    // (incluye la fecha del turno aunque sea de ayer)
+    const contFechas = document.getElementById("fechaContenedor");
+    renderizarCardsFecha(contFechas, generarFechasCards(turno.fecha), inputFecha, cargarHorariosDisponibles, turno.fecha);
 
     // 2. Poner servicio y cargar profesionales
     if (servicioSeleccionado) {
@@ -1336,6 +1488,39 @@ export async function recargarTurnosYAgenda() {
     ]);
     estado.turnos = turnos;
     estado.turnosPendientesCount = turnosPendientesCount;
+
+    // Auto-eliminar turnos pendientes de hoy que superaron la ventana de confirmación
+    const hoy = formatearFechaParaAPI(new Date());
+    const pendientesVencidos = turnos.filter(t =>
+      t.estado === 'pendiente' &&
+      t.fecha === hoy &&
+      !estaEnVentanaDeConfirmacion(t)
+    );
+
+    if (pendientesVencidos.length > 0) {
+      await Promise.all(pendientesVencidos.map(t => createOrUpdateTurno({
+        id: t.id,
+        cliente_id: t.cliente_id,
+        empleado_id: t.empleado_id,
+        servicio_id: t.servicio_id,
+        hora_inicio: t.hora ? t.hora.substring(0, 5) : t.hora_inicio,
+        hora_fin: t.hora_fin ? t.hora_fin.substring(0, 5) : t.hora_fin,
+        estado: 'cancelado',
+      })));
+      const idsCancelados = new Set(pendientesVencidos.map(t => t.id));
+      // Actualizar estado local: marcar como cancelado (desaparecerán de la grilla)
+      estado.turnos = estado.turnos.map(t =>
+        idsCancelados.has(t.id) ? { ...t, estado: 'cancelado' } : t
+      );
+      estado.turnosPendientesCount = estado.turnos.filter(t =>
+        t.estado === 'pendiente' && t.fecha === hoy
+      ).length;
+      const n = pendientesVencidos.length;
+      showNotification(
+        `${n === 1 ? '1 turno pendiente fue cancelado' : `${n} turnos pendientes fueron cancelados`} por no confirmarse a tiempo.`,
+        'warning'
+      );
+    }
   } catch (error) {
     console.error('No se pudieron recargar los turnos', error);
     estado.turnos = [];
