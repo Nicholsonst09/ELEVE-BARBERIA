@@ -190,10 +190,10 @@ export async function fetchProfesionalesPorServicio(servicioId) {
  */
 
 
-export async function fetchHorariosDisponibles(empleadoId, servicioId, fecha) {
+export async function fetchHorariosDisponibles(empleadoId, servicioId, fecha, origen = 'web') {
   if (!empleadoId || !servicioId || !fecha) return [];
   try {
-    const url = `${API_BASE_URL}/turnos/horarios-disponibles/${empleadoId}/${servicioId}/${fecha}`;
+    const url = `${API_BASE_URL}/turnos/horarios-disponibles/${empleadoId}/${servicioId}/${fecha}?origen=${origen}`;
     const response = await fetch(url);
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const data = await response.json();

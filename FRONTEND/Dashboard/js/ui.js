@@ -14,7 +14,6 @@ let isEditMode = false; // Estado local del modal legacy
  */
 export function initializeDate() {
   const elementoFechaActual = document.getElementById("current-date");
-  const selectorFecha = document.getElementById("date-picker");
   
   const today = new Date();
   const formattedDate = today.toLocaleDateString("es-ES", {
@@ -24,7 +23,6 @@ export function initializeDate() {
     day: "numeric",
   });
   elementoFechaActual.textContent = formattedDate;
-  selectorFecha.value = today.toISOString().split("T")[0];
 }
 
 /**
