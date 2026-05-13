@@ -43,7 +43,7 @@ npm install jsonwebtoken bcryptjs
 
 ### 1.3 Script SQL
 
-Ejecutar `schema_usuarios_roles.sql` en el SQL Editor de Supabase antes de cualquier desarrollo backend.
+Ejecutar `auth_pagos_auditoria.sql` en el SQL Editor de Supabase antes de cualquier desarrollo backend.
 
 ---
 
