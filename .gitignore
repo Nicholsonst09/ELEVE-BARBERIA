@@ -74,3 +74,6 @@ coverage/
 .stylelintcache
 .parcel-cache
 .cache/
+
+.claude/
+.cursor/
