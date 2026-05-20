@@ -1991,6 +1991,21 @@ textarea.form-input, .grupo-formulario textarea { min-height: 80px; resize: vert
 
   #iconoEncabezado { display: none; }
 
+  /* ─── Barra de navegación: apilar tabs + leyenda en móvil ─── */
+  .barra-navegacion-agenda {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .leyenda-estados {
+    padding: 0.5rem 1rem;
+    border-top: 1px solid var(--c-borde);
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    justify-content: center;
+    order: 2;
+  }
+
   /* ─── Tabs en grid: todos visibles con nombre y punto ─── */
   .navegacion-pestanas {
     display: grid;
@@ -1998,9 +2013,10 @@ textarea.form-input, .grupo-formulario textarea { min-height: 80px; resize: vert
     overflow: visible;
     padding: 0;
     gap: 0;
+    order: 1;
   }
 
-  /* "Turnos Pendientes" ocupa la fila completa arriba */
+  /* "Turnos del Día" ocupa la fila completa arriba */
   .pestana-navegacion.pendiente {
     grid-column: 1 / -1;
     justify-content: center;
@@ -2016,6 +2032,12 @@ textarea.form-input, .grupo-formulario textarea { min-height: 80px; resize: vert
     white-space: nowrap;
     min-width: 0;
     border-right: 1px solid var(--c-borde);
+    border-bottom: 1px solid var(--c-borde);
+  }
+
+  /* Columna derecha: quitar borde derecho */
+  .pestana-navegacion:nth-child(odd):not(.pendiente) {
+    border-right: none;
   }
 
 
@@ -2128,7 +2150,7 @@ textarea.form-input, .grupo-formulario textarea { min-height: 80px; resize: vert
 
 @media (max-width: 480px) {
   .contenido { padding: 0.75rem; }
-  .cuadricula-estadisticas   { grid-template-columns: 1fr; }
+  .cuadricula-estadisticas   { grid-template-columns: repeat(2, 1fr); }
   .cuadricula-rendimiento    { grid-template-columns: 1fr; }
   .cuadricula-metricas-clave { grid-template-columns: 1fr; }
   .metricas-seccion, .metricas-empleados { grid-template-columns: 1fr; }
