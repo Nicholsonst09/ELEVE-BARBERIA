@@ -123,7 +123,7 @@ img { display: block; max-width: 100%; }
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 5rem 1.5rem 3rem;
+  padding: 3rem 1.5rem 3rem;
   text-align: center;
 }
 
@@ -843,4 +843,131 @@ img { display: block; max-width: 100%; }
 @media (max-width: 500px) {
   .contacto-grid { grid-template-columns: 1fr; }
   .hero__title { font-size: 3rem; }
+}
+
+/* ---------------------------------------------------------------
+   MENÚ MÓVIL (hamburguesa)
+--------------------------------------------------------------- */
+
+/* Botón hamburguesa — oculto en desktop */
+.nav__burger {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 36px;
+  height: 36px;
+  padding: 4px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color var(--t);
+  flex-shrink: 0;
+}
+
+.nav__burger:hover { border-color: var(--border2); }
+
+.nav__burger span {
+  display: block;
+  width: 100%;
+  height: 1.5px;
+  background: var(--text);
+  border-radius: 2px;
+  transition: transform 0.25s ease, opacity 0.2s ease;
+  transform-origin: center;
+}
+
+/* Animación a X cuando está abierto */
+.nav--abierto .nav__burger span:nth-child(1) { transform: translateY(6.5px) rotate(45deg); }
+.nav--abierto .nav__burger span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+.nav--abierto .nav__burger span:nth-child(3) { transform: translateY(-6.5px) rotate(-45deg); }
+
+/* En pantallas pequeñas: ocultar links y mostrar hamburguesa */
+@media (max-width: 640px) {
+  /* Quitar backdrop-filter del header: crea un containing block propio
+     que rompe position:fixed en hijos (comportamiento estándar del navegador) */
+  .header {
+    backdrop-filter: none;
+    background: #0a0a0a;
+  }
+
+  .nav__burger { display: flex; }
+
+  .nav__links {
+    position: fixed;
+    top: 56px;
+    left: 0;
+    right: 0;
+    display: flex;
+    background: #0a0a0a;
+    border-bottom: 1px solid var(--border);
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 0;
+    z-index: 40;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(-6px);
+    transition: opacity 0.22s ease, transform 0.22s ease, visibility 0.22s ease;
+  }
+
+  .nav--abierto .nav__links {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+
+  .nav__links a {
+    width: 100%;
+    text-align: center;
+    padding: 0.95rem 1.5rem;
+    font-size: 0.85rem;
+    letter-spacing: 0.1em;
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .nav__links a:last-child {
+    border-bottom: none;
+  }
+
+  .nav__link-whatsapp {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+  }
+
+  /* Botón volver con icono alineado */
+  .btn-volver {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  /* Fechas: 2 filas de 3 columnas */
+  .fechas-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    overflow-x: unset;
+  }
+
+  .fechas-grid .tarjeta {
+    flex: unset;
+    min-width: 0;
+  }
+
+  /* Horarios: 4 columnas */
+  .horarios-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  /* Mapa: altura reducida en mobile */
+  .contacto-mapa {
+    height: 260px;
+  }
 }
