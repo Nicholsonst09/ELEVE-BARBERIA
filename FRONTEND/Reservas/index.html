@@ -33,9 +33,14 @@
         <a href="#reservar">Reservar</a>
         <a href="#contacto">Contacto</a>
         <a href="https://wa.me/542944806944" target="_blank" rel="noopener" class="nav__link-whatsapp">
-          <i class="ti ti-brand-whatsapp"></i> WhatsApp
+          WhatsApp
         </a>
       </div>
+      <button class="nav__burger" id="nav-burger" aria-label="Abrir menú" aria-expanded="false" aria-controls="nav-links">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
     </nav>
   </header>
 
@@ -88,7 +93,7 @@
           <div class="paso" id="paso-2">
             <div class="paso__cab">
               <h2 class="paso__titulo">Elegí tu barbero</h2>
-              <button class="btn-volver">← Volver</button>
+              <button class="btn-volver"><i class="ti ti-chevron-left"></i> Volver</button>
             </div>
             <div class="barberos-grid" id="barberos-container"></div>
           </div>
@@ -97,7 +102,7 @@
           <div class="paso" id="paso-3">
             <div class="paso__cab">
               <h2 class="paso__titulo">Elegí la fecha</h2>
-              <button class="btn-volver">← Volver</button>
+              <button class="btn-volver"><i class="ti ti-chevron-left"></i> Volver</button>
             </div>
             <div class="fechas-grid" id="fechas-container"></div>
           </div>
@@ -106,7 +111,7 @@
           <div class="paso" id="paso-4">
             <div class="paso__cab">
               <h2 class="paso__titulo">Elegí el horario</h2>
-              <button class="btn-volver">← Volver</button>
+              <button class="btn-volver"><i class="ti ti-chevron-left"></i> Volver</button>
             </div>
             <div class="horarios-grid" id="horarios-container"></div>
             <div class="sin-horarios" id="sin-horarios" style="display:none;">
@@ -118,7 +123,7 @@
           <div class="paso" id="paso-5">
             <div class="paso__cab">
               <h2 class="paso__titulo">Tus datos</h2>
-              <button class="btn-volver">← Volver</button>
+              <button class="btn-volver"><i class="ti ti-chevron-left"></i> Volver</button>
             </div>
             <div class="form-grupo">
               <label class="form-label" for="nombre">Nombre completo</label>
@@ -137,7 +142,7 @@
           <div class="paso" id="paso-6">
             <div class="paso__cab">
               <h2 class="paso__titulo">Confirmá tu reserva</h2>
-              <button class="btn-volver">← Volver</button>
+              <button class="btn-volver"><i class="ti ti-chevron-left"></i> Volver</button>
             </div>
             <div class="resumen">
               <div class="resumen__fila"><span class="resumen__label">Nombre</span><span class="resumen__valor"
@@ -244,6 +249,7 @@
     <i class="ti ti-brand-whatsapp"></i>
   </a>
 
+  <script src="./js/nav.js"></script>
   <script src="./js/reserva.js" type="module"></script>
 
 </body>
