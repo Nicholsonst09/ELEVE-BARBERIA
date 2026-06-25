@@ -1,5 +1,4 @@
 import modelo from './modelo.reserva.mjs';
-import modeloTurno from '../turnos/modelo.turno.mjs';
 
 // GET /api/v1/reservas/servicios
 async function obtenerServicios(req, res) {
@@ -110,11 +109,6 @@ async function crearReserva(req, res) {
             }
         }
 
-        // Verificar solapamiento antes de crear
-        const conflicto = await modeloTurno.verificarSolapamiento(empleado_id, fecha, hora_inicio, hora_inicio);
-        // Nota: hora_fin se calcula dentro de crearReserva; aquí solo verificamos la hora_inicio como punto de partida.
-        // La verificación completa se hace dentro del modelo con la hora_fin real.
-
         const turno = await modelo.crearReserva({
             nombre: nombre.trim(),
             telefono: telefono.trim(),
@@ -132,6 +126,17 @@ async function crearReserva(req, res) {
         });
     } catch (error) {
         console.error("Error en controlador.reserva.crearReserva:", error);
+        const mensaje = String(error?.message || '');
+        if (mensaje.includes('se superpone')) {
+            return res.status(409).json({ mensaje: mensaje });
+        }
+        if (
+            mensaje.includes('Servicio no encontrado') ||
+            mensaje.includes('No se pudo registrar el cliente') ||
+            mensaje.includes("estado_turno")
+        ) {
+            return res.status(400).json({ mensaje: mensaje });
+        }
         res.status(500).json({ mensaje: "Error al crear la reserva.", detalle: error.message });
     }
 }

@@ -727,6 +727,10 @@
                         <input type="tel" id="cliente-telefono" placeholder="+54 9 11 1234-5678" required>
                     </div>
                     <div class="grupo-formulario">
+                        <label for="cliente-email">Email</label>
+                        <input type="email" id="cliente-email" placeholder="cliente@email.com">
+                    </div>
+                    <div class="grupo-formulario">
                         <label for="cliente-notas">Preferencias</label>
                         <textarea id="cliente-notas" placeholder="Tipo de corte preferido, alergiás, notas..."
                             rows="3"></textarea>
@@ -772,8 +776,9 @@
                     <div class="grupo-formulario">
                         <div class="label-pros-header">
                             <label>Profesionales asignados</label>
-                            <span id="contador-pros-servicio" class="pill-contador-pros vacio">0 seleccionados</span>
+                            <span id="contador-pros-servicio" class="pill-contador-pros vacio">Sin asignados</span>
                         </div>
+                        <p class="form-help-text">Esta relación se edita desde el módulo de empleados.</p>
                         <div id="selector-profesionales-servicio" class="selector-profesionales">
                             <p class="sin-pros-mensaje"><i class="fas fa-spinner fa-spin"></i> Cargando...</p>
                         </div>
@@ -804,16 +809,21 @@
                         <input type="text" id="empleado-nombre" placeholder="Nombre del empleado" required>
                     </div>
                     <div class="grupo-formulario">
-                        <label for="empleado-telefono">Teléfono</label>
-                        <input type="tel" id="empleado-telefono" placeholder="+54 9 11 1234-5678">
-                    </div>
-                    <div class="grupo-formulario">
                         <label for="empleado-email">Email</label>
                         <input type="email" id="empleado-email" placeholder="empleado@ejemplo.com">
                     </div>
                     <div class="grupo-formulario">
-                        <label for="empleado-especialidad">Especialidad</label>
-                        <input type="text" id="empleado-especialidad" placeholder="Ej: Barbero, Estilista">
+                        <label for="empleado-especialidad">Especialidades</label>
+                        <input type="text" id="empleado-especialidad" placeholder="Ej: Corte clásico, barba, fade">
+                    </div>
+                    <div class="grupo-formulario">
+                        <div class="label-pros-header">
+                            <label>Servicios que realiza</label>
+                            <span id="contador-servicios-empleado" class="pill-contador-pros vacio">0 seleccionados</span>
+                        </div>
+                        <div id="selector-servicios-empleado" class="selector-profesionales">
+                            <p class="sin-pros-mensaje"><i class="fas fa-spinner fa-spin"></i> Cargando...</p>
+                        </div>
                     </div>
                     <div class="grupo-formulario">
                         <div class="label-horario-header">

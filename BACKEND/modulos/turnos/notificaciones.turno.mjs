@@ -141,7 +141,7 @@ function destinatariosConfirmacion(turno) {
 async function enviarConfirmacionReserva(turnoId) {
     const turno = await modeloTurno.obtenerTurnoParaNotificacion(turnoId);
     if (!turno) return { skipped: true, motivo: 'turno-no-encontrado' };
-    if (!['pendiente', 'confirmado'].includes(turno.estado)) {
+    if (turno.estado !== 'reservado') {
         return { skipped: true, motivo: 'estado-no-reservado' };
     }
 

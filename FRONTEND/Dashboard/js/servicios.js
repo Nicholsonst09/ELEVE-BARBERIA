@@ -1,37 +1,9 @@
 import { estado } from "./estado.js"
 import { showNotification, formatCurrency, confirmarAccion, setBtnLoading } from "./utilidades.js"
-import { dbGetServicios, dbSaveServicio, dbDeleteServicio } from "./db.js"
-import { fetchServicios } from "./api.js"
+import { fetchServicios, fetchProfesionales, createOrUpdateServicio, deleteServicio } from "./api.js"
 
 let serviciosFiltrados = []
 
-// ─── LocalStorage helpers para profesionales por servicio ────────────────────
-const LS_KEY = "eleve_servicio_profesionales"
-
-function cargarAsignacionesLS() {
-  try {
-    return JSON.parse(localStorage.getItem(LS_KEY) || "{}")
-  } catch {
-    return {}
-  }
-}
-
-function guardarAsignacionesLS(asignaciones) {
-  localStorage.setItem(LS_KEY, JSON.stringify(asignaciones))
-}
-
-export function getProfesionalesDeServicio(servicioId) {
-  const all = cargarAsignacionesLS()
-  return all[servicioId] || []
-}
-
-function setProfesionalesDeServicio(servicioId, empleadoIds) {
-  const all = cargarAsignacionesLS()
-  all[servicioId] = empleadoIds
-  guardarAsignacionesLS(all)
-}
-
-// ─── Paleta de colores para avatares ─────────────────────────────────────────
 const COLORES_AVATAR = ["#1a1a1a", "#2f6d4e", "#a34b20", "#2c4ea3", "#6b2fa0", "#b5461a", "#1e6a7c", "#7a3030"]
 
 function colorParaId(id) {
@@ -40,6 +12,10 @@ function colorParaId(id) {
 
 function obtenerIniciales(nombre) {
   return nombre.split(" ").map(p => p[0]).join("").toUpperCase().substring(0, 2)
+}
+
+function formatearPrecioCompacto(precio) {
+  return `$ ${Math.round(Number(precio) || 0)}`
 }
 
 export async function inicializarServicios() {
@@ -51,16 +27,25 @@ export async function inicializarServicios() {
 
 async function cargarServicios() {
   try {
-    const serviciosAPI = await fetchServicios();
-    estado.servicios = serviciosAPI.length > 0 ? serviciosAPI : dbGetServicios();
+    estado.servicios = await fetchServicios()
     serviciosFiltrados = [...estado.servicios]
-    actualizarMetricasServicios()
+    if (!estado.profesionales.length) {
+      await cargarProfesionalesActivos()
+    }
   } catch (error) {
     console.error("Error al cargar servicios", error)
-    estado.servicios = dbGetServicios();
-    serviciosFiltrados = [...estado.servicios]
+    estado.servicios = []
+    serviciosFiltrados = []
     showNotification("Error al cargar servicios", "error")
   }
+}
+
+async function cargarProfesionalesActivos() {
+  const profesionales = await fetchProfesionales()
+  estado.profesionales = profesionales.map((profesional, index) => ({
+    ...profesional,
+    color: colorParaId(profesional.id ?? index)
+  }))
 }
 
 function setupServiciosEventListeners() {
@@ -86,18 +71,27 @@ function setupServiciosEventListeners() {
   if (btnCerrarModal) {
     btnCerrarModal.addEventListener('click', cerrarModalServicio)
   }
+
+  const btnCancelarModal = document.querySelector('#modal-servicio .btn-cancelar-servicio')
+  if (btnCancelarModal) {
+    btnCancelarModal.addEventListener('click', cerrarModalServicio)
+  }
+
+  const formServicio = document.getElementById('form-servicio')
+  if (formServicio) {
+    formServicio.addEventListener('submit', guardarServicio)
+  }
 }
 
-function buildProsHTML(servicioId) {
-  const ids = getProfesionalesDeServicio(servicioId)
-  if (!ids.length) return '<span class="label-sin-pros">Sin profesionales asignados</span>'
-  const pros = estado.profesionales.filter(p => ids.includes(p.id))
-  if (!pros.length) return '<span class="label-sin-pros">Sin profesionales asignados</span>'
-  return pros.map(p => {
-    const color = colorParaId(p.id)
-    const iniciales = obtenerIniciales(p.nombre)
+function buildProsHTML(servicio) {
+  const profesionales = servicio.empleados_asignados || []
+  if (!profesionales.length) return '<span class="label-sin-pros">Sin profesionales asignados</span>'
+
+  return profesionales.map(pro => {
+    const color = colorParaId(pro.id)
+    const iniciales = obtenerIniciales(pro.nombre)
     return `<span class="badge-pro-servicio" style="background:${color}">
-      <span class="mini-avatar">${iniciales}</span>${p.nombre.split(' ')[0]}
+      <span class="mini-avatar">${iniciales}</span>${pro.nombre.split(' ')[0]}
     </span>`
   }).join('')
 }
@@ -115,14 +109,18 @@ function renderizarServicios() {
     <div class="elemento-lista" data-id="${servicio.id}">
       <div class="info-elemento">
         <h4>${servicio.nombre}</h4>
-        <p>Duración: ${servicio.duracion_min ?? servicio.duracion} min | Precio: $${servicio.precio}</p>
-        <div class="pros-asignados-lista">${buildProsHTML(servicio.id)}</div>
+        <p class="meta-servicio-card">
+          <span class="meta-servicio-desktop">Duración: ${servicio.duracion_min} min | Precio: ${formatCurrency(servicio.precio)}</span>
+          <span class="meta-servicio-mobile">${servicio.duracion_min}min | ${formatearPrecioCompacto(servicio.precio)}</span>
+        </p>
+        ${servicio.descripcion ? `<small class="descripcion-servicio-card">${servicio.descripcion}</small>` : ''}
+        <div class="pros-asignados-lista">${buildProsHTML(servicio)}</div>
       </div>
       <div class="acciones-elemento">
         <button class="boton-icono editar" data-servicio-id="${servicio.id}" title="Editar">
           <i class="fas fa-pencil-alt"></i>
         </button>
-        <button class="boton-icono eliminar" data-servicio-id="${servicio.id}" title="Eliminar">
+        <button class="boton-icono eliminar" data-servicio-id="${servicio.id}" title="Dar de baja">
           <i class="fas fa-trash-alt"></i>
         </button>
       </div>
@@ -142,62 +140,55 @@ function renderizarServicios() {
   })
 }
 
-function actualizarContadorPros() {
+function actualizarContadorPros(totalSeleccionados = 0, totalDisponibles = 0) {
   const pill = document.getElementById('contador-pros-servicio')
   if (!pill) return
-  const total = document.querySelectorAll('#selector-profesionales-servicio .chip-profesional').length
-  const sel   = document.querySelectorAll('#selector-profesionales-servicio .chip-profesional.seleccionado').length
-  pill.textContent = sel === 0 ? '0 seleccionados' : `${sel} de ${total} seleccionados`
-  pill.classList.toggle('vacio', sel === 0)
+  pill.textContent = totalSeleccionados === 0 ? 'Sin asignados' : `${totalSeleccionados} asignados`
+  pill.classList.toggle('vacio', totalSeleccionados === 0)
 }
 
-function poblarSelectorProfesionales(servicioId) {
+function poblarSelectorProfesionales(servicio = null) {
   const contenedor = document.getElementById("selector-profesionales-servicio")
   if (!contenedor) return
 
   const profesionales = estado.profesionales || []
   if (profesionales.length === 0) {
-    contenedor.innerHTML = '<p class="sin-pros-mensaje"><i class="fas fa-user-slash"></i>No hay profesionales registrados.</p>'
-    actualizarContadorPros()
+    contenedor.innerHTML = '<p class="sin-pros-mensaje"><i class="fas fa-user-slash"></i>No hay profesionales activos registrados.</p>'
+    actualizarContadorPros(0, 0)
     return
   }
 
-  const asignados = servicioId ? getProfesionalesDeServicio(servicioId) : []
+  const asignados = servicio?.empleados_asignados || []
 
-  contenedor.innerHTML = profesionales.map(pro => {
+  if (!asignados.length) {
+    contenedor.innerHTML = '<p class="sin-pros-mensaje"><i class="fas fa-info-circle"></i>Asignación gestionada desde el módulo de empleados.</p>'
+    actualizarContadorPros(0, profesionales.length)
+    return
+  }
+
+  contenedor.innerHTML = asignados.map(pro => {
     const color = colorParaId(pro.id)
-    const seleccionado = asignados.includes(pro.id) ? 'seleccionado' : ''
     const nombreCorto = pro.nombre.split(' ').slice(0, 2).join(' ')
     return `
-      <div class="chip-profesional ${seleccionado}" data-pro-id="${pro.id}" style="--chip-color:${color}">
+      <div class="chip-profesional seleccionado chip-profesional--readonly" style="--chip-color:${color}">
         <span class="nombre-chip">${nombreCorto}</span>
         <span class="chip-check-box"></span>
       </div>`
   }).join('')
 
-  actualizarContadorPros()
-
-  contenedor.querySelectorAll('.chip-profesional').forEach(chip => {
-    chip.addEventListener('click', () => {
-      chip.classList.toggle('seleccionado')
-      actualizarContadorPros()
-    })
-  })
+  actualizarContadorPros(asignados.length, profesionales.length)
 }
 
-function obtenerIdsSeleccionados() {
-  return Array.from(
-    document.querySelectorAll('#selector-profesionales-servicio .chip-profesional.seleccionado')
-  ).map(el => parseInt(el.dataset.proId))
-}
+export async function abrirModalServicio(servicioId = null) {
+  await cargarProfesionalesActivos()
 
-export function abrirModalServicio(servicioId = null) {
   const modal = document.getElementById("modal-servicio")
   const titulo = document.getElementById("titulo-modal-servicio")
   const form = document.getElementById("form-servicio")
 
+  let servicio = null
   if (servicioId) {
-    const servicio = estado.servicios.find((s) => s.id === servicioId)
+    servicio = estado.servicios.find((s) => s.id === servicioId)
     if (!servicio) return
 
     titulo.textContent = "Editar Servicio"
@@ -205,14 +196,14 @@ export function abrirModalServicio(servicioId = null) {
     document.getElementById("servicio-nombre").value = servicio.nombre
     document.getElementById("servicio-descripcion").value = servicio.descripcion || ""
     document.getElementById("servicio-precio").value = servicio.precio
-    document.getElementById("servicio-duracion").value = servicio.duracion_min ?? servicio.duracion
+    document.getElementById("servicio-duracion").value = servicio.duracion_min
   } else {
     titulo.textContent = "Nuevo Servicio"
     form.reset()
     document.getElementById("servicio-id").value = ""
   }
 
-  poblarSelectorProfesionales(servicioId)
+  poblarSelectorProfesionales(servicio)
   modal.classList.add("activo")
   document.body.style.overflow = "hidden"
 }
@@ -221,7 +212,6 @@ export function cerrarModalServicio() {
   const modal = document.getElementById("modal-servicio")
   modal.classList.remove("activo")
   document.body.style.overflow = ""
-  // Limpiar chips
   const contenedor = document.getElementById("selector-profesionales-servicio")
   if (contenedor) contenedor.innerHTML = ''
 }
@@ -238,26 +228,20 @@ export async function guardarServicio(e) {
     nombre: document.getElementById("servicio-nombre").value.trim(),
     descripcion: document.getElementById("servicio-descripcion").value.trim(),
     precio: Number.parseFloat(document.getElementById("servicio-precio").value),
-    duracion: Number.parseInt(document.getElementById("servicio-duracion").value),
+    duracion_min: Number.parseInt(document.getElementById("servicio-duracion").value, 10),
+    empleado_ids: estado.servicios.find(s => String(s.id) === String(document.getElementById("servicio-id").value))?.empleado_ids || [],
   }
 
-  // Capturar profesionales seleccionados antes de cerrar el modal
-  const idsSeleccionados = obtenerIdsSeleccionados()
-
-  const resultado = dbSaveServicio(servicioData)
+  const resultado = await createOrUpdateServicio(servicioData)
   restaurar()
   if (resultado) {
-    // Usar el id devuelto por el storage si es creación, o el existente si es edición
-    const idFinal = resultado.id || servicioData.id
-    if (idFinal) {
-      setProfesionalesDeServicio(idFinal, idsSeleccionados)
-    }
     showNotification(
       servicioData.id ? "Servicio actualizado correctamente" : "Servicio creado correctamente",
       "success",
     )
     cerrarModalServicio()
     await cargarServicios()
+    await cargarProfesionalesActivos()
     renderizarServicios()
     actualizarMetricasServicios()
   } else {
@@ -267,42 +251,40 @@ export async function guardarServicio(e) {
 
 export async function eliminarServicioConfirm(servicioId) {
   const ok = await confirmarAccion(
-    '¿Estás seguro de que deseas eliminar este servicio? Esta acción no se puede deshacer.',
-    'Eliminar servicio',
-    'Sí, eliminar'
+    '¿Estás seguro? El servicio se dará de baja, dejará de ofrecerse en nuevas reservas y el historial se conservará.',
+    'Dar de baja servicio',
+    'Sí, dar de baja'
   )
   if (!ok) return
 
-  const resultado = dbDeleteServicio(servicioId)
+  const resultado = await deleteServicio(servicioId)
   if (resultado) {
-    showNotification("Servicio eliminado correctamente", "success")
+    showNotification("Servicio dado de baja correctamente", "success")
     await cargarServicios()
     renderizarServicios()
     actualizarMetricasServicios()
   } else {
-    showNotification("Error al eliminar servicio", "error")
+    showNotification("Error al dar de baja el servicio", "error")
   }
 }
-/**
- * Actualiza las métricas de servicios
- */
+
 function actualizarMetricasServicios() {
-  const servicios = estado.servicios || [];
-  const totalServicios = servicios.length;
+  const servicios = estado.servicios || []
+  const totalServicios = servicios.length
 
   const precioPromedio = servicios.length > 0
-    ? servicios.reduce((sum, s) => sum + (s.precio || 0), 0) / servicios.length
-    : 0;
+    ? servicios.reduce((sum, s) => sum + Number(s.precio || 0), 0) / servicios.length
+    : 0
 
   const duracionPromedio = servicios.length > 0
-    ? Math.round(servicios.reduce((sum, s) => sum + (s.duracion || 0), 0) / servicios.length)
-    : 0;
+    ? Math.round(servicios.reduce((sum, s) => sum + Number(s.duracion_min || 0), 0) / servicios.length)
+    : 0
 
-  const totalServiciosEl = document.getElementById('total-servicios');
-  const precioPromedioEl = document.getElementById('precio-promedio');
-  const duracionPromedioEl = document.getElementById('duracion-promedio');
+  const totalServiciosEl = document.getElementById('total-servicios')
+  const precioPromedioEl = document.getElementById('precio-promedio')
+  const duracionPromedioEl = document.getElementById('duracion-promedio')
 
-  if (totalServiciosEl) totalServiciosEl.textContent = totalServicios;
-  if (precioPromedioEl) precioPromedioEl.textContent = `$${precioPromedio.toFixed(0)}`;
-  if (duracionPromedioEl) duracionPromedioEl.textContent = `${duracionPromedio}min`;
+  if (totalServiciosEl) totalServiciosEl.textContent = totalServicios
+  if (precioPromedioEl) precioPromedioEl.textContent = formatCurrency(precioPromedio)
+  if (duracionPromedioEl) duracionPromedioEl.textContent = `${duracionPromedio}min`
 }

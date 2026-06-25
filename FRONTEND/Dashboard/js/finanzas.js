@@ -172,6 +172,12 @@ const datosSimulados = {
     ]
 };
 
+function obtenerFuenteFinanciera(period) {
+    const data = estado.financialData || {};
+    const tieneKpis = Boolean(data.kpis && data.kpis[period]);
+    return tieneKpis ? data : datosSimulados;
+}
+
 
 /**
  * Función principal que renderiza TODOS los componentes de la pestaña.
@@ -189,15 +195,22 @@ export function renderFinancialData(period) {
     renderizarGraficoFidelidad(period);
     renderizarGraficoEstadoTurnos(period);
 
-    // 4. Renderizar gráficos estáticos (se renderiza solo una vez)
-    renderizarGraficoServiciosPopulares();
+    renderizarGraficoServiciosPopulares(period);
 }
 
 /**
  * Puebla las 3 tarjetas superiores (Dark Mode).
  */
 function renderizarKpisPrincipales(period) {
-    const kpiData = datosSimulados.kpis[period];
+    const fuente = obtenerFuenteFinanciera(period);
+    const kpiData = fuente.kpis?.[period] || {
+        ingresosTotales: 0,
+        cambioIngresos: 0,
+        turnosTotales: 0,
+        ingresoPromedioPorTurno: 0,
+        tasaOcupacion: 0,
+        horasTotales: 0,
+    };
 
     // Claves actualizadas al español
     document.getElementById('kpi-total-revenue').textContent = formatCurrency(kpiData.ingresosTotales);
@@ -212,9 +225,10 @@ function renderizarKpisPrincipales(period) {
  * Puebla la fila de 4 tarjetas de métricas.
  */
 function renderizarMetricasClave(period) {
-    const kpiData = datosSimulados.kpis[period];
-    const fidelidadData = kpiData.fidelidad; // claves 'nuevos', 'recurrentes' ya están OK
-    const estadoData = kpiData.estadoTurnos; // claves 'completados', 'cancelados', 'ausentes' ya están OK
+    const fuente = obtenerFuenteFinanciera(period);
+    const kpiData = fuente.kpis?.[period] || {};
+    const fidelidadData = kpiData.fidelidad || { nuevos: 0, recurrentes: 0 };
+    const estadoData = kpiData.estadoTurnos || { completados: 0, cancelados: 0, ausentes: 0 };
 
     const totalClientes = fidelidadData.nuevos + fidelidadData.recurrentes;
     const tasaFidelidad = (fidelidadData.recurrentes / totalClientes * 100).toFixed(0);
@@ -235,7 +249,12 @@ function renderizarGraficoServiciosEmpleado(period) {
     const container = document.getElementById('grafico-servicios-empleado');
     if (!container) return;
 
-    const empleadosData = datosSimulados.serviciosPorEmpleado[period];
+    const fuente = obtenerFuenteFinanciera(period);
+    const empleadosData = fuente.serviciosPorEmpleado?.[period] || [];
+    if (empleadosData.length === 0) {
+        container.innerHTML = '<p class="sin-horarios">Sin datos para este período.</p>';
+        return;
+    }
     const maxCount = Math.max(...empleadosData.map(e => e.cantidad));
 
     container.innerHTML = empleadosData.map((empleado, index) => {
@@ -270,7 +289,12 @@ function renderizarGraficoOcupacionEmpleado(period) {
     const container = document.getElementById('grafico-ocupacion-empleado');
     if (!container) return;
 
-    const ocupacionData = datosSimulados.ocupacionPorEmpleado[period];
+    const fuente = obtenerFuenteFinanciera(period);
+    const ocupacionData = fuente.ocupacionPorEmpleado?.[period] || [];
+    if (ocupacionData.length === 0) {
+        container.innerHTML = '<p class="sin-horarios">Sin datos para este período.</p>';
+        return;
+    }
     const circumference = 2 * Math.PI * 32; // Radio 32
 
     container.innerHTML = ocupacionData.map((empleado, index) => {
@@ -310,18 +334,27 @@ function renderizarGraficoTurnosPorHora_Linea(period) {
     const container = document.getElementById('grafico-turnos-hora-contenedor');
     if (!container) return;
 
-    // Lee desde las claves 'week' o 'month'
-    const horasData = datosSimulados.turnosPorHora[period];
+    const fuente = obtenerFuenteFinanciera(period);
+    const horasData = fuente.turnosPorHora?.[period] || [];
+    if (horasData.length === 0) {
+        container.innerHTML = '<p class="sin-horarios">Sin datos para este período.</p>';
+        return;
+    }
     const maxCount = Math.max(...horasData.map(h => h.cantidad));
     
     const svgWidth = 300; // Ancho fijo del SVG
     const svgHeight = 300; // Alto fijo del SVG
-    const padding = 20;
+    const paddingX = 20;
+    const paddingTop = 20;
+    const paddingBottom = 42; // espacio para etiquetas del eje X
+    const areaWidth = svgWidth - (paddingX * 2);
+    const areaHeight = svgHeight - paddingTop - paddingBottom;
     
     // Normalizar puntos
     const points = horasData.map((data, index) => {
-        const x = padding + (index * (svgWidth - 2 * padding) / (horasData.length - 1));
-        const y = (svgHeight - padding) - (data.cantidad / maxCount) * (svgHeight - 2 * padding);
+        const divisor = Math.max(horasData.length - 1, 1);
+        const x = paddingX + (index * areaWidth / divisor);
+        const y = (svgHeight - paddingBottom) - (data.cantidad / maxCount) * areaHeight;
         return { x, y, val: data.cantidad, label: data.hora };
     });
 
@@ -329,17 +362,27 @@ function renderizarGraficoTurnosPorHora_Linea(period) {
     const pathD = points.map((p, i) => (i === 0 ? 'M' : 'L') + `${p.x} ${p.y}`).join(' ');
     
     // Crear el string del path del área (sombra)
-    const areaD = pathD + ` L ${points[points.length-1].x} ${svgHeight - padding} L ${points[0].x} ${svgHeight - padding} Z`;
+    const baseY = svgHeight - paddingBottom;
+    const areaD = pathD + ` L ${points[points.length-1].x} ${baseY} L ${points[0].x} ${baseY} Z`;
+
+    // Mostrar menos etiquetas cuando hay muchos puntos para evitar solapamientos
+    const maxEtiquetas = 8;
+    const saltoEtiquetas = Math.max(1, Math.ceil(points.length / maxEtiquetas));
 
     // Crear los elementos SVG
     let svg = `<svg class="grafico-linea-svg" viewBox="0 0 ${svgWidth} ${svgHeight}">`;
     svg += `<path class="area" d="${areaD}" />`; // Sombra
     svg += `<path class="linea" d="${pathD}" />`; // Línea
     
-    points.forEach(p => {
+    points.forEach((p, index) => {
         svg += `<circle class="punto" cx="${p.x}" cy="${p.y}" r="4" />`;
-        // Etiqueta del eje X
-        svg += `<text class="etiqueta-eje-x" x="${p.x}" y="${svgHeight - padding + 15}">${p.label}</text>`;
+
+        const esPrimero = index === 0;
+        const esUltimo = index === points.length - 1;
+        const mostrarEtiqueta = esPrimero || esUltimo || (index % saltoEtiquetas === 0);
+        if (mostrarEtiqueta) {
+            svg += `<text class="etiqueta-eje-x" x="${p.x}" y="${svgHeight - 12}">${p.label}</text>`;
+        }
     });
     
     svg += `</svg>`;
@@ -350,12 +393,18 @@ function renderizarGraficoTurnosPorHora_Linea(period) {
 /**
  * Renderiza el gráfico de dona para Servicios Populares.
  */
-function renderizarGraficoServiciosPopulares() {
+function renderizarGraficoServiciosPopulares(period) {
     const container = document.getElementById('dona-servicios-populares');
-    if (!container || container.innerHTML.trim() !== "") return; 
+    if (!container) return;
 
-    // Lee de 'serviciosPopularesDona' (claves ya ok)
-    const data = datosSimulados.serviciosPopularesDona;
+    const fuente = obtenerFuenteFinanciera(period);
+    const data = (fuente.serviciosPopularesDona && fuente.serviciosPopularesDona.length > 0)
+        ? fuente.serviciosPopularesDona
+        : datosSimulados.serviciosPopularesDona;
+    if (data.length === 0) {
+        container.innerHTML = '<p class="sin-horarios">Sin datos para este período.</p>';
+        return;
+    }
     const total = data.reduce((sum, item) => sum + item.cantidad, 0);
     
     const { svg, offsets } = createDonutSVG(data, total, 'servicios');
@@ -392,7 +441,8 @@ function renderizarGraficoServiciosPopulares() {
 function renderizarGraficoFidelidad(period) {
     const container = document.getElementById('dona-fidelidad-clientes');
     if (!container) return;
-    const kpiData = datosSimulados.kpis[period].fidelidad;
+    const fuente = obtenerFuenteFinanciera(period);
+    const kpiData = fuente.kpis?.[period]?.fidelidad || { nuevos: 0, recurrentes: 0 };
     const data = [
         { nombre: 'Recurrentes', cantidad: kpiData.recurrentes, color: '#1a1a1a' },
         { nombre: 'Nuevos', cantidad: kpiData.nuevos, color: '#a3a3a3' }
@@ -433,7 +483,8 @@ function renderizarGraficoFidelidad(period) {
 function renderizarGraficoEstadoTurnos(period) {
     const container = document.getElementById('dona-estado-turnos');
     if (!container) return;
-    const kpiData = datosSimulados.kpis[period].estadoTurnos;
+    const fuente = obtenerFuenteFinanciera(period);
+    const kpiData = fuente.kpis?.[period]?.estadoTurnos || { completados: 0, cancelados: 0, ausentes: 0 };
     const data = [
         { nombre: 'Completados', cantidad: kpiData.completados, color: '#1a1a1a' },
         { nombre: 'Cancelados', cantidad: kpiData.cancelados, color: '#737373' },
