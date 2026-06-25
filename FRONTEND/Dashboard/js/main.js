@@ -15,7 +15,7 @@ const ETIQUETAS_HISTORIAL = {
   realizado:  { txt: 'Completado', cls: 'estado-realizado'  },
   completado: { txt: 'Completado', cls: 'estado-realizado'  },
   cancelado:  { txt: 'Cancelado',  cls: 'estado-cancelado'  },
-  anulado:    { txt: 'Eliminado',  cls: 'estado-anulado'    },
+  anulado:    { txt: 'Anulado',    cls: 'estado-anulado'    },
 };
 
 let _historialTurnos = [];
