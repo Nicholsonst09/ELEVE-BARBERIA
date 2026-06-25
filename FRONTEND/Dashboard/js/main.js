@@ -29,7 +29,12 @@ function renderizarTablaHistorial() {
 
   const porEstado = _historialFiltro === 'todos'
     ? _historialTurnos
-    : _historialTurnos.filter(t => t.estado === _historialFiltro);
+    : _historialTurnos.filter(t => {
+        if (_historialFiltro === 'completado') {
+          return ['completado', 'realizado'].includes(t.estado);
+        }
+        return t.estado === _historialFiltro;
+      });
 
   const texto = _historialBusqueda.trim().toLowerCase();
   const filtrados = porEstado.filter(t => {
