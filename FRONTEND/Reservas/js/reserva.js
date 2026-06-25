@@ -330,33 +330,52 @@ function configurarValidacionFormulario() {
 
   const regexNombre = /^[a-zA-ZñÑáéíóúÁÉÍÓÚ\s]{3,}$/;
   const regexEmail  = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const tocado = { nombre: false, telefono: false, email: false };
 
-  function validar() {
+  function validar(mostrarErrores = false) {
     const nombreOk   = regexNombre.test(nombreInput.value.trim());
     const telefonoOk = telefonoInput.value.trim().length >= 8;
     const emailVal   = emailInput.value.trim();
-    const emailOk    = emailVal === '' || regexEmail.test(emailVal);
+    const emailOk    = regexEmail.test(emailVal);
 
-    nombreError.textContent   = nombreOk   ? '' : 'Ingresá un nombre válido (mín. 3 letras).';
-    telefonoError.textContent = telefonoOk ? '' : 'Ingresá un teléfono válido.';
-    emailError.textContent    = emailOk    ? '' : 'El email debe tener formato válido (ej: juan@mail.com).';
+    const mostrarNombre = mostrarErrores || tocado.nombre;
+    const mostrarTelefono = mostrarErrores || tocado.telefono;
+    const mostrarEmail = mostrarErrores || tocado.email;
+
+    nombreError.textContent   = !mostrarNombre || nombreOk ? '' : 'Ingresá un nombre válido (mín. 3 letras).';
+    telefonoError.textContent = !mostrarTelefono || telefonoOk ? '' : 'Ingresá un teléfono válido.';
+    emailError.textContent    = !mostrarEmail || emailOk ? '' : 'El email es obligatorio y debe tener formato válido (ej: juan@mail.com).';
 
     continuarBtn.disabled = !(nombreOk && telefonoOk && emailOk);
+    return nombreOk && telefonoOk && emailOk;
   }
 
-  nombreInput.addEventListener('input', validar);
-  telefonoInput.addEventListener('input', validar);
-  emailInput.addEventListener('input', validar);
-  validar();
+  nombreInput.addEventListener('input', () => { tocado.nombre = true; validar(false); });
+  telefonoInput.addEventListener('input', () => { tocado.telefono = true; validar(false); });
+  emailInput.addEventListener('input', () => { tocado.email = true; validar(false); });
+
+  nombreInput.addEventListener('blur', () => { tocado.nombre = true; validar(false); });
+  telefonoInput.addEventListener('blur', () => { tocado.telefono = true; validar(false); });
+  emailInput.addEventListener('blur', () => { tocado.email = true; validar(false); });
+
+  validar(false);
+
+  document.getElementById('btn-continuar').addEventListener('click', (e) => {
+    const ok = validar(true);
+    if (!ok) e.preventDefault();
+  });
 }
 
 function guardarDatosCliente() {
   const nombre   = document.getElementById('nombre').value.trim();
   const telefono = document.getElementById('telefono').value.trim();
   const email    = document.getElementById('email').value.trim();
+  const regexNombre = /^[a-zA-ZñÑáéíóúÁÉÍÓÚ\s]{3,}$/;
+  const regexEmail  = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const telefonoCompleto = telefono.startsWith('+') ? telefono : `+54${telefono}`;
-  if (nombre && telefono) {
-    reservaActual.cliente = { nombre, telefono: telefonoCompleto, email: email || null };
+  const datosValidos = regexNombre.test(nombre) && telefono.length >= 8 && regexEmail.test(email);
+  if (datosValidos) {
+    reservaActual.cliente = { nombre, telefono: telefonoCompleto, email };
     cargarResumen();
     irAPaso(6);
   }

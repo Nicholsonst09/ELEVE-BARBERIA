@@ -1,6 +1,7 @@
 // js/api.js
 import { API_BASE_URL, estado } from './estado.js';
 import { formatearFechaParaAPI } from './utilidades.js';
+import { obtenerSesion } from './auth.js';
 
 /**
  * Manejador de errores centralizado para fetch.
@@ -10,6 +11,20 @@ import { formatearFechaParaAPI } from './utilidades.js';
 function manejarErrorFetch(mensaje, error) {
   console.error(mensaje, error);
   estado.error = mensaje; // Muta el estado importado
+}
+
+function construirHeadersJSON() {
+  const sesion = obtenerSesion?.();
+  const headers = { 'Content-Type': 'application/json' };
+  if (sesion?.rol) headers['x-user-role'] = sesion.rol;
+  return headers;
+}
+
+function construirHeadersSimple() {
+  const sesion = obtenerSesion?.();
+  const headers = {};
+  if (sesion?.rol) headers['x-user-role'] = sesion.rol;
+  return headers;
 }
 
 export async function fetchProfesionales() {
@@ -57,7 +72,7 @@ export async function fetchTurnosPendientesCount(fecha) {
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const data = await response.json();
     const turnos = data.data || [];
-    return turnos.filter(t => t.estado !== 'cancelado').length;
+    return turnos.filter(t => t.estado !== 'cancelado' && t.estado !== 'anulado').length;
   } catch (error) {
     manejarErrorFetch('No se pudo obtener el conteo de pendientes', error);
     return 0;
@@ -124,7 +139,7 @@ export async function createOrUpdateTurno(turnoData) {
   try {
     const response = await fetch(url, {
       method: method,
-      headers: { 'Content-Type': 'application/json' },
+      headers: construirHeadersJSON(),
       body: JSON.stringify(turnoData)
     });
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -139,7 +154,8 @@ export async function eliminarTurno(turnoId) {
   try {
     // La URL ahora apunta a la nueva ruta de la API
     const response = await fetch(`${API_BASE_URL}/turnos/${turnoId}`, {
-      method: 'DELETE' // Cambiado de 'PUT' a 'DELETE'
+      method: 'DELETE', // Cambiado de 'PUT' a 'DELETE'
+      headers: construirHeadersSimple()
     });
 
     if (!response.ok) {
@@ -213,12 +229,12 @@ export async function fetchHorariosDisponibles(empleadoId, servicioId, fecha, or
  * @returns {Promise<number|null>} El ID del cliente
  */
 
-export async function buscarOCrearCliente(nombre, telefono) {
+export async function buscarOCrearCliente(nombre, telefono, email = null) {
   try {
     const response = await fetch(`${API_BASE_URL}/clientes/obtener-o-crear`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nombre, telefono }) // Envía nombre y teléfono
+      body: JSON.stringify({ nombre, telefono, email })
     });
     
     if (!response.ok) {
@@ -237,6 +253,18 @@ export async function buscarOCrearCliente(nombre, telefono) {
   }
 }
 
+
+export async function fetchHistorial() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/turnos/detalles`);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const data = await response.json();
+    return data.data ?? (Array.isArray(data) ? data : []);
+  } catch (error) {
+    manejarErrorFetch('No se pudo cargar el historial', error);
+    return [];
+  }
+}
 
 export async function fetchClientes() {
   try {

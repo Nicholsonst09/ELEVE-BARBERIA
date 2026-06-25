@@ -24,6 +24,7 @@ import {
   formatCurrency,
   confirmarAccion
 } from './utilidades.js';
+import { obtenerSesion } from './auth.js';
 
 
 // Variable para guardar la función que refresca el dashboard
@@ -31,10 +32,11 @@ let _recargarDashboardStats = () => console.warn('recargarDashboardStats no inye
 
 // --- Máquina de estados de turnos ---
 const TRANSICIONES_VALIDAS = {
-  pendiente:  ['confirmado', 'cancelado'],
-  confirmado: ['realizado', 'cancelado'],
+  pendiente:  ['confirmado', 'cancelado', 'anulado'],
+  confirmado: ['realizado', 'cancelado', 'anulado'],
   realizado:  [],
   cancelado:  [],
+  anulado:    [],
 };
 
 const ETIQUETAS_ESTADO = {
@@ -42,6 +44,7 @@ const ETIQUETAS_ESTADO = {
   confirmado: 'Confirmado',
   realizado:  'Realizado',
   cancelado:  'Cancelado',
+  anulado:    'Anulado',
 };
 
 function validarTransicion(estadoActual, estadoNuevo) {
@@ -86,6 +89,7 @@ function obtenerEtiquetaEstado(estado) {
     pendiente: "Pendiente",
     realizado: "Realizado",
     cancelado: "Cancelado",
+    anulado:   "Anulado",
   };
   return etiquetas[estado] || "Pendiente";
 }
@@ -196,12 +200,15 @@ function renderizarNavegacion() {
 }
 
 function renderizarEncabezado() {
-  const turnosFiltrados = estado.turnos.filter(t => t.estado !== 'cancelado');
+  const turnosFiltrados = estado.turnos.filter(t => t.estado !== 'cancelado' && t.estado !== 'anulado');
   const profesional = estado.profesionales.find(p => p.id == estado.profesionalSeleccionado);
   const titulo = estado.profesionalSeleccionado === "pendiente" ? "Turnos del Día" : (profesional?.nombre || "Turnos del Día");
 
-  document.getElementById("tituloEncabezado").textContent = `${formatearFecha(estado.fechaActual)} - ${titulo}`;
-  document.getElementById("subtituloEncabezado").textContent = `${turnosFiltrados.length} turnos programados`;
+  document.getElementById("tituloEncabezado").textContent = titulo;
+  const fechaCorta = estado.fechaActual
+    .toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'long' })
+    .replace(/\./g, '');
+  document.getElementById("subtituloEncabezado").textContent = `${fechaCorta} · ${turnosFiltrados.length} turnos`;
 
   const btnDiaAnterior = document.getElementById("btnDiaAnterior");
   const btnHoy = document.getElementById("btnHoy");
@@ -260,7 +267,7 @@ function detectarSuperposiciones(turnos) {
 
 function renderizarGrilla() {
   const cuerpoGrilla = document.getElementById("cuerpoGrilla");
-  const turnosFiltrados = estado.turnos.filter(t => t.estado !== 'cancelado');
+  const turnosFiltrados = estado.turnos.filter(t => t.estado !== 'cancelado' && t.estado !== 'anulado');
   let ranuraHtml = "";
   horariosDelDia.forEach((hora) => {
     ranuraHtml += `
@@ -319,6 +326,7 @@ function renderizarGrilla() {
       confirmado: '#0369a1',
       realizado:  '#111111',
       cancelado:  '#dc2626',
+      anulado:    '#6b7280',
     };
     const colorEstado = coloresEstado[turno.estado] || '#525252';
     tarjeta.style.borderLeftColor = colorEstado;
@@ -381,6 +389,9 @@ export function renderizarModal() {
 
   modal.classList.add("activo");
   const turno = estado.turnoSeleccionado;
+  const emailClienteTurno = turno.email_cliente
+    || estado.clientes.find(c => String(c.id) === String(turno.cliente_id))?.email
+    || '';
 
   // --- MODO 1: CREAR NUEVO TURNO ---
   if (estado.modoCreacion) {
@@ -399,6 +410,11 @@ export function renderizarModal() {
         <div class="grupo-formulario">
             <label class="form-label" for="telefono">Teléfono</label>
             <input type="tel" id="telefono" class="form-input" placeholder="+1234567890" required>
+        </div>
+
+        <div class="grupo-formulario">
+            <label class="form-label" for="emailCliente">Email</label>
+            <input type="email" id="emailCliente" class="form-input" placeholder="cliente@email.com" required>
         </div>
 
         <div class="grupo-formulario">
@@ -466,6 +482,10 @@ export function renderizarModal() {
             <label class="form-label" for="telefono">Teléfono</label>
             <input type="tel" id="telefono" class="form-input" value="${turno.telefono_cliente || ''}" required>
           </div>
+          <div class="grupo-formulario">
+            <label class="form-label" for="emailCliente">Email</label>
+            <input type="email" id="emailCliente" class="form-input" value="${emailClienteTurno}" placeholder="cliente@email.com" required>
+          </div>
           <div class="pie-modal">
             <button type="button" class="boton-secundario" id="btnCancelarEdicion">Cancelar</button>
             <button type="submit" class="boton-primario">Guardar Cliente</button>
@@ -479,20 +499,23 @@ export function renderizarModal() {
 
     tituloModal.textContent = "Modificar Turno";
 
-    // HTML casi idéntico al de "Crear Turno", pero con el campo "Estado"
-    // y sin los campos de cliente (ya que el cliente_id no se cambia)
+    // En turnos no realizados, también se pueden ajustar datos del cliente.
     cuerpoModal.innerHTML = `
         <form id="formEdicion">
           <input type="hidden" id="horaInicioSeleccionada" required>
           
           <div class="grupo-formulario">
-            <label class="form-label" for="nombreClienteLectura">Nombre del Cliente</label>
-            <input type="text" id="nombreClienteLectura" class="form-input" value="${turno.nombre_cliente || ''}" readonly disabled style="background-color: #f0f0f0; cursor: not-allowed;">
+            <label class="form-label" for="nombreCliente">Nombre del Cliente</label>
+            <input type="text" id="nombreCliente" class="form-input" value="${turno.nombre_cliente || ''}" required>
           </div>
           
           <div class="grupo-formulario">
-              <label class="form-label" for="telefonoLectura">Teléfono</label>
-              <input type="tel" id="telefonoLectura" class="form-input" value="${turno.telefono_cliente || ''}" readonly disabled style="background-color: #f0f0f0; cursor: not-allowed;">
+              <label class="form-label" for="telefono">Teléfono</label>
+              <input type="tel" id="telefono" class="form-input" value="${turno.telefono_cliente || ''}" required>
+          </div>
+          <div class="grupo-formulario">
+              <label class="form-label" for="emailCliente">Email</label>
+              <input type="email" id="emailCliente" class="form-input" value="${emailClienteTurno}" placeholder="cliente@email.com" required>
           </div>
           <div class="grupo-formulario">
             <label class="form-label" for="servicioId">Servicio</label>
@@ -583,6 +606,7 @@ export function renderizarModal() {
   // --- MODO 3: VER DETALLES (Default) ---
   else {
     tituloModal.textContent = "Detalles del Turno";
+    const esAdmin = obtenerSesion()?.rol === 'admin';
     const profesional = { nombre: turno.nombre_empleado };
     const servicio = { nombre: turno.nombre_servicio };
     const cliente = { nombre: turno.nombre_cliente, telefono: turno.telefono_cliente };
@@ -606,7 +630,7 @@ export function renderizarModal() {
           <div class="detalles-turno-item">
             <svg class="icono" style="width:16px; height:16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
             <span>${cliente.telefono || 'No especificado'}</span>
-            ${cliente.telefono ? `<button class="btn-copiar-tel" data-tel="${cliente.telefono}" title="Copiar número">
+            ${cliente.telefono ? `<button class="btn-copiar-tel" type="button" data-tel="${cliente.telefono}" aria-label="Copiar número de teléfono" title="Copiar número">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:13px;height:13px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
             </button>` : ''}
           </div>
@@ -634,21 +658,38 @@ export function renderizarModal() {
         </div>
         ` : ''}
       </div>
-      <div class="pie-modal">
-        ${turno.estado !== 'realizado' ? `<button class="boton-primario" id="btnRegistrarPago">Registrar Pago</button>` : ''}
-        ${turno.estado === 'pendiente'
-          ? (estaEnVentanaDeConfirmacion(turno)
-            ? '<button class="boton-secundario" id="btnConfirmarTurno"><span class="txt-largo">Confirmar Turno</span><span class="txt-corto">Confirmar</span></button>'
-            : '<button class="boton-secundario" id="btnConfirmarTurno" disabled title="Venció la ventana de confirmación (30 min antes del turno)"><span class="txt-largo">Plazo vencido</span><span class="txt-corto">Vencido</span></button>')
-          : ''}
-        ${turno.estado === 'confirmado' ? '<button class="boton-secundario" id="btnRealizarTurno"><span class="txt-largo">Marcar Realizado</span><span class="txt-corto">Realizado</span></button>' : ''}
-        ${turno.estado !== 'realizado' ? `<button class="boton-secundario" id="btnModificar">Modificar</button>` : ''}
-        ${ turno.estado === 'cancelado'
-          ? '<button class="boton-secundario eliminar" id="btnEliminarTurno"><span class="txt-largo">Eliminar Turno</span><span class="txt-corto">Eliminar</span></button>'
-          : turno.estado !== 'realizado'
-            ? '<button class="boton-secundario eliminar" id="btnCancelarEstado"><span class="txt-largo">Cancelar Turno</span><span class="txt-corto">Cancelar</span></button>'
-            : ''
-        }
+      <div class="pie-modal pie-modal--detalles">
+        ${['pendiente', 'confirmado'].includes(turno.estado) ? `
+          <div class="pie-modal__fila">
+            <button type="button" class="boton-primario" id="btnRegistrarPago">Registrar Pago</button>
+            ${turno.estado === 'pendiente'
+              ? estaEnVentanaDeConfirmacion(turno)
+                ? `<button type="button" class="boton-secundario" id="btnConfirmarTurno">Confirmar Turno</button>`
+                : `<button type="button" class="boton-secundario" id="btnConfirmarTurno" disabled title="Venció la ventana de confirmación">Plazo vencido</button>`
+              : `<button type="button" class="boton-secundario" id="btnRealizarTurno">Marcar Realizado</button>`
+            }
+          </div>
+          <button type="button" class="boton-secundario pie-modal__btn-full" id="btnModificar">Modificar turno</button>
+          <div class="pie-modal__zona-peligro" role="group" aria-label="Acciones de cancelación">
+            <button type="button" class="btn-ghost-peligro btn-ghost-cancelar" id="btnCancelarEstado"
+                    title="El cliente avisó que no puede asistir">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:13px;height:13px;flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+              Cancelar turno
+            </button>
+            ${esAdmin ? `
+              <span class="btn-ghost-sep" aria-hidden="true">&middot;</span>
+              <button type="button" class="btn-ghost-peligro btn-ghost-anular" id="btnAnularTurno"
+                      title="La barbería cancela el turno">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:13px;height:13px;flex-shrink:0;"><circle cx="12" cy="12" r="9" stroke-width="2"/><path stroke-linecap="round" stroke-width="2" d="M5.636 5.636l12.728 12.728"/></svg>
+                Eliminar turno
+              </button>
+            ` : ''}
+          </div>
+        ` : turno.estado === 'cancelado' && esAdmin ? `
+          <button type="button" class="boton-secundario eliminar pie-modal__btn-full" id="btnEliminarTurno">
+            Eliminar definitivamente
+          </button>
+        ` : ''}
       </div>
     `;
 
@@ -661,155 +702,108 @@ export function renderizarModal() {
       });
     }
 
-    if (turno.estado !== 'realizado') {
+    // Payload base reutilizable para todos los cambios de estado
+    const payloadBase = {
+      ...turno,
+      id: turno.id,
+      cliente_id: turno.cliente_id,
+      empleado_id: turno.empleado_id,
+      servicio_id: turno.servicio_id,
+      hora_inicio: turno.hora ? turno.hora.substring(0, 5) : turno.hora_inicio,
+      hora_fin: turno.hora_fin ? turno.hora_fin.substring(0, 5) : turno.hora_fin,
+    };
+
+    if (['pendiente', 'confirmado'].includes(turno.estado)) {
       document.getElementById("btnModificar").addEventListener("click", () => {
         estado.modoEdicion = true;
         renderizarModal();
       });
-    }
 
-    if (turno.estado === 'confirmado') {
-      document.getElementById("btnRealizarTurno").addEventListener("click", async () => {
-        const btn = document.getElementById("btnRealizarTurno");
-
-        if (!yaComenzóElTurno(turno)) {
-          showNotification('No se puede marcar como realizado antes de la hora de inicio del turno.', 'error');
-          return;
-        }
-
-        if (!turno.metodoPago || turno.metodoPago === 'sin_pago') {
-          showNotification('Registrá el pago antes de marcar el turno como realizado.', 'error');
-          return;
-        }
-
-        const confirmado = await confirmarAccion(
-          `¿Marcás el turno de ${turno.nombre_cliente} como realizado?`,
-          '¿Marcar como realizado?',
-          'Realizado'
-        );
-        if (!confirmado) return;
-        const restaurar = setBtnLoading(btn, 'Guardando...');
-        try {
-          const resultado = await createOrUpdateTurno({
-            ...turno,
-            id: turno.id,
-            cliente_id: turno.cliente_id,
-            empleado_id: turno.empleado_id,
-            servicio_id: turno.servicio_id,
-            hora_inicio: turno.hora ? turno.hora.substring(0, 5) : turno.hora_inicio,
-            hora_fin: turno.hora_fin ? turno.hora_fin.substring(0, 5) : turno.hora_fin,
-            estado: 'realizado',
-          });
-          restaurar();
-          if (resultado) {
-            estado.turnoSeleccionado = { ...turno, estado: 'realizado' };
-            showNotification('Turno marcado como realizado.', 'success');
-            recargarTurnosYAgenda();
-            _recargarDashboardStats();
-          } else {
-            showNotification('No se pudo actualizar el turno.', 'error');
-          }
-        } catch (error) {
-          restaurar();
-          showNotification('Error al actualizar el turno.', 'error');
-        }
-      });
-    }
-
-    if (turno.estado === 'pendiente') {
-      document.getElementById("btnConfirmarTurno").addEventListener("click", async () => {
-        if (!estaEnVentanaDeConfirmacion(turno)) {
-          showNotification('No se puede confirmar: el plazo venció 15 minutos antes del turno.', 'error');
-          return;
-        }
-        const btn = document.getElementById("btnConfirmarTurno");
-        const confirmado = await confirmarAccion(
-          `¿Confirmás el turno de ${turno.nombre_cliente}?`,
-          '¿Confirmar turno?',
-          'Confirmar'
-        );
-        if (!confirmado) return;
-        const restaurar = setBtnLoading(btn, 'Confirmando...');
-        try {
-          const resultado = await createOrUpdateTurno({
-            ...turno,
-            id: turno.id,
-            cliente_id: turno.cliente_id,
-            empleado_id: turno.empleado_id,
-            servicio_id: turno.servicio_id,
-            hora_inicio: turno.hora ? turno.hora.substring(0, 5) : turno.hora_inicio,
-            hora_fin: turno.hora_fin ? turno.hora_fin.substring(0, 5) : turno.hora_fin,
-            estado: 'confirmado',
-          });
-          restaurar();
-          if (resultado) {
-            estado.turnoSeleccionado = { ...turno, estado: 'confirmado' };
-            showNotification('Turno confirmado correctamente.', 'success');
-            recargarTurnosYAgenda();
-            _recargarDashboardStats();
-          } else {
-            showNotification('No se pudo confirmar el turno.', 'error');
-          }
-        } catch (error) {
-          restaurar();
-          showNotification('Error al confirmar el turno.', 'error');
-        }
-      });
-    }
-
-    if (turno.estado !== 'realizado') {
       document.getElementById("btnRegistrarPago").addEventListener("click", () => {
         estado.modoRegistrarPago = true;
         renderizarModal();
       });
-    }
 
-    if (turno.estado === 'cancelado') {
-      document.getElementById("btnEliminarTurno").addEventListener("click", async () => {
-        if (!turno.id) return;
-        const confirmado = await confirmarAccion(
-          `¿Eliminás definitivamente el turno de ${turno.nombre_cliente}? Esta acción no se puede deshacer.`,
-          'Eliminar turno',
-          'Eliminar'
-        );
-        if (!confirmado) return;
-        try {
-          const resultado = await eliminarTurno(turno.id);
-          if (resultado) {
-            showNotification('Turno eliminado con éxito.', 'success');
-            estado.turnoSeleccionado = null;
-            recargarTurnosYAgenda();
-            _recargarDashboardStats();
-          } else {
-            showNotification('No se pudo eliminar el turno.', 'error');
+      if (turno.estado === 'pendiente') {
+        document.getElementById("btnConfirmarTurno").addEventListener("click", async () => {
+          if (!estaEnVentanaDeConfirmacion(turno)) {
+            showNotification('No se puede confirmar: el plazo venció 15 minutos antes del turno.', 'error');
+            return;
           }
-        } catch (error) {
-          showNotification('Error de red al eliminar el turno.', 'error');
-        }
-      });
-    } else if (turno.estado !== 'realizado') {
+          const btn = document.getElementById("btnConfirmarTurno");
+          const confirmado = await confirmarAccion(
+            `¿Confirmás el turno de ${turno.nombre_cliente}?`,
+            '¿Confirmar turno?',
+            'Confirmar'
+          );
+          if (!confirmado) return;
+          const restaurar = setBtnLoading(btn, 'Confirmando...');
+          try {
+            const resultado = await createOrUpdateTurno({ ...payloadBase, estado: 'confirmado' });
+            restaurar();
+            if (resultado) {
+              estado.turnoSeleccionado = { ...turno, estado: 'confirmado' };
+              showNotification('Turno confirmado correctamente.', 'success');
+              recargarTurnosYAgenda();
+              _recargarDashboardStats();
+            } else {
+              showNotification('No se pudo confirmar el turno.', 'error');
+            }
+          } catch (error) {
+            restaurar();
+            showNotification('Error al confirmar el turno.', 'error');
+          }
+        });
+      }
+
+      if (turno.estado === 'confirmado') {
+        document.getElementById("btnRealizarTurno").addEventListener("click", async () => {
+          const btn = document.getElementById("btnRealizarTurno");
+          if (!yaComenzóElTurno(turno)) {
+            showNotification('No se puede marcar como realizado antes de la hora de inicio del turno.', 'error');
+            return;
+          }
+          if (!turno.metodoPago || turno.metodoPago === 'sin_pago') {
+            showNotification('Registrá el pago antes de marcar el turno como realizado.', 'error');
+            return;
+          }
+          const confirmado = await confirmarAccion(
+            `¿Marcás el turno de ${turno.nombre_cliente} como realizado?`,
+            '¿Marcar como realizado?',
+            'Realizado'
+          );
+          if (!confirmado) return;
+          const restaurar = setBtnLoading(btn, 'Guardando...');
+          try {
+            const resultado = await createOrUpdateTurno({ ...payloadBase, estado: 'realizado' });
+            restaurar();
+            if (resultado) {
+              estado.turnoSeleccionado = { ...turno, estado: 'realizado' };
+              showNotification('Turno marcado como realizado.', 'success');
+              recargarTurnosYAgenda();
+              _recargarDashboardStats();
+            } else {
+              showNotification('No se pudo actualizar el turno.', 'error');
+            }
+          } catch (error) {
+            restaurar();
+            showNotification('Error al actualizar el turno.', 'error');
+          }
+        });
+      }
+
       document.getElementById("btnCancelarEstado").addEventListener("click", async () => {
-        if (!turno.id) return;
         const confirmado = await confirmarAccion(
-          `¿Cancelás el turno de ${turno.nombre_cliente}?`,
+          `¿Cancelás el turno de ${turno.nombre_cliente}? (el cliente avisó que no puede asistir)`,
           'Cancelar turno',
           'Sí, cancelar',
-          'El turno será eliminado de la grilla.'
+          'Motivo sugerido: no se puede atender o hubo un error de creación.'
         );
         if (!confirmado) return;
         const btn = document.getElementById("btnCancelarEstado");
         const restaurar = setBtnLoading(btn, 'Cancelando...');
         try {
-          const resultado = await createOrUpdateTurno({
-            ...turno,
-            id: turno.id,
-            cliente_id: turno.cliente_id,
-            empleado_id: turno.empleado_id,
-            servicio_id: turno.servicio_id,
-            hora_inicio: turno.hora ? turno.hora.substring(0, 5) : turno.hora_inicio,
-            hora_fin: turno.hora_fin ? turno.hora_fin.substring(0, 5) : turno.hora_fin,
-            estado: 'cancelado',
-          });
+          const resultado = await createOrUpdateTurno({ ...payloadBase, estado: 'cancelado' });
           restaurar();
           if (resultado) {
             showNotification('Turno cancelado.', 'success');
@@ -825,6 +819,64 @@ export function renderizarModal() {
         } catch (error) {
           restaurar();
           showNotification('Error al cancelar el turno.', 'error');
+        }
+      });
+
+      const btnAnularTurno = document.getElementById("btnAnularTurno");
+      if (btnAnularTurno) btnAnularTurno.addEventListener("click", async () => {
+        const confirmado = await confirmarAccion(
+          `¿Eliminás el turno de ${turno.nombre_cliente}?`,
+          'Eliminar turno',
+          'Sí, eliminar',
+          'Motivo sugerido: no se puede atender o hubo un error de creación.'
+        );
+        if (!confirmado) return;
+        const btn = btnAnularTurno;
+        const restaurar = setBtnLoading(btn, 'Anulando...');
+        try {
+          const resultado = await createOrUpdateTurno({ ...payloadBase, estado: 'anulado' });
+          restaurar();
+          if (resultado) {
+            showNotification('Turno anulado.', 'success');
+            estado.turnoSeleccionado = null;
+            estado.modoEdicion = false;
+            estado.modoRegistrarPago = false;
+            renderizarModal();
+            recargarTurnosYAgenda();
+            _recargarDashboardStats();
+          } else {
+            showNotification('No se pudo anular el turno.', 'error');
+          }
+        } catch (error) {
+          restaurar();
+          showNotification('Error al anular el turno.', 'error');
+        }
+      });
+    }
+
+    if (turno.estado === 'cancelado') {
+      const btnEliminarTurno = document.getElementById("btnEliminarTurno");
+      if (btnEliminarTurno) btnEliminarTurno.addEventListener("click", async () => {
+        if (!turno.id) return;
+        const confirmado = await confirmarAccion(
+          `¿Eliminás definitivamente el turno de ${turno.nombre_cliente}? Esta acción no se puede deshacer.`,
+          'Eliminar turno',
+          'Eliminar',
+          'Motivo sugerido: no se puede atender o hubo un error de creación.'
+        );
+        if (!confirmado) return;
+        try {
+          const resultado = await eliminarTurno(turno.id);
+          if (resultado) {
+            showNotification('Turno eliminado con éxito.', 'success');
+            estado.turnoSeleccionado = null;
+            recargarTurnosYAgenda();
+            _recargarDashboardStats();
+          } else {
+            showNotification('No se pudo eliminar el turno.', 'error');
+          }
+        } catch (error) {
+          showNotification('Error de red al eliminar el turno.', 'error');
         }
       });
     }
@@ -1071,6 +1123,7 @@ function setupModalCreacionListeners() {
 
     const nombreCliente = document.getElementById("nombreCliente").value;
     const telefono = document.getElementById("telefono").value;
+    const email = document.getElementById("emailCliente")?.value?.trim() || undefined;
     const servicioId = selectServicio.value;
     const horaInicio = inputHoraSelec.value; // "HH:MM"
     const fecha = inputFecha.value; // "YYYY-MM-DD"
@@ -1081,13 +1134,13 @@ function setupModalCreacionListeners() {
       return;
     }
     // Validamos como tu backend
-    if (!nombreCliente || !telefono) {
-      showNotification("El nombre y el teléfono son obligatorios.", "error");
+    if (!nombreCliente || !telefono || !email) {
+      showNotification("El nombre, el teléfono y el email son obligatorios.", "error");
       return;
     }
 
     // --- PASO 1: OBTENER O CREAR EL CLIENTE ---
-    const cliente_id = await buscarOCrearCliente(nombreCliente, telefono);
+    const cliente_id = await buscarOCrearCliente(nombreCliente, telefono, email);
 
     if (!cliente_id) {
       restaurar();
@@ -1164,14 +1217,15 @@ function setupModalEdicionClienteListener(turno) {
 
     const nombre = document.getElementById('nombreCliente').value.trim();
     const telefono = document.getElementById('telefono').value.trim();
+    const email = document.getElementById('emailCliente').value.trim();
 
-    if (!nombre || !telefono) {
-      showNotification('Nombre y teléfono son obligatorios.', 'error');
+    if (!nombre || !telefono || !email) {
+      showNotification('Nombre, teléfono y email son obligatorios.', 'error');
       restaurar();
       return;
     }
 
-    const cliente_id = await buscarOCrearCliente(nombre, telefono);
+    const cliente_id = await buscarOCrearCliente(nombre, telefono, email);
     if (!cliente_id) {
       showNotification('Error al buscar o crear el cliente.', 'error');
       restaurar();
@@ -1182,7 +1236,7 @@ function setupModalEdicionClienteListener(turno) {
     restaurar();
 
     if (resultado) {
-      estado.turnoSeleccionado = { ...turno, nombre_cliente: nombre, telefono_cliente: telefono };
+      estado.turnoSeleccionado = { ...turno, nombre_cliente: nombre, telefono_cliente: telefono, email_cliente: email };
       estado.modoEdicion = false;
       showNotification('Cliente actualizado correctamente.', 'success');
       recargarTurnosYAgenda();
@@ -1211,6 +1265,9 @@ function setupModalEdicionListeners(turno) {
   const inputHoraSelec = document.getElementById("horaInicioSeleccionada");
   const selectEstado = document.getElementById("estado");
   const inputObservaciones = document.getElementById("observaciones");
+  const inputNombreCliente = document.getElementById("nombreCliente");
+  const inputTelefono = document.getElementById("telefono");
+  const inputEmailCliente = document.getElementById("emailCliente");
 
   // --- Lógica de carga encadenada (IDÉNTICA A LA DE CREACIÓN) ---
 
@@ -1385,8 +1442,18 @@ function setupModalEdicionListeners(turno) {
       return;
     }
 
-    // 1. Llama a la función que ya tienes para obtener el ID
-    const cliente_id = await buscarOCrearCliente(turno.nombre_cliente, turno.telefono_cliente);
+    const nombreCliente = inputNombreCliente?.value?.trim();
+    const telefonoCliente = inputTelefono?.value?.trim();
+    const emailCliente = inputEmailCliente?.value?.trim();
+
+    if (!nombreCliente || !telefonoCliente || !emailCliente) {
+      restaurar();
+      showNotification("Nombre, teléfono y email son obligatorios.", "error");
+      return;
+    }
+
+    // 1. Obtener o crear cliente con los datos editados
+    const cliente_id = await buscarOCrearCliente(nombreCliente, telefonoCliente, emailCliente);
 
     if (!cliente_id) {
       restaurar();
@@ -1435,6 +1502,10 @@ function setupModalEdicionListeners(turno) {
       // el modal de detalles muestre el estado actualizado sin cerrar el modal
       estado.turnoSeleccionado = {
         ...turno,
+        cliente_id: cliente_id,
+        nombre_cliente: nombreCliente,
+        telefono_cliente: telefonoCliente,
+        email_cliente: emailCliente,
         estado: turnoData.estado,
         fecha: turnoData.fecha,
         hora: horaInicio + ':00',
@@ -1527,7 +1598,8 @@ export async function recargarTurnosYAgenda() {
     estado.turnosPendientesCount = 0;
   } finally {
     estado.isLoading = false;
-    renderizar(); // Vuelve a dibujar todo
+    renderizar();
+    _recargarDashboardStats();
   }
 }
 
@@ -1565,14 +1637,5 @@ export function setupAgendaEventListeners(recargarDashboardStats) {
     estado.modoEdicion = false;
     estado.modoRegistrarPago = false;
     renderizarModal();
-  });
-
-  document.getElementById("modalSuperpuesto").addEventListener("click", (e) => {
-    if (e.target.id === "modalSuperpuesto") {
-      estado.turnoSeleccionado = null;
-      estado.modoEdicion = false;
-      estado.modoRegistrarPago = false;
-      renderizarModal();
-    }
   });
 }

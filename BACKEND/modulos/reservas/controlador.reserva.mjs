@@ -74,7 +74,10 @@ async function crearReserva(req, res) {
         if (!telefono?.trim()) {
             return res.status(400).json({ mensaje: "El teléfono del cliente es requerido." });
         }
-        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        if (!email?.trim()) {
+            return res.status(400).json({ mensaje: "El email del cliente es requerido." });
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             return res.status(400).json({ mensaje: "El formato del email es inválido." });
         }
         if (!Number(servicio_id) || !Number(empleado_id)) {
@@ -115,7 +118,7 @@ async function crearReserva(req, res) {
         const turno = await modelo.crearReserva({
             nombre: nombre.trim(),
             telefono: telefono.trim(),
-            email: email?.trim() || null,
+            email: email.trim(),
             servicio_id,
             empleado_id,
             fecha,

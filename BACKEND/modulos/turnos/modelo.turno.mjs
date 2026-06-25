@@ -634,6 +634,102 @@ async function cancelarPendientesVencidos(fecha) {
     }
 }
 
+function mapearTurnoNotificacion(turno) {
+    return {
+        id: turno.id,
+        fecha: turno.fecha,
+        hora_inicio: turno.hora_inicio,
+        hora_fin: turno.hora_fin,
+        creado: turno.creado,
+        estado: turno.estado_turno?.codigo || null,
+        nombre_cliente: turno.clientes?.nombre || 'Cliente',
+        email_cliente: turno.clientes?.email || null,
+        nombre_empleado: turno.empleados?.nombre || 'Profesional',
+        nombre_servicio: turno.servicios?.nombre || 'Servicio',
+        precio: turno.precio || 0
+    };
+}
+
+async function obtenerTurnoParaNotificacion(id) {
+    try {
+        const { data: turno, error } = await supabaseAdmin
+            .from('turnos')
+            .select(`
+                id,
+                fecha,
+                hora_inicio,
+                hora_fin,
+                creado,
+                precio,
+                estado_turno!estado_id(codigo),
+                clientes!inner(nombre, email),
+                empleados!inner(nombre),
+                servicios!inner(nombre)
+            `)
+            .eq('id', id)
+            .single();
+
+        if (error) {
+            if (error.code === 'PGRST116') return null;
+            throw error;
+        }
+
+        return mapearTurnoNotificacion(turno);
+    } catch (error) {
+        console.error(`Error en modelo.obtenerTurnoParaNotificacion (ID: ${id}):`, error.message);
+        throw error;
+    }
+}
+
+async function obtenerTurnosReservadosEnVentanaRecordatorio(desdeISO, hastaISO) {
+    try {
+        const desde = new Date(desdeISO);
+        const hasta = new Date(hastaISO);
+        const fechaDesde = desde.toISOString().split('T')[0];
+        const fechaHasta = hasta.toISOString().split('T')[0];
+
+        const { data: turnos, error } = await supabaseAdmin
+            .from('turnos')
+            .select(`
+                id,
+                fecha,
+                hora_inicio,
+                hora_fin,
+                creado,
+                precio,
+                estado_turno!estado_id(codigo),
+                clientes!inner(nombre, email),
+                empleados!inner(nombre),
+                servicios!inner(nombre)
+            `)
+            .gte('fecha', fechaDesde)
+            .lte('fecha', fechaHasta)
+            .order('fecha', { ascending: true })
+            .order('hora_inicio', { ascending: true });
+
+        if (error) throw error;
+
+        return (turnos || [])
+            .map(mapearTurnoNotificacion)
+            .filter(t => ['pendiente', 'confirmado'].includes(t.estado))
+            .filter(t => {
+                if (!t.email_cliente) return false;
+                const hora = (t.hora_inicio || '').substring(0, 5);
+                const inicioTurno = new Date(`${t.fecha}T${hora}:00`);
+                const creadoTurno = new Date(t.creado);
+
+                const estaEnVentana = inicioTurno > desde && inicioTurno <= hasta;
+                if (!estaEnVentana) return false;
+
+                const minutosAnticipacionAlCrear = (inicioTurno - creadoTurno) / 60000;
+                return minutosAnticipacionAlCrear >= 60;
+            });
+    } catch (error) {
+        console.error('Error en modelo.obtenerTurnosReservadosEnVentanaRecordatorio:', error.message);
+        throw error;
+    }
+}
+
 export default {
     obtenerTurnos,
     obtenerUnTurno,
@@ -644,5 +740,7 @@ export default {
     obtenerHorariosDisponibles,
     obtenerTurnosConDetalles,
     verificarSolapamiento,
-    cancelarPendientesVencidos
+    cancelarPendientesVencidos,
+    obtenerTurnoParaNotificacion,
+    obtenerTurnosReservadosEnVentanaRecordatorio
 };
