@@ -1,65 +1,43 @@
 import { estado } from "./estado.js"
 import { showNotification, confirmarAccion, setBtnLoading } from "./utilidades.js"
-import { dbGetEmpleados, dbSaveEmpleado, dbDeleteEmpleado } from "./db.js"
-import { fetchProfesionales } from "./api.js"
+import { fetchProfesionales, fetchServicios, createOrUpdateEmpleado, deleteEmpleado, fetchHistorial } from "./api.js"
 
 let empleadosFiltrados = []
-
-// ─── Horario laboral — LocalStorage ───────────────────────────────────────────────
-const LS_KEY_HORARIOS = 'eleve_empleado_horarios'
+let historialTurnos = []
 
 const DIAS = [
-  { key: 'lunes',     label: 'Lunes',     finSemana: false },
-  { key: 'martes',    label: 'Martes',    finSemana: false },
+  { key: 'lunes', label: 'Lunes', finSemana: false },
+  { key: 'martes', label: 'Martes', finSemana: false },
   { key: 'miercoles', label: 'Miércoles', finSemana: false },
-  { key: 'jueves',    label: 'Jueves',    finSemana: false },
-  { key: 'viernes',   label: 'Viernes',   finSemana: false },
-  { key: 'sabado',    label: 'Sábado',    finSemana: true  },
-  { key: 'domingo',   label: 'Domingo',   finSemana: true  },
+  { key: 'jueves', label: 'Jueves', finSemana: false },
+  { key: 'viernes', label: 'Viernes', finSemana: false },
+  { key: 'sabado', label: 'Sábado', finSemana: true },
+  { key: 'domingo', label: 'Domingo', finSemana: true },
 ]
 
-const HORAS = Array.from({ length: 16 }, (_, i) =>
-  `${(i + 7).toString().padStart(2, '0')}:00`
-) // 07:00 → 22:00, solo horas enteras
-
 const HORARIO_DEFAULT = {
-  lunes:     { activo: true,  desde: '09:00', hasta: '18:00' },
-  martes:    { activo: true,  desde: '09:00', hasta: '18:00' },
-  miercoles: { activo: true,  desde: '09:00', hasta: '18:00' },
-  jueves:    { activo: true,  desde: '09:00', hasta: '18:00' },
-  viernes:   { activo: true,  desde: '09:00', hasta: '18:00' },
-  sabado:    { activo: true,  desde: '09:00', hasta: '14:00' },
-  domingo:   { activo: false, desde: '09:00', hasta: '14:00' },
+  lunes: { activo: true, desde: '09:00', hasta: '18:00' },
+  martes: { activo: true, desde: '09:00', hasta: '18:00' },
+  miercoles: { activo: true, desde: '09:00', hasta: '18:00' },
+  jueves: { activo: true, desde: '09:00', hasta: '18:00' },
+  viernes: { activo: true, desde: '09:00', hasta: '18:00' },
+  sabado: { activo: true, desde: '09:00', hasta: '14:00' },
+  domingo: { activo: false, desde: '09:00', hasta: '14:00' },
 }
 
-function cargarHorariosLS() {
-  try { return JSON.parse(localStorage.getItem(LS_KEY_HORARIOS) || '{}') }
-  catch { return {} }
+const COLORES_AVATAR = ["#1a1a1a", "#2f6d4e", "#a34b20", "#2c4ea3", "#6b2fa0", "#b5461a", "#1e6a7c", "#7a3030"]
+
+function colorParaId(id) {
+  return COLORES_AVATAR[id % COLORES_AVATAR.length]
 }
 
-function guardarHorariosLS(data) {
-  localStorage.setItem(LS_KEY_HORARIOS, JSON.stringify(data))
-}
-
-export function getHorarioEmpleado(empleadoId) {
-  return cargarHorariosLS()[empleadoId] || null
-}
-
-function setHorarioEmpleado(empleadoId, horario) {
-  const all = cargarHorariosLS()
-  all[empleadoId] = horario
-  guardarHorariosLS(all)
-}
-
-function formatearResumenHorario(horario) {
-  if (!horario) return null
-  return DIAS.filter(d => horario[d.key]?.activo)
-}
-
-function generarOpcionesHoras(selEl, valorActual) {
-  selEl.innerHTML = HORAS.map(h =>
-    `<option value="${h}" ${h === valorActual ? 'selected' : ''}>${h}</option>`
-  ).join('')
+function obtenerIniciales(nombre) {
+  return nombre
+    .split(' ')
+    .map(palabra => palabra[0])
+    .join('')
+    .toUpperCase()
+    .substring(0, 2)
 }
 
 export async function inicializarEmpleados() {
@@ -69,24 +47,25 @@ export async function inicializarEmpleados() {
   renderizarMetricasEmpleados()
 }
 
-const COLORES_PROF = { 'bautista': '#1a1a1a', 'ciro': '#2f6d4e', 'felipe': '#a34b20', 'ricardo': '#2c4ea3' };
-const PALETA_EMP = ['#1a1a1a', '#2f6d4e', '#a34b20', '#2c4ea3', '#6b2fa0', '#b5461a'];
-
 async function cargarEmpleados() {
   try {
-    const profesionalesAPI = await fetchProfesionales();
-    if (profesionalesAPI.length > 0) {
-      estado.profesionales = profesionalesAPI.map((p, i) => ({
-        ...p,
-        color: COLORES_PROF[p.nombre.split(' ')[0].toLowerCase()] || PALETA_EMP[i % PALETA_EMP.length]
-      }));
-    } else {
-      estado.profesionales = dbGetEmpleados();
-    }
+    const profesionalesAPI = await fetchProfesionales()
+    estado.profesionales = profesionalesAPI.map((profesional, index) => ({
+      ...profesional,
+      color: colorParaId(profesional.id ?? index)
+    }))
     empleadosFiltrados = [...estado.profesionales]
-    renderizarMetricasEmpleados()
+
+    if (!estado.servicios.length) {
+      estado.servicios = await fetchServicios()
+    }
+
+    historialTurnos = await fetchHistorial()
   } catch (error) {
     console.error("Error al cargar empleados", error)
+    estado.profesionales = []
+    empleadosFiltrados = []
+    historialTurnos = []
     showNotification("Error al cargar empleados", "error")
   }
 }
@@ -99,7 +78,8 @@ function setupEmpleadosEventListeners() {
       empleadosFiltrados = estado.profesionales.filter(
         (empleado) =>
           empleado.nombre.toLowerCase().includes(termino) ||
-          (empleado.especialidad && empleado.especialidad.toLowerCase().includes(termino)),
+          (empleado.email || '').toLowerCase().includes(termino) ||
+          (empleado.especialidades || '').toLowerCase().includes(termino),
       )
       renderizarEmpleados()
     })
@@ -114,15 +94,30 @@ function setupEmpleadosEventListeners() {
   if (btnCerrarModal) {
     btnCerrarModal.addEventListener('click', cerrarModalEmpleado)
   }
+
+  const btnCancelarModal = document.querySelector('#modal-empleado .btn-cancelar-empleado')
+  if (btnCancelarModal) {
+    btnCancelarModal.addEventListener('click', cerrarModalEmpleado)
+  }
+
+  const formEmpleado = document.getElementById('form-empleado')
+  if (formEmpleado) {
+    formEmpleado.addEventListener('submit', guardarEmpleado)
+  }
 }
 
-function obtenerIniciales(nombre) {
-  return nombre
-    .split(' ')
-    .map(palabra => palabra[0])
-    .join('')
-    .toUpperCase()
-    .substring(0, 2)
+function formatearResumenHorario(horario) {
+  if (!horario) return []
+  return DIAS.filter(d => horario[d.key]?.activo)
+}
+
+function buildServiciosHTML(empleado) {
+  const servicios = empleado.servicios_asignados || []
+  if (!servicios.length) return '<span class="label-sin-pros">Sin servicios asignados</span>'
+
+  return servicios.map(servicio => `
+    <span class="badge-dia-activo">${servicio.nombre}</span>
+  `).join('')
 }
 
 function renderizarEmpleados() {
@@ -138,19 +133,17 @@ function renderizarEmpleados() {
     const iniciales = obtenerIniciales(empleado.nombre)
     const estadoActivo = empleado.activo !== false
     const claseEstado = estadoActivo ? 'activo' : 'inactivo'
-    const horario = getHorarioEmpleado(empleado.id)
-    const diasActivos = formatearResumenHorario(horario)
+    const diasActivos = formatearResumenHorario(empleado.horarios_disponibles)
 
     let horarioHTML = ''
-    if (diasActivos && diasActivos.length > 0) {
+    if (diasActivos.length > 0) {
       const badges = diasActivos.map(d =>
         `<span class="badge-dia-activo ${d.finSemana ? 'fin-semana' : ''}">${d.label.substring(0, 3)}</span>`
       ).join('')
-      // Calcular rango de horas más frecuente
-      const primero = horario[diasActivos[0].key]
+      const primero = empleado.horarios_disponibles[diasActivos[0].key]
       horarioHTML = `<div class="resumen-horario-empleado">${badges}<span class="texto-horas-resumen">${primero.desde}–${primero.hasta}</span></div>`
     }
-    
+
     return `
       <div class="elemento-lista">
         <div class="avatar-empleado">${iniciales}</div>
@@ -159,15 +152,16 @@ function renderizarEmpleados() {
             <h4>${empleado.nombre}</h4>
             <span class="indicador-estado ${claseEstado}" title="${estadoActivo ? 'Activo' : 'Inactivo'}"></span>
           </div>
-          <p>${empleado.especialidad || 'Sin especialidad'}</p>
+          <p class="especialidades-empleado-card">${empleado.especialidades || 'Sin especialidades cargadas'}</p>
+          ${empleado.email ? `<small class="email-empleado-card">${empleado.email}</small>` : '<small class="email-empleado-card">Sin email</small>'}
           ${horarioHTML}
-          <small>${empleado.telefono || 'Sin teléfono'}</small>
+          <div class="pros-asignados-lista">${buildServiciosHTML(empleado)}</div>
         </div>
         <div class="acciones-elemento">
           <button class="boton-icono editar" data-empleado-id="${empleado.id}" title="Editar">
             <i class="fas fa-pencil-alt"></i>
           </button>
-          <button class="boton-icono eliminar" data-empleado-id="${empleado.id}" title="Eliminar">
+          <button class="boton-icono eliminar" data-empleado-id="${empleado.id}" title="Dar de baja">
             <i class="fas fa-trash-alt"></i>
           </button>
         </div>
@@ -178,7 +172,7 @@ function renderizarEmpleados() {
   listaEmpleados.querySelectorAll('.boton-icono').forEach(btn => {
     btn.addEventListener('click', () => {
       const empleadoId = parseInt(btn.dataset.empleadoId)
-      
+
       if (btn.classList.contains('editar')) {
         abrirModalEmpleado(empleadoId)
       } else if (btn.classList.contains('eliminar')) {
@@ -186,40 +180,6 @@ function renderizarEmpleados() {
       }
     })
   })
-}
-
-export function abrirModalEmpleado(empleadoId = null) {
-  const modal = document.getElementById("modal-empleado")
-  const titulo = document.getElementById("titulo-modal-empleado")
-  const form = document.getElementById("form-empleado")
-
-  if (empleadoId) {
-    const empleado = estado.profesionales.find((e) => e.id === empleadoId)
-    if (!empleado) return
-
-    titulo.textContent = "Editar Empleado"
-    document.getElementById("empleado-id").value = empleado.id
-    document.getElementById("empleado-nombre").value = empleado.nombre
-    document.getElementById("empleado-telefono").value = empleado.telefono || ""
-    document.getElementById("empleado-email").value = empleado.email || ""
-    document.getElementById("empleado-especialidad").value = empleado.especialidad || ""
-  } else {
-    titulo.textContent = "Nuevo Empleado"
-    form.reset()
-    document.getElementById("empleado-id").value = ""
-  }
-
-  poblarHorarioEmpleado(empleadoId)
-  modal.classList.add("activo")
-  document.body.style.overflow = "hidden"
-}
-
-export function cerrarModalEmpleado() {
-  const modal = document.getElementById("modal-empleado")
-  modal.classList.remove("activo")
-  document.body.style.overflow = ""
-  const contenedor = document.getElementById('horario-semanal-empleado')
-  if (contenedor) contenedor.innerHTML = ''
 }
 
 function actualizarPillHorario() {
@@ -235,12 +195,11 @@ function actualizarPillHorario() {
   }
 }
 
-function poblarHorarioEmpleado(empleadoId) {
+function poblarHorarioEmpleado(horarioConfigurado = null) {
   const contenedor = document.getElementById('horario-semanal-empleado')
   if (!contenedor) return
 
-  const horarioGuardado = empleadoId ? getHorarioEmpleado(empleadoId) : null
-  const horario = horarioGuardado || HORARIO_DEFAULT
+  const horario = horarioConfigurado || HORARIO_DEFAULT
 
   contenedor.innerHTML = DIAS.map(dia => {
     const cfg = horario[dia.key] || { activo: false, desde: '09:00', hasta: '18:00' }
@@ -259,7 +218,6 @@ function poblarHorarioEmpleado(empleadoId) {
       </div>`
   }).join('')
 
-  // Event listeners: toggle
   contenedor.querySelectorAll('.toggle-dia').forEach(toggle => {
     toggle.addEventListener('change', () => {
       const fila = toggle.closest('.dia-fila')
@@ -283,6 +241,94 @@ function obtenerHorarioActual() {
   return horario
 }
 
+function actualizarContadorServiciosEmpleado() {
+  const pill = document.getElementById('contador-servicios-empleado')
+  if (!pill) return
+  const total = document.querySelectorAll('#selector-servicios-empleado .chip-profesional').length
+  const sel = document.querySelectorAll('#selector-servicios-empleado .chip-profesional.seleccionado').length
+  pill.textContent = sel === 0 ? '0 seleccionados' : `${sel} de ${total} seleccionados`
+  pill.classList.toggle('vacio', sel === 0)
+}
+
+async function poblarSelectorServicios(empleado = null) {
+  if (!estado.servicios.length) {
+    estado.servicios = await fetchServicios()
+  }
+
+  const contenedor = document.getElementById('selector-servicios-empleado')
+  if (!contenedor) return
+
+  const servicios = estado.servicios || []
+  if (!servicios.length) {
+    contenedor.innerHTML = '<p class="sin-pros-mensaje"><i class="fas fa-cut"></i>No hay servicios activos registrados.</p>'
+    actualizarContadorServiciosEmpleado()
+    return
+  }
+
+  const asignados = empleado?.servicio_ids || []
+
+  contenedor.innerHTML = servicios.map(servicio => {
+    const seleccionado = asignados.includes(servicio.id) ? 'seleccionado' : ''
+    return `
+      <div class="chip-profesional ${seleccionado}" data-servicio-id="${servicio.id}">
+        <span class="nombre-chip">${servicio.nombre}</span>
+        <span class="chip-check-box"></span>
+      </div>`
+  }).join('')
+
+  actualizarContadorServiciosEmpleado()
+
+  contenedor.querySelectorAll('.chip-profesional').forEach(chip => {
+    chip.addEventListener('click', () => {
+      chip.classList.toggle('seleccionado')
+      actualizarContadorServiciosEmpleado()
+    })
+  })
+}
+
+function obtenerServiciosSeleccionados() {
+  return Array.from(
+    document.querySelectorAll('#selector-servicios-empleado .chip-profesional.seleccionado')
+  ).map(el => parseInt(el.dataset.servicioId))
+}
+
+export async function abrirModalEmpleado(empleadoId = null) {
+  const modal = document.getElementById("modal-empleado")
+  const titulo = document.getElementById("titulo-modal-empleado")
+  const form = document.getElementById("form-empleado")
+
+  let empleado = null
+  if (empleadoId) {
+    empleado = estado.profesionales.find((e) => e.id === empleadoId)
+    if (!empleado) return
+
+    titulo.textContent = "Editar Empleado"
+    document.getElementById("empleado-id").value = empleado.id
+    document.getElementById("empleado-nombre").value = empleado.nombre
+    document.getElementById("empleado-email").value = empleado.email || ""
+    document.getElementById("empleado-especialidad").value = empleado.especialidades || ""
+  } else {
+    titulo.textContent = "Nuevo Empleado"
+    form.reset()
+    document.getElementById("empleado-id").value = ""
+  }
+
+  await poblarSelectorServicios(empleado)
+  poblarHorarioEmpleado(empleado?.horarios_disponibles || null)
+  modal.classList.add("activo")
+  document.body.style.overflow = "hidden"
+}
+
+export function cerrarModalEmpleado() {
+  const modal = document.getElementById("modal-empleado")
+  modal.classList.remove("activo")
+  document.body.style.overflow = ""
+  const contenedorHorario = document.getElementById('horario-semanal-empleado')
+  if (contenedorHorario) contenedorHorario.innerHTML = ''
+  const contenedorServicios = document.getElementById('selector-servicios-empleado')
+  if (contenedorServicios) contenedorServicios.innerHTML = ''
+}
+
 export async function guardarEmpleado(e) {
   e.preventDefault()
 
@@ -293,25 +339,24 @@ export async function guardarEmpleado(e) {
   const empleadoData = {
     id: document.getElementById("empleado-id").value || null,
     nombre: document.getElementById("empleado-nombre").value.trim(),
-    telefono: document.getElementById("empleado-telefono").value.trim(),
     email: document.getElementById("empleado-email").value.trim(),
-    especialidad: document.getElementById("empleado-especialidad").value.trim(),
+    especialidades: document.getElementById("empleado-especialidad").value.trim(),
+    horarios_disponibles: obtenerHorarioActual(),
+    servicio_ids: obtenerServiciosSeleccionados(),
   }
 
-  const resultado = dbSaveEmpleado(empleadoData)
+  const resultado = await createOrUpdateEmpleado(empleadoData)
   restaurar()
   if (resultado) {
-    const idFinal = resultado.id || empleadoData.id
-    if (idFinal) {
-      setHorarioEmpleado(idFinal, obtenerHorarioActual())
-    }
     showNotification(
       empleadoData.id ? "Empleado actualizado correctamente" : "Empleado creado correctamente",
       "success",
     )
     cerrarModalEmpleado()
     await cargarEmpleados()
+    estado.servicios = await fetchServicios()
     renderizarEmpleados()
+    renderizarMetricasEmpleados()
   } else {
     showNotification("Error al guardar empleado", "error")
   }
@@ -319,102 +364,67 @@ export async function guardarEmpleado(e) {
 
 export async function eliminarEmpleadoConfirm(empleadoId) {
   const ok = await confirmarAccion(
-    '¿Estás seguro de que deseas eliminar este empleado? Esta acción no se puede deshacer.',
-    'Eliminar empleado',
-    'Sí, eliminar'
+    '¿Estás seguro? El empleado se dará de baja, dejará de recibir nuevos turnos y el historial se conservará.',
+    'Dar de baja empleado',
+    'Sí, dar de baja'
   )
   if (!ok) return
 
-  const resultado = dbDeleteEmpleado(empleadoId)
+  const resultado = await deleteEmpleado(empleadoId)
   if (resultado) {
-    showNotification("Empleado eliminado correctamente", "success")
+    showNotification("Empleado dado de baja correctamente", "success")
     await cargarEmpleados()
+    estado.servicios = await fetchServicios()
     renderizarEmpleados()
+    renderizarMetricasEmpleados()
   } else {
-    showNotification("Error al eliminar empleado", "error")
+    showNotification("Error al dar de baja el empleado", "error")
   }
 }
-/**
- * Renderiza las métricas y KPIs de empleados
- */
+
 export function renderizarMetricasEmpleados() {
-  calcularMetricasGenerales();
+  calcularMetricasGenerales()
 }
 
-/**
- * Calcula y muestra las métricas generales
- */
 function calcularMetricasGenerales() {
-  const totalEmpleados = estado.profesionales.length;
-  const empleadosActivos = estado.profesionales.filter(e => e.activo !== false).length;
-  
-  // Datos simulados - reemplazar con datos reales de tu API
-  const turnosHoy = 12;
-  const promedioServicios = totalEmpleados > 0 ? Math.round(turnosHoy / totalEmpleados) : 0;
-  const horasTrabajadas = 156;
+  const totalEmpleados = estado.profesionales.length
+  const empleadosActivos = estado.profesionales.filter(e => e.activo !== false).length
+  const turnosValidos = (historialTurnos || []).filter(turno => !['cancelado', 'anulado'].includes(turno.estado))
 
-  document.getElementById('total-empleados').textContent = totalEmpleados;
-  document.getElementById('empleados-activos-detalle').textContent = `${empleadosActivos} activos`;
-  document.getElementById('turnos-hoy').textContent = turnosHoy;
-  document.getElementById('promedio-servicios').textContent = promedioServicios;
-  document.getElementById('horas-trabajadas').textContent = `${horasTrabajadas}h`;
+  const hoy = new Date()
+  const hoyLocal = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`
+  const inicioSemana = new Date(hoy)
+  inicioSemana.setDate(hoy.getDate() - ((hoy.getDay() + 6) % 7))
+  inicioSemana.setHours(0, 0, 0, 0)
+  const finSemana = new Date(inicioSemana)
+  finSemana.setDate(inicioSemana.getDate() + 7)
+
+  const turnosHoy = turnosValidos.filter(turno => turno.fecha === hoyLocal).length
+  const promedioServicios = empleadosActivos > 0 ? Math.round(turnosHoy / empleadosActivos) : 0
+  const horasTrabajadas = turnosValidos.reduce((total, turno) => {
+    if (!turno.fecha || !turno.hora_inicio || !turno.hora_fin) return total
+    const fechaTurno = new Date(`${turno.fecha}T00:00:00`)
+    if (fechaTurno < inicioSemana || fechaTurno >= finSemana) return total
+
+    const inicio = convertirHoraEnMinutos(turno.hora_inicio)
+    const fin = convertirHoraEnMinutos(turno.hora_fin)
+    return total + Math.max(0, fin - inicio)
+  }, 0)
+
+  const totalEl = document.getElementById('total-empleados')
+  const activosDetalleEl = document.getElementById('empleados-activos-detalle')
+  const turnosHoyEl = document.getElementById('turnos-hoy')
+  const promedioEl = document.getElementById('promedio-servicios')
+  const horasEl = document.getElementById('horas-trabajadas')
+
+  if (totalEl) totalEl.textContent = totalEmpleados
+  if (activosDetalleEl) activosDetalleEl.textContent = `${empleadosActivos} activos`
+  if (turnosHoyEl) turnosHoyEl.textContent = turnosHoy
+  if (promedioEl) promedioEl.textContent = promedioServicios
+  if (horasEl) horasEl.textContent = `${Math.round(horasTrabajadas / 60)}h`
 }
 
-/**
- * Renderiza los indicadores de rendimiento
- */
-function renderizarIndicadoresRendimiento() {
-  const container = document.getElementById('indicadores-empleados');
-  if (!container) return;
-
-  // Datos simulados - reemplazar con datos reales
-  const indicadores = [
-    { titulo: 'Puntualidad', porcentaje: 95 },
-    { titulo: 'Satisfacción Cliente', porcentaje: 88 },
-    { titulo: 'Productividad', porcentaje: 92 },
-    { titulo: 'Asistencia', porcentaje: 97 }
-  ];
-
-  container.innerHTML = indicadores.map(ind => `
-    <div class="indicador-item">
-      <div class="indicador-encabezado">
-        <span class="indicador-titulo">${ind.titulo}</span>
-        <span class="indicador-porcentaje">${ind.porcentaje}%</span>
-      </div>
-      <div class="barra-indicador">
-        <div class="relleno-indicador" style="width: ${ind.porcentaje}%"></div>
-      </div>
-    </div>
-  `).join('');
-}
-
-/**
- * Renderiza el ranking de empleados
- */
-function renderizarRankingEmpleados() {
-  const container = document.getElementById('ranking-empleados');
-  if (!container) return;
-
-  // Crear ranking basado en empleados existentes con datos simulados
-  const ranking = estado.profesionales.slice(0, 5).map((emp, index) => ({
-    nombre: emp.nombre,
-    especialidad: emp.especialidad || 'Profesional',
-    servicios: Math.floor(Math.random() * 50) + 20 // Simulado
-  })).sort((a, b) => b.servicios - a.servicios);
-
-  if (ranking.length === 0) {
-    container.innerHTML = '<p style="text-align: center; color: #737373;">No hay datos de ranking disponibles</p>';
-    return;
-  }
-
-  container.innerHTML = ranking.map((emp, index) => `
-    <div class="fila-ranking">
-      <div class="ranking-posicion ${index < 3 ? 'top' : ''}">${index + 1}</div>
-      <div class="ranking-info">
-        <div class="ranking-nombre">${emp.nombre}</div>
-        <div class="ranking-detalle">${emp.especialidad}</div>
-      </div>
-      <div class="ranking-valor">${emp.servicios}</div>
-    </div>
-  `).join('');
+function convertirHoraEnMinutos(hora) {
+  const [hh, mm] = String(hora).substring(0, 5).split(':').map(Number)
+  return (hh * 60) + mm
 }

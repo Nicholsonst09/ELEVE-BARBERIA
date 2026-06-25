@@ -1,23 +1,32 @@
 import modelo from "./modelo.turno.mjs";
 import modeloServicio from '../servicios/modelo.servicio.mjs';
 import notificacionesTurno from './notificaciones.turno.mjs';
+import { VALIDAR_HORARIO_AL_COMPLETAR_TURNO } from '../../config/horariosNegocio.mjs';
 
 // ─── MÁQUINA DE ESTADOS ───────────────────────────────────────────────────────
 const TRANSICIONES_VALIDAS = {
-    'pendiente':  ['confirmado', 'cancelado', 'anulado'],
-    'confirmado': ['realizado',  'cancelado', 'anulado'],
-    'realizado':  [],   // estado final — sin cambios permitidos
+    'reservado':  ['completado', 'cancelado', 'anulado'],
+    'completado': [],   // estado final — sin cambios permitidos
     'cancelado':  [],   // estado final — sin cambios permitidos
     'anulado':    []    // estado final — turno creado por error (solo admin)
 };
 
-const ESTADOS_FINALES = ['realizado', 'cancelado', 'anulado'];
+const ESTADOS_FINALES = ['completado', 'cancelado', 'anulado'];
+
+function normalizarEstado(estado) {
+    if (!estado) return estado;
+    if (estado === 'pendiente' || estado === 'confirmado') return 'reservado';
+    if (estado === 'realizado') return 'completado';
+    return estado;
+}
 
 function validarTransicionEstado(estadoActual, estadoNuevo) {
-    if (estadoActual === estadoNuevo) return true;
-    const permitidos = TRANSICIONES_VALIDAS[estadoActual];
+    const estadoActualNorm = normalizarEstado(estadoActual);
+    const estadoNuevoNorm = normalizarEstado(estadoNuevo);
+    if (estadoActualNorm === estadoNuevoNorm) return true;
+    const permitidos = TRANSICIONES_VALIDAS[estadoActualNorm];
     if (!permitidos) return false;
-    return permitidos.includes(estadoNuevo);
+    return permitidos.includes(estadoNuevoNorm);
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -64,7 +73,7 @@ async function agregarTurno(req, res) {
         estado, precio, origen
     } = req.body;
 
-    const estadosPermitidos = ["pendiente", "confirmado", "cancelado", "realizado", "anulado"];
+    const estadosPermitidos = ["reservado", "completado", "cancelado", "anulado"];
     const expresionHora = /^\d{2}:\d{2}$/;
 
     const fechaNumero = new Date(fecha);
@@ -92,7 +101,7 @@ async function agregarTurno(req, res) {
         return res.status(400).json({ mensaje: "La hora de inicio debe ser anterior a la hora de fin." });
     }
 
-    if (estado && !estadosPermitidos.includes(estado)) {
+    if (estado && !estadosPermitidos.includes(normalizarEstado(estado))) {
         return res.status(400).json({ mensaje: `El estado '${estado}' no es un estado de turno permitido.` });
     }
 
@@ -127,7 +136,7 @@ async function agregarTurno(req, res) {
         // ────────────────────────────────────────────────────────────────────
 
         const turnoCreado = await modelo.agregarTurno(req.body);
-        if (['pendiente', 'confirmado'].includes(turnoCreado.estado)) {
+        if (turnoCreado.estado === 'reservado') {
             notificacionesTurno
                 .enviarConfirmacionReserva(turnoCreado.id)
                 .catch(error => console.error('[notificaciones] Error enviando confirmación de reserva:', error?.message || error));
@@ -162,12 +171,12 @@ async function modificarTurno(req, res) {
         // ── Máquina de estados ───────────────────────────────────────────────
         // Anulado y Cancelado: completamente bloqueados.
         // 'realizado' se maneja como excepción en el bloque siguiente.
-        if (ESTADOS_FINALES.includes(turnoExistente.estado) && turnoExistente.estado !== 'realizado') {
+        if (ESTADOS_FINALES.includes(turnoExistente.estado) && turnoExistente.estado !== 'completado') {
             return res.status(400).json({ mensaje: `No se puede modificar un turno en estado '${turnoExistente.estado}'.` });
         }
 
         // Realizado: solo se permite actualizar el cliente
-        if (turnoExistente.estado === 'realizado') {
+        if (turnoExistente.estado === 'completado') {
             const { cliente_id } = req.body;
             if (!Number(cliente_id)) {
                 return res.status(400).json({ mensaje: 'El ID de cliente es inválido.' });
@@ -188,12 +197,14 @@ async function modificarTurno(req, res) {
             });
         }
 
-        if (estado === 'anulado' && rolUsuario !== 'admin') {
+        const estadoNormalizado = normalizarEstado(estado);
+
+        if (estadoNormalizado === 'anulado' && rolUsuario !== 'admin') {
             return res.status(403).json({ mensaje: 'Solo un administrador puede anular turnos.' });
         }
 
-        // Validación: no se puede marcar como realizado antes de la hora de inicio ni después de 24h
-        if (estado === 'realizado') {
+        // Validación opcional por config: al marcar como realizado, validar ventana horaria.
+        if (estadoNormalizado === 'completado' && VALIDAR_HORARIO_AL_COMPLETAR_TURNO) {
             const ahora = new Date();
             const horaInicioStr = (turnoExistente.hora_inicio || '').substring(0, 5);
             const fechaTurno = new Date(`${turnoExistente.fecha}T${horaInicioStr}:00`);
@@ -207,7 +218,7 @@ async function modificarTurno(req, res) {
         }
         // ────────────────────────────────────────────────────────────────────
 
-        const estadosPermitidos = ["pendiente", "confirmado", "cancelado", "realizado", "anulado"];
+        const estadosPermitidos = ["reservado", "completado", "cancelado", "anulado"];
         const expresionHora = /^\d{2}:\d{2}$/;
 
         const fechaNumero = new Date(fecha);
@@ -221,7 +232,7 @@ async function modificarTurno(req, res) {
             !expresionHora.test(hora_inicio) ||
             !expresionHora.test(hora_fin) ||
             hora_inicio >= hora_fin ||
-            (estado && !estadosPermitidos.includes(estado)) ||
+            (estado && !estadosPermitidos.includes(estadoNormalizado)) ||
             precio === undefined || isNaN(precio) || precio < 0
         ) {
             return res.status(400).json({ mensaje: "Los datos del turno no son válidos." });
@@ -255,7 +266,7 @@ async function modificarTurno(req, res) {
         const modificado = await modelo.modificarTurno(turnoId, req.body);
 
         if (modificado) {
-            const estadoReservado = ['pendiente', 'confirmado'].includes(turnoExistente.estado);
+            const estadoReservado = turnoExistente.estado === 'reservado';
             const fechaReprogramada = fecha !== fechaActual;
             const horaReprogramada = (hora_inicio || '').substring(0, 5) !== horaActual;
 
@@ -394,16 +405,6 @@ async function obtenerTurnosConDetalles(req, res) {
     }
 
     try {
-        // Limpiar turnos pendientes vencidos solo si se consulta el día de hoy
-        const hoy = new Date().toISOString().split('T')[0];
-        if (fecha && fecha === hoy) {
-            try {
-                await modelo.cancelarPendientesVencidos(fecha);
-            } catch (e) {
-                console.warn('[limpieza] No se pudo cancelar pendientes vencidos:', e.message);
-            }
-        }
-
         const turnos = await modelo.obtenerTurnosConDetalles({
             empleadoId: idEmpleadoValidado,
             fecha: fecha || null
@@ -421,6 +422,47 @@ async function obtenerTurnosConDetalles(req, res) {
         console.error("Error en controlador.obtenerTurnosConDetalles:", error);
         res.status(500).json({
             mensaje: "Error interno del servidor al obtener turnos con detalles.",
+            detalle: error.message
+        });
+    }
+}
+
+async function registrarPagoTurno(req, res) {
+    const turnoId = parseInt(req.params.id);
+    const { metodo, monto } = req.body || {};
+
+    if (isNaN(turnoId)) {
+        return res.status(400).json({ mensaje: 'ID de turno invalido. Debe ser un numero.' });
+    }
+
+    const metodosPermitidos = ['efectivo', 'transferencia', 'tarjeta'];
+    if (!metodosPermitidos.includes(String(metodo || '').toLowerCase())) {
+        return res.status(400).json({
+            mensaje: `Metodo de pago invalido. Valores permitidos: ${metodosPermitidos.join(', ')}`
+        });
+    }
+
+    if (monto !== undefined && (!Number.isFinite(Number(monto)) || Number(monto) <= 0)) {
+        return res.status(400).json({ mensaje: 'El monto debe ser un numero positivo.' });
+    }
+
+    try {
+        const resultado = await modelo.registrarPagoTurno(turnoId, {
+            metodo: String(metodo).toLowerCase(),
+            monto
+        });
+
+        return res.status(200).json({
+            mensaje: 'Pago registrado correctamente.',
+            pago: resultado
+        });
+    } catch (error) {
+        const mensaje = String(error?.message || '');
+        const status = mensaje.includes('no encontrado') ? 404 : 500;
+        return res.status(status).json({
+            mensaje: status === 404
+                ? 'No se pudo registrar el pago porque el turno no existe.'
+                : 'Error interno del servidor al registrar el pago.',
             detalle: error.message
         });
     }
@@ -459,5 +501,6 @@ export default {
     eliminarTurno,
     obtenerHorariosDisponibles,
     obtenerTurnosConDetalles,
+    registrarPagoTurno,
     procesarRecordatoriosTurnos
 };

@@ -38,6 +38,14 @@ export function switchTab(tabId) {
 
   contenidosPestana.forEach((content) => content.classList.remove("activo"));
   document.getElementById(tabId).classList.add("activo");
+
+  const contenedor = document.querySelector('.contenido');
+  if (contenedor && typeof contenedor.scrollTo === 'function') {
+    contenedor.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  if (typeof window.scrollTo === 'function') {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 }
 
 /**
@@ -46,10 +54,10 @@ export function switchTab(tabId) {
 export function updateStats() {
   const turnos = estado.turnos || [];
   const total = turnos.filter(t => !['cancelado', 'anulado'].includes(t.estado)).length;
-  const reservados = turnos.filter(t => ['pendiente', 'confirmado'].includes(t.estado)).length;
-  const completados = turnos.filter(t => t.estado === 'realizado').length;
+  const reservados = turnos.filter(t => ['pendiente', 'confirmado', 'reservado'].includes(t.estado)).length;
+  const completados = turnos.filter(t => ['realizado', 'completado'].includes(t.estado)).length;
   const ingresos    = turnos
-    .filter(t => t.estado === 'realizado')
+    .filter(t => ['realizado', 'completado'].includes(t.estado))
     .reduce((sum, t) => sum + (Number(t.precio) || 0), 0);
   document.getElementById("total-appointments").textContent = total;
   document.getElementById("reserved-appointments").textContent = reservados;

@@ -4,7 +4,8 @@ import modeloCliente from "./modelo.cliente.mjs";
 async function obtenerClientes(req, res){
     try {
             const clientes = await modeloCliente.obtenerClientes();
-            res.status(200).json(clientes);
+            const estadisticas = await modeloCliente.obtenerEstadisticasClientes(clientes);
+            res.status(200).json({ clientes, estadisticas });
         } catch (error) {
             console.error("Error en controlador.obtenerClientes:", error);
             res.status(500).json({ mensaje: "Error interno del servidor al obtener clientes.", detalle: error.message });
@@ -35,13 +36,13 @@ async function obtenerUnCliente(req, res){
 //funcion para manejar lo buscar cliente existente o crearlo
 async function obtenerOCrear(req, res) {
     try {
-        const { nombre, telefono } = req.body;
+        const { nombre, telefono, email } = req.body;
 
         if (!nombre || !telefono) {
             return res.status(400).json({ mensaje: "Nombre y teléfono son requeridos." });
         }
 
-        const cliente_id = await modeloCliente.buscarOCrearCliente(nombre, telefono);
+        const cliente_id = await modeloCliente.buscarOCrearCliente(nombre, telefono, email || null);
 
         res.status(200).json({ 
             mensaje: "Cliente gestionado con éxito.",
@@ -62,12 +63,12 @@ async function obtenerOCrear(req, res) {
 
 // Crear un cliente directamente (ABM)
 async function crearCliente(req, res) {
-    const { nombre, telefono, preferencias } = req.body;
+    const { nombre, telefono, email, preferencias } = req.body;
     if (!nombre || !telefono) {
         return res.status(400).json({ mensaje: 'Nombre y teléfono son requeridos.' });
     }
     try {
-        const cliente = await modeloCliente.crearCliente({ nombre, telefono, preferencias });
+        const cliente = await modeloCliente.crearCliente({ nombre, telefono, email, preferencias });
         res.status(201).json(cliente);
     } catch (error) {
         console.error('Error en controlador.crearCliente:', error);

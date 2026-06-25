@@ -6,5 +6,8 @@ const rutasApiServicios = Router();
 rutasApiServicios.get('/api/v1/servicios', controlador.obtenerServicios); 
 rutasApiServicios.get('/api/v1/servicios/:servicio_id/empleados', controlador.buscarEmpleadosPorServicio);
 rutasApiServicios.get('/api/v1/servicios/:servicio_id', controlador.obtenerServicioPorId); //Serviría para más adelante
+rutasApiServicios.post('/api/v1/servicios', controlador.crearServicio);
+rutasApiServicios.put('/api/v1/servicios/:id', controlador.actualizarServicio);
+rutasApiServicios.delete('/api/v1/servicios/:id', controlador.eliminarServicio);
 
 export default rutasApiServicios;

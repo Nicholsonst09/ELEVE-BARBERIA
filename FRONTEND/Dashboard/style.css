@@ -481,6 +481,7 @@ textarea.form-input, .grupo-formulario textarea { min-height: 80px; resize: vert
 
 .pie-modal__fila {
   display: flex;
+  flex-direction: column;
   gap: 0.5rem;
 }
 .pie-modal__fila > * {
@@ -494,6 +495,11 @@ textarea.form-input, .grupo-formulario textarea { min-height: 80px; resize: vert
   text-align: center;
   justify-content: center;
 }
+
+.pie-modal--detalles .pie-modal__fila > * {
+  width: 100%;
+}
+
 .pie-modal__zona-peligro {
   padding-top: 0.625rem;
   margin-top: 0.125rem;
@@ -518,8 +524,15 @@ textarea.form-input, .grupo-formulario textarea { min-height: 80px; resize: vert
   line-height: 1;
 }
 .btn-ghost-peligro:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
-.btn-ghost-cancelar { color: var(--c-error); }
-.btn-ghost-cancelar:hover { background: var(--c-error-fondo); }
+.btn-ghost-cancelar {
+  color: var(--c-error);
+  border: 1px solid #fca5a5;
+  background: #fef2f2;
+}
+.btn-ghost-cancelar:hover {
+  background: #fee2e2;
+  border-color: #f87171;
+}
 .btn-ghost-anular { color: #b45309; }
 .btn-ghost-anular:hover { background: #fffbeb; }
 .btn-ghost-sep { color: var(--c-secundario); font-size: 0.75rem; user-select: none; padding: 0 0.125rem; }
@@ -527,8 +540,27 @@ textarea.form-input, .grupo-formulario textarea { min-height: 80px; resize: vert
 @media (max-width: 400px) {
   .txt-largo { display: none; }
   .txt-corto { display: inline; }
-  .pie-modal{
-    padding: 0px;
+  .pie-modal:not(.pie-modal--detalles) {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    padding: 0.625rem 0.75rem;
+  }
+
+  .pie-modal > * {
+    flex: none;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .pie-modal .boton-primario,
+  .pie-modal .boton-secundario {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+    padding: 0.55rem 0.5rem;
+    font-size: 0.75rem;
+    line-height: 1.15;
   }
 }
 
@@ -1185,7 +1217,13 @@ textarea.form-input, .grupo-formulario textarea { min-height: 80px; resize: vert
   color: var(--c-primario); white-space: nowrap;
 }
 
-.pie-turno-boton { flex-shrink: 0; margin-left: 0.5rem; }
+.pie-turno-boton {
+  flex-shrink: 0;
+  margin-left: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
 
 .turno-contenido-fila { display: flex; flex-direction: row; gap: 1rem; flex: 1; min-width: 0; }
 .turno-columna { display: flex; flex-direction: column; gap: 0.25rem; justify-content: center; min-width: 0; }
@@ -1231,12 +1269,31 @@ textarea.form-input, .grupo-formulario textarea { min-height: 80px; resize: vert
   position: absolute;
   top: 3px;
   right: 3px;
+  z-index: 2;
 }
 
 .tarjeta-turno .pie-turno-boton .editar-turno {
   margin-left: 0;
   padding: 0.1875rem;
   background: rgba(249,250,251,0.92);
+}
+
+.btn-ojo-turno {
+  color: var(--c-secundario);
+}
+
+.btn-ojo-turno:hover {
+  background: var(--c-borde);
+  color: var(--c-primario);
+}
+
+.btn-tacho-turno {
+  color: #b45309;
+}
+
+.btn-tacho-turno:hover {
+  background: #fffbeb;
+  color: #92400e;
 }
 
 .editar-turno:hover { background: var(--c-borde); color: var(--c-primario); }
@@ -1895,6 +1952,8 @@ textarea.form-input, .grupo-formulario textarea { min-height: 80px; resize: vert
 .info-elemento p     { font-size: 0.8125rem; color: var(--c-secundario); margin-top: 0.125rem; }
 .info-elemento small { font-size: 0.75rem; color: var(--c-terciario); }
 
+.meta-servicio-mobile { display: none; }
+
 .indicador-estado { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .indicador-estado.activo   { background: var(--c-exito); }
 .indicador-estado.inactivo { background: var(--c-terciario); }
@@ -1935,24 +1994,25 @@ textarea.form-input, .grupo-formulario textarea { min-height: 80px; resize: vert
 /* Contenedor apilador */
 .toast {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
+  top: 1rem;
+  right: 1rem;
+  left: auto;
   z-index: 10000;
   display: flex;
   align-items: center;
   gap: 0.75rem;
   padding: 0.875rem 1rem 0.875rem 1.125rem;
-  border-radius: 0;
+  border-radius: 12px;
   box-shadow: var(--sombra-xl);
-  max-width: 100%;
-  min-width: 0;
+  max-width: min(92vw, 420px);
+  min-width: 280px;
   font-size: 0.875rem;
   font-family: var(--font-body);
   color: white;
+  backdrop-filter: blur(4px);
   /* Estado inicial: invisible arriba */
   opacity: 0;
-  transform: translateY(-100%);
+  transform: translateY(-14px) scale(0.98);
   transition: opacity 0.28s var(--ease), transform 0.28s var(--ease);
   pointer-events: none;
 }
@@ -1960,7 +2020,7 @@ textarea.form-input, .grupo-formulario textarea { min-height: 80px; resize: vert
 /* Estado visible */
 .toast.toast-visible {
   opacity: 1;
-  transform: translateY(0);
+  transform: translateY(0) scale(1);
   pointer-events: auto;
 }
 
@@ -1976,9 +2036,9 @@ textarea.form-input, .grupo-formulario textarea { min-height: 80px; resize: vert
   position: absolute;
   bottom: 0; left: 0;
   height: 3px;
-  border-radius: 0;
+  border-radius: 0 0 12px 12px;
   background: rgba(255,255,255,0.4);
-  animation: toastProgress 4s linear forwards;
+  animation: toastProgress 5s linear forwards;
 }
 
 @keyframes toastProgress {
@@ -2147,7 +2207,7 @@ textarea.form-input, .grupo-formulario textarea { min-height: 80px; resize: vert
   }
 
   /* Botón editar visible y compacto */
-  .pie-turno-boton { display: flex; flex-shrink: 0; }
+  .pie-turno-boton { display: flex; flex-shrink: 0; gap: 0.2rem; }
   .editar-turno {
     padding: 0.25rem;
     margin-left: 0;
@@ -2212,7 +2272,13 @@ textarea.form-input, .grupo-formulario textarea { min-height: 80px; resize: vert
   .cuadricula-metricas-clave { grid-template-columns: 1fr; }
   .metricas-seccion, .metricas-empleados { grid-template-columns: 1fr; }
   .cantidad-financiera, .contador-financiero { font-size: 2.25rem; }
-  .toast { top: 0; bottom: auto; right: 0; left: 0; max-width: 100%; min-width: 0; }
+  .toast {
+    top: 0.75rem;
+    right: 0.75rem;
+    left: 0.75rem;
+    max-width: calc(100% - 1.5rem);
+    min-width: 0;
+  }
   /* encabezado agenda en mobile */
 }
 
@@ -2573,6 +2639,70 @@ textarea.form-input, .grupo-formulario textarea { min-height: 80px; resize: vert
   
   .login-imagen-subtitulo {
     font-size: 0.9375rem;
+  }
+}
+
+@media (max-width: 768px) {
+  #servicios .elemento-lista,
+  #empleados .elemento-lista {
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.875rem 1rem;
+  }
+
+  #servicios .descripcion-servicio-card,
+  #servicios .pros-asignados-lista,
+  #empleados .email-empleado-card,
+  #empleados .pros-asignados-lista {
+    display: none;
+  }
+
+  #empleados .resumen-horario-empleado {
+    margin-top: 0.25rem;
+  }
+
+  #empleados .resumen-horario-empleado .badge-dia-activo {
+    display: none;
+  }
+
+  #empleados .texto-horas-resumen {
+    font-size: 0.75rem;
+    color: var(--c-terciario);
+  }
+
+  #servicios .meta-servicio-card,
+  #empleados .especialidades-empleado-card {
+    font-size: 0.75rem;
+  }
+
+  #servicios .meta-servicio-desktop { display: none; }
+  #servicios .meta-servicio-mobile { display: inline; }
+}
+
+@media (max-width: 480px) {
+  #servicios .elemento-lista,
+  #empleados .elemento-lista {
+    gap: 0.625rem;
+    padding: 0.75rem 0.875rem;
+  }
+
+  #empleados .avatar-empleado {
+    width: 38px;
+    height: 38px;
+    font-size: 0.8125rem;
+  }
+
+  #servicios .acciones-elemento,
+  #empleados .acciones-elemento {
+    gap: 0.375rem;
+  }
+
+  #empleados .resumen-horario-empleado {
+    display: none;
+  }
+
+  #servicios .meta-servicio-card {
+    margin-top: 0.2rem;
   }
 }
 

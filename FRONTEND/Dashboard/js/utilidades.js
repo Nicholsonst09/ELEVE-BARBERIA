@@ -64,8 +64,8 @@ export function showNotification(message, type = "info") {
   // Cerrar manual
   toast.querySelector(".toast-cerrar").addEventListener("click", () => cerrarToast(toast))
 
-  // Auto-cierre a los 4 s
-  setTimeout(() => cerrarToast(toast), 4000)
+  // Auto-cierre a los 5 s
+  setTimeout(() => cerrarToast(toast), 5000)
 }
 
 function cerrarToast(toast) {

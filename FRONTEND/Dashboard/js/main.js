@@ -9,9 +9,11 @@ import * as api from './api.js';
 
 // ─── HISTORIAL ───────────────────────────────────────────────────────────────
 const ETIQUETAS_HISTORIAL = {
-  pendiente:  { txt: 'Pendiente',  cls: 'estado-pendiente'  },
-  confirmado: { txt: 'Confirmado', cls: 'estado-confirmado' },
-  realizado:  { txt: 'Realizado',  cls: 'estado-realizado'  },
+  pendiente:  { txt: 'Reservado',  cls: 'estado-pendiente'  },
+  confirmado: { txt: 'Reservado',  cls: 'estado-confirmado' },
+  reservado:  { txt: 'Reservado',  cls: 'estado-pendiente'  },
+  realizado:  { txt: 'Completado', cls: 'estado-realizado'  },
+  completado: { txt: 'Completado', cls: 'estado-realizado'  },
   cancelado:  { txt: 'Cancelado',  cls: 'estado-cancelado'  },
   anulado:    { txt: 'Eliminado',  cls: 'estado-anulado'    },
 };
@@ -225,7 +227,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   estado.servicios = serviciosAPI;
 
   if (estado.profesionales.length > 0) {
-    estado.profesionalSeleccionado = 'pendiente';
+    estado.profesionalSeleccionado = 'reservado';
   }
 
   try {

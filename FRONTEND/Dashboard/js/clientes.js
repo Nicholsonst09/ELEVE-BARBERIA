@@ -3,6 +3,7 @@ import { showNotification, confirmarAccion, setBtnLoading } from "./utilidades.j
 import { fetchClientes, updateCliente, deleteCliente } from "./api.js"
 
 let clientesFiltrados = []
+let estadisticasClientes = null
 
 export async function inicializarClientes() {
   await cargarClientes()
@@ -13,7 +14,9 @@ export async function inicializarClientes() {
 
 async function cargarClientes() {
   try {
-    estado.clientes = await fetchClientes()
+    const respuesta = await fetchClientes()
+    estado.clientes = respuesta.clientes || []
+    estadisticasClientes = respuesta.estadisticas || null
     clientesFiltrados = [...estado.clientes]
   } catch (error) {
     console.error("Error al cargar clientes", error)
@@ -29,7 +32,8 @@ function setupClientesEventListeners() {
       clientesFiltrados = estado.clientes.filter(
         (cliente) =>
           cliente.nombre.toLowerCase().includes(termino) ||
-          cliente.telefono.toLowerCase().includes(termino) ||
+          (cliente.telefono || "").toLowerCase().includes(termino) ||
+          (cliente.email || "").toLowerCase().includes(termino) ||
           (cliente.preferencias && cliente.preferencias.toLowerCase().includes(termino)),
       )
       renderizarClientes()
@@ -46,6 +50,11 @@ function setupClientesEventListeners() {
   const btnCerrarModal = document.querySelector('#modal-cliente .cerrar-modal')
   if (btnCerrarModal) {
     btnCerrarModal.addEventListener('click', cerrarModalCliente)
+  }
+
+  const btnCancelarModal = document.querySelector('#modal-cliente .btn-cancelar-cliente')
+  if (btnCancelarModal) {
+    btnCancelarModal.addEventListener('click', cerrarModalCliente)
   }
 
   const formCliente = document.getElementById('form-cliente')
@@ -68,7 +77,9 @@ function renderizarClientes() {
       <div class="info-elemento">
         <h4>${cliente.nombre}</h4>
         <p>${cliente.telefono || 'Sin teléfono'}</p>
+        ${cliente.email ? `<p>${cliente.email}</p>` : ''}
         ${cliente.preferencias ? `<small>${cliente.preferencias}</small>` : ''}
+        <small>${cliente.visitas_realizadas || 0} visitas realizadas</small>
       </div>
       <div class="acciones-elemento">
         <button class="boton-icono editar" data-cliente-id="${cliente.id}" title="Editar">
@@ -105,7 +116,8 @@ export function abrirModalCliente(clienteId = null) {
     titulo.textContent = "Editar Cliente"
     document.getElementById("cliente-id").value = cliente.id
     document.getElementById("cliente-nombre").value = cliente.nombre
-    document.getElementById("cliente-telefono").value = cliente.telefono
+    document.getElementById("cliente-telefono").value = cliente.telefono || ""
+    document.getElementById("cliente-email").value = cliente.email || ""
     document.getElementById("cliente-notas").value = cliente.preferencias || ""
   } else {
     titulo.textContent = "Nuevo Cliente"
@@ -134,6 +146,7 @@ export async function guardarCliente(e) {
     id: document.getElementById("cliente-id").value || null,
     nombre: document.getElementById("cliente-nombre").value.trim(),
     telefono: document.getElementById("cliente-telefono").value.trim(),
+    email: document.getElementById("cliente-email").value.trim(),
     preferencias: document.getElementById("cliente-notas").value.trim(),
   }
 
@@ -152,30 +165,36 @@ export async function guardarCliente(e) {
 
 export async function eliminarClienteConfirm(clienteId) {
   const ok = await confirmarAccion(
-    '¿Estás seguro? Se eliminará el cliente y todos sus turnos asociados. Esta acción no se puede deshacer.',
-    'Eliminar cliente',
-    'Sí, eliminar'
+    '¿Estás seguro? El cliente se dará de baja y dejará de aparecer en el módulo, pero sus turnos e historial se conservarán.',
+    'Dar de baja cliente',
+    'Sí, dar de baja'
   )
   if (!ok) return
 
   const resultado = await deleteCliente(clienteId)
   if (resultado) {
-    showNotification("Cliente eliminado correctamente", "success")
+    showNotification("Cliente dado de baja correctamente", "success")
     await cargarClientes()
     renderizarClientes()
     actualizarMetricasClientes()
   } else {
-    showNotification("Error al eliminar cliente", "error")
+    showNotification("Error al dar de baja el cliente", "error")
   }
 }
 
 function actualizarMetricasClientes() {
   const clientes = estado.clientes || [];
-  const totalClientes = clientes.length;
-  
-  // Datos simulados - reemplazar con datos reales del backend
-  const clientesMes = 8;
-  const clientesFrecuentes = 12;
+  const totalClientes = estadisticasClientes?.total ?? clientes.length;
+  const clientesMes = estadisticasClientes?.nuevos_este_mes
+    ?? clientes.filter(cliente => {
+      if (!cliente.creado) return false;
+      const creado = new Date(cliente.creado);
+      const limite = new Date();
+      limite.setDate(limite.getDate() - 30);
+      return creado >= limite;
+    }).length;
+  const clientesFrecuentes = estadisticasClientes?.clientes_frecuentes
+    ?? clientes.filter(cliente => (cliente.visitas_realizadas || 0) > 5).length;
 
   const totalClientesEl = document.getElementById('total-clientes');
   const clientesMesEl = document.getElementById('clientes-mes');

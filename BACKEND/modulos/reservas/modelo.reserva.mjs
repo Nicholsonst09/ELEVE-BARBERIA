@@ -72,7 +72,7 @@ async function obtenerHorariosDisponibles(empleado_id, duracion_min, fecha) {
 
 // ─── Crear reserva ────────────────────────────────────────────────────────────
 
-// Crea o recupera el cliente, luego crea el turno en estado 'pendiente'
+// Crea o recupera el cliente, luego crea el turno en estado 'reservado'
 async function crearReserva({ nombre, telefono, email, servicio_id, empleado_id, fecha, hora_inicio, observaciones }) {
     try {
         // 1. Obtener el servicio para saber precio y duración
@@ -95,7 +95,21 @@ async function crearReserva({ nombre, telefono, email, servicio_id, empleado_id,
         const finMinutos = hh * 60 + mm + servicio.duracion_min;
         const hora_fin = `${String(Math.floor(finMinutos / 60)).padStart(2, '0')}:${String(finMinutos % 60).padStart(2, '0')}`;
 
-        // 4. Crear el turno
+        // 4. Verificar solapamiento real con el rango completo del turno
+        const conflicto = await modeloTurno.verificarSolapamiento(
+            empleado_id,
+            fecha,
+            hora_inicio,
+            hora_fin
+        );
+
+        if (conflicto) {
+            throw new Error(
+                `El profesional ya tiene un turno de ${String(conflicto.hora_inicio || '').substring(0, 5)} a ${String(conflicto.hora_fin || '').substring(0, 5)} que se superpone con el horario solicitado.`
+            );
+        }
+
+        // 5. Crear el turno
         const turno = await modeloTurno.agregarTurno({
             cliente_id,
             empleado_id,
@@ -103,7 +117,7 @@ async function crearReserva({ nombre, telefono, email, servicio_id, empleado_id,
             fecha,
             hora_inicio,
             hora_fin,
-            estado: 'pendiente',
+            estado: 'reservado',
             precio: servicio.precio,
             observaciones: observaciones || null
         });

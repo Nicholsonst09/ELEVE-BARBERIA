@@ -1,9 +1,34 @@
 import { supabaseAdmin } from "../../db/supabaseClient.mjs";
+import {
+    obtenerConfiguracionHorarioNegocio,
+    obtenerNombreDiaSemana
+} from '../../config/horariosNegocio.mjs';
 
 // ─── Cache de estados de turno ────────────────────────────────────────────────
 // Evita consultar estado_turno en cada operación. Se invalida nunca (son datos
 // de catálogo que no cambian en runtime).
 let _estadosTurnoCache = null;
+
+function normalizarCodigoEstado(codigo) {
+    if (!codigo) return null;
+    if (codigo === 'pendiente' || codigo === 'confirmado') return 'reservado';
+    if (codigo === 'realizado') return 'completado';
+    return codigo;
+}
+
+function resolverCodigoEstadoPersistencia(codigo, estadosDisponibles = {}) {
+    if (!codigo) return null;
+    if (estadosDisponibles[codigo]) return codigo;
+
+    // Compatibilidad con catálogos anteriores
+    if (codigo === 'reservado') {
+        if (estadosDisponibles.confirmado) return 'confirmado';
+        if (estadosDisponibles.pendiente) return 'pendiente';
+    }
+    if (codigo === 'completado' && estadosDisponibles.realizado) return 'realizado';
+
+    return codigo;
+}
 
 async function obtenerEstadosTurnoMap() {
     if (_estadosTurnoCache) return _estadosTurnoCache;
@@ -37,9 +62,10 @@ const SELECT_TURNO_BASE = `
 // usa el controlador, manteniendo compatibilidad con la máquina de estados.
 function mapearEstado(turno) {
     const { estado_turno, ...resto } = turno;
+    const estadoCodigoNormalizado = normalizarCodigoEstado(estado_turno?.codigo || null);
     return {
         ...resto,
-        estado:          estado_turno?.codigo        || null,
+        estado:          estadoCodigoNormalizado,
         estado_nombre:   estado_turno?.nombre         || null,
         permite_cambios: estado_turno?.permite_cambios ?? true
     };
@@ -100,7 +126,7 @@ async function agregarTurno(nuevoTurno) {
 
         // Resolver el código de estado a su ID en la tabla estado_turno
         const estados = await obtenerEstadosTurnoMap();
-        const codigoEstado = estado || 'pendiente';
+        const codigoEstado = resolverCodigoEstadoPersistencia(estado || 'reservado', estados);
         const estadoObj = estados[codigoEstado];
         if (!estadoObj) throw new Error(`Estado '${codigoEstado}' no encontrado en estado_turno.`);
 
@@ -163,7 +189,8 @@ async function modificarTurno(id, turnoModificar) {
         // Resolver estado → estado_id solo si se envió un estado
         if (estado !== undefined) {
             const estados = await obtenerEstadosTurnoMap();
-            const estadoObj = estados[estado];
+            const codigoEstado = resolverCodigoEstadoPersistencia(estado, estados);
+            const estadoObj = estados[codigoEstado];
             if (!estadoObj) throw new Error(`Estado '${estado}' no encontrado en estado_turno.`);
             actualizacion.estado_id = estadoObj.id;
         }
@@ -234,6 +261,65 @@ async function obtenerHorariosDisponibles(empleado_id, fecha, duracionServicio, 
             };
         }
 
+        const { data: empleado, error: errorEmpleado } = await supabaseAdmin
+            .from('empleados')
+            .select('horarios_disponibles')
+            .eq('id', empleado_id)
+            .single();
+
+        if (errorEmpleado) throw errorEmpleado;
+
+        const horarioEmpleado = obtenerHorarioEmpleadoParaFecha(empleado?.horarios_disponibles, fecha);
+
+        if (horarioEmpleado && horarioEmpleado.activo === false) {
+            const [año, mes, dia] = fecha.split('-').map(Number);
+            const fechaElegida = new Date(año, mes - 1, dia);
+            const diaSemana = fechaElegida.getDay();
+
+            return {
+                fecha,
+                empleado_id,
+                error: 'El empleado no trabaja este día',
+                horarios_disponibles: [],
+                horarios_ocupados: [],
+                total_disponibles: 0,
+                total_ocupados: 0,
+                resumen: {
+                    total_slots_posibles: 0,
+                    porcentaje_ocupacion: 0,
+                    dia: obtenerNombreDia(diaSemana),
+                    cerrado: true
+                }
+            };
+        }
+
+        const aperturaEfectiva = obtenerHoraMayor(
+            horarioBarberia.apertura,
+            horarioEmpleado?.desde || horarioBarberia.apertura
+        );
+        const cierreEfectivo = obtenerHoraMenor(
+            horarioBarberia.cierre,
+            horarioEmpleado?.hasta || horarioBarberia.cierre
+        );
+
+        if (convertirHoraAMinutos(aperturaEfectiva) >= convertirHoraAMinutos(cierreEfectivo)) {
+            return {
+                fecha,
+                empleado_id,
+                error: 'No hay horario disponible del empleado dentro del horario del negocio',
+                horarios_disponibles: [],
+                horarios_ocupados: [],
+                total_disponibles: 0,
+                total_ocupados: 0,
+                resumen: {
+                    total_slots_posibles: 0,
+                    porcentaje_ocupacion: 0,
+                    dia: horarioBarberia.nombreDia,
+                    cerrado: true
+                }
+            };
+        }
+
         // Obtener turnos del empleado en esa fecha y filtrar activos en JS
         const {data: turnosBD, error: errorTurnos} = await supabaseAdmin
             .from('turnos')
@@ -253,8 +339,8 @@ async function obtenerHorariosDisponibles(empleado_id, fecha, duracionServicio, 
             
             // Horarios posibles del día usando la configuración dinámica
             const horariosDelDia = generarHorariosDelDia(
-                horarioBarberia.apertura, 
-                horarioBarberia.cierre, 
+                aperturaEfectiva,
+                cierreEfectivo,
                 duracionServicio
             );
     
@@ -286,8 +372,8 @@ async function obtenerHorariosDisponibles(empleado_id, fecha, duracionServicio, 
                 total_disponibles: horariosDisponibles.length,
                 total_ocupados: turnosOcupados.length,
                 horarios_negocio: {
-                    apertura: horarioBarberia.apertura,
-                    cierre: horarioBarberia.cierre,
+                    apertura: aperturaEfectiva,
+                    cierre: cierreEfectivo,
                     dia: horarioBarberia.nombreDia
                 },
                 resumen: {
@@ -304,6 +390,43 @@ async function obtenerHorariosDisponibles(empleado_id, fecha, duracionServicio, 
         
 }
 
+function obtenerHorarioEmpleadoParaFecha(horariosDisponibles, fecha) {
+    if (!horariosDisponibles || typeof horariosDisponibles !== 'object') {
+        return null;
+    }
+
+    const [año, mes, dia] = fecha.split('-').map(Number);
+    const fechaElegida = new Date(año, mes - 1, dia);
+    const diaSemana = fechaElegida.getDay();
+    const clavesPorDia = {
+        0: 'domingo',
+        1: 'lunes',
+        2: 'martes',
+        3: 'miercoles',
+        4: 'jueves',
+        5: 'viernes',
+        6: 'sabado'
+    };
+
+    const clave = clavesPorDia[diaSemana];
+    const horario = horariosDisponibles?.[clave];
+    if (!horario) return null;
+
+    return {
+        activo: horario.activo !== false,
+        desde: horario.desde || '09:00',
+        hasta: horario.hasta || '18:00'
+    };
+}
+
+function obtenerHoraMayor(horaA, horaB) {
+    return convertirHoraAMinutos(horaA) >= convertirHoraAMinutos(horaB) ? horaA : horaB;
+}
+
+function obtenerHoraMenor(horaA, horaB) {
+    return convertirHoraAMinutos(horaA) <= convertirHoraAMinutos(horaB) ? horaA : horaB;
+}
+
 //Obtener horarios según el día de la semana
 function obtenerHorariosDelDia(fecha) {
     try{
@@ -311,7 +434,7 @@ function obtenerHorariosDelDia(fecha) {
         const fechaElegida = new Date(año, mes - 1, dia); // mes - 1 porque Date usa 0-11 para meses
         const diaSemana = fechaElegida.getDay(); // 0 Sería Domingo, 1 Lunes y así
     
-        const detalleDelDia = HORARIOS_POR_DIA[diaSemana];
+        const detalleDelDia = obtenerConfiguracionHorarioNegocio(diaSemana);
 
         if (!detalleDelDia || !detalleDelDia.activo) {
             return null; // Barberia cerrada
@@ -330,49 +453,9 @@ function obtenerHorariosDelDia(fecha) {
     }
 }
 
-// Configuración de horarios por día de la semana
-const HORARIOS_POR_DIA = {
-    1: { // Lunes
-        apertura: "13:00",
-        cierre: "21:00",
-        activo: true
-    },
-    2: { // Martes
-        apertura: "09:00",
-        cierre: "21:00",
-        activo: true
-    },
-    3: { // Miércoles
-        apertura: "09:00",
-        cierre: "21:00",
-        activo: true
-    },
-    4: { // Jueves
-        apertura: "09:00",
-        cierre: "21:00",
-        activo: true
-    },
-    5: { // Viernes
-        apertura: "09:00",
-        cierre: "21:00",
-        activo: true
-    },
-    6: { // Sábado
-        apertura: "09:00",
-        cierre: "21:00",
-        activo: true
-    },
-    0: { // Domingo
-        apertura: "09:00",
-        cierre: "21:00",
-        activo: false // Cerrado 
-    }
-};
-
 // Función auxiliar para obtener el nombre del día
 function obtenerNombreDia(dia) {
-    const nombresDias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-    return nombresDias[dia];
+    return obtenerNombreDiaSemana(dia);
 }
 
 // Función para verificar si el negocio está abierto en una fecha específica
@@ -498,7 +581,8 @@ async function obtenerTurnosConDetalles({empleadoId, fecha}){
                 estado_turno!estado_id(id, codigo, nombre, permite_cambios),
                 empleados!inner(nombre),
                 clientes!inner(nombre, telefono),
-                servicios!inner(nombre)
+                servicios!inner(nombre),
+                pagos(metodo_pago_id, metodos_pago(nombre), creado)
             `, {count: 'exact'});
 
             //Filtrar por empleado (si tengo el id)
@@ -521,6 +605,8 @@ async function obtenerTurnosConDetalles({empleadoId, fecha}){
             }
             //Armar la respuesta
             const turnosPresentables = turnos.map(turno => ({
+                pago_reciente: (turno.pagos || [])
+                    .sort((a, b) => new Date(b.creado || 0) - new Date(a.creado || 0))[0] || null,
                 id: turno.id,
                 fecha: turno.fecha,
                 hora: turno.hora_inicio,
@@ -533,6 +619,9 @@ async function obtenerTurnosConDetalles({empleadoId, fecha}){
                 empleado_id: turno.empleado_id,
                 servicio_id: turno.servicio_id,
                 observaciones: turno.observaciones,
+                metodoPago: ((turno.pagos || [])
+                    .sort((a, b) => new Date(b.creado || 0) - new Date(a.creado || 0))[0]
+                    ?.metodos_pago?.nombre) || null,
 
                 nombre_empleado: turno.empleados?.nombre || 'N/A',
                 nombre_cliente: turno.clientes?.nombre || 'N/A',
@@ -546,6 +635,107 @@ async function obtenerTurnosConDetalles({empleadoId, fecha}){
             };
     } catch (error) {
         console.error("Error al obtener turnos con detalles:", error.message);
+        throw error;
+    }
+}
+
+async function registrarPagoTurno(turnoId, { metodo, monto = null, registrado_por = null }) {
+    try {
+        const turnoIdNum = Number(turnoId);
+        if (!Number.isFinite(turnoIdNum)) {
+            throw new Error('ID de turno invalido.');
+        }
+
+        const { data: turno, error: errorTurno } = await supabaseAdmin
+            .from('turnos')
+            .select('id, precio')
+            .eq('id', turnoIdNum)
+            .single();
+
+        if (errorTurno) {
+            if (errorTurno.code === 'PGRST116') {
+                throw new Error('Turno no encontrado.');
+            }
+            throw errorTurno;
+        }
+
+        let { data: metodoPago, error: errorMetodo } = await supabaseAdmin
+            .from('metodos_pago')
+            .select('id, nombre')
+            .eq('nombre', metodo)
+            .eq('activo', true)
+            .maybeSingle();
+
+        if (errorMetodo) throw errorMetodo;
+
+        if (!metodoPago?.id) {
+            const { data: metodoCreado, error: errorCreacionMetodo } = await supabaseAdmin
+                .from('metodos_pago')
+                .upsert([{ nombre: metodo, activo: true }], { onConflict: 'nombre' })
+                .select('id, nombre')
+                .single();
+
+            if (errorCreacionMetodo) throw errorCreacionMetodo;
+            metodoPago = metodoCreado;
+        }
+
+        if (!metodoPago?.id) {
+            throw new Error(`No se pudo resolver el metodo de pago '${metodo}'.`);
+        }
+
+        const montoFinal = Number.isFinite(Number(monto)) && Number(monto) > 0
+            ? Number(monto)
+            : Number(turno.precio);
+
+        if (!Number.isFinite(montoFinal) || montoFinal <= 0) {
+            throw new Error('No se pudo determinar un monto de pago valido.');
+        }
+
+        const { data: pagoExistente, error: errorPagoExistente } = await supabaseAdmin
+            .from('pagos')
+            .select('id')
+            .eq('turno_id', turnoIdNum)
+            .order('creado', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (errorPagoExistente) throw errorPagoExistente;
+
+        if (pagoExistente?.id) {
+            const payloadUpdate = {
+                monto: montoFinal,
+                metodo_pago_id: metodoPago.id
+            };
+            if (registrado_por) payloadUpdate.registrado_por = registrado_por;
+
+            const { error: errorUpdate } = await supabaseAdmin
+                .from('pagos')
+                .update(payloadUpdate)
+                .eq('id', pagoExistente.id);
+
+            if (errorUpdate) throw errorUpdate;
+        } else {
+            const payloadInsert = {
+                turno_id: turnoIdNum,
+                monto: montoFinal,
+                metodo_pago_id: metodoPago.id,
+                registrado_por: registrado_por || null
+            };
+
+            const { error: errorInsert } = await supabaseAdmin
+                .from('pagos')
+                .insert([payloadInsert]);
+
+            if (errorInsert) throw errorInsert;
+        }
+
+        return {
+            turno_id: turnoIdNum,
+            metodo: metodoPago.nombre,
+            monto: montoFinal
+        };
+    } catch (error) {
+        console.error(`Error al registrar pago del turno ${turnoId}:`, error.message);
         throw error;
     }
 }
@@ -711,7 +901,7 @@ async function obtenerTurnosReservadosEnVentanaRecordatorio(desdeISO, hastaISO) 
 
         return (turnos || [])
             .map(mapearTurnoNotificacion)
-            .filter(t => ['pendiente', 'confirmado'].includes(t.estado))
+            .filter(t => t.estado === 'reservado')
             .filter(t => {
                 if (!t.email_cliente) return false;
                 const hora = (t.hora_inicio || '').substring(0, 5);
@@ -739,6 +929,7 @@ export default {
     eliminarTurno,
     obtenerHorariosDisponibles,
     obtenerTurnosConDetalles,
+    registrarPagoTurno,
     verificarSolapamiento,
     cancelarPendientesVencidos,
     obtenerTurnoParaNotificacion,

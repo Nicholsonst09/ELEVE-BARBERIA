@@ -9,6 +9,7 @@ import {
   fetchTurnosPendientesCount,
   eliminarTurno,
   createOrUpdateTurno,
+  registrarPagoTurno,
   fetchProfesionalesPorServicio,
   fetchHorariosDisponibles,
   buscarOCrearCliente
@@ -32,20 +33,27 @@ let _recargarDashboardStats = () => console.warn('recargarDashboardStats no inye
 
 // --- Máquina de estados de turnos ---
 const TRANSICIONES_VALIDAS = {
-  pendiente:  ['confirmado', 'cancelado', 'anulado'],
-  confirmado: ['realizado', 'cancelado', 'anulado'],
-  realizado:  [],
+  reservado:  ['completado', 'cancelado', 'anulado'],
+  completado: [],
   cancelado:  [],
   anulado:    [],
 };
 
 const ETIQUETAS_ESTADO = {
-  pendiente:  'Pendiente',
-  confirmado: 'Confirmado',
-  realizado:  'Realizado',
+  pendiente:  'Reservado',
+  confirmado: 'Reservado',
+  reservado:  'Reservado',
+  realizado:  'Completado',
+  completado: 'Completado',
   cancelado:  'Cancelado',
   anulado:    'Anulado',
 };
+
+const ESTADOS_RESERVADOS = ['reservado'];
+
+function esEstadoReservado(estadoTurno) {
+  return ESTADOS_RESERVADOS.includes(String(estadoTurno || '').toLowerCase());
+}
 
 function validarTransicion(estadoActual, estadoNuevo) {
   if (estadoActual === estadoNuevo) return true;
@@ -85,13 +93,15 @@ function obtenerEstiloTurno(horaInicio, horaFin, alturaSlot = 150) {
 
 function obtenerEtiquetaEstado(estado) {
   const etiquetas = {
-    confirmado: "Confirmado",
-    pendiente: "Pendiente",
-    realizado: "Realizado",
+    confirmado: "Reservado",
+    pendiente: "Reservado",
+    reservado: "Reservado",
+    realizado: "Completado",
+    completado: "Completado",
     cancelado: "Cancelado",
     anulado:   "Anulado",
   };
-  return etiquetas[estado] || "Pendiente";
+  return etiquetas[estado] || "Reservado";
 }
 
 
@@ -117,26 +127,6 @@ function calcularDuracionEnMinutos(fecha, horaInicio, horaFin) {
 }
 
 
-/**
- * Verifica si un turno pendiente aún puede ser confirmado.
- * La ventana de confirmación cierra 30 minutos antes de la hora del turno.
- * Para turnos de otro día (no hoy), siempre devuelve true.
- * @param {Object} turno
- * @returns {boolean}
- */
-function estaEnVentanaDeConfirmacion(turno) {
-  const hoy = formatearFechaParaAPI(new Date());
-  if (turno.fecha !== hoy) return true;
-
-  const ahora = new Date();
-  const [h, m] = turno.hora.split(':').map(Number);
-  const horaTurno = new Date();
-  horaTurno.setHours(h, m, 0, 0);
-
-  const minutosRestantes = (horaTurno - ahora) / 60000;
-  return minutosRestantes > 15;
-}
-
 function yaComenzóElTurno(turno) {
   const horaStr = (turno.hora || turno.hora_inicio || '').substring(0, 5);
   const fechaTurno = new Date(`${turno.fecha}T${horaStr}:00`);
@@ -153,7 +143,7 @@ function renderizarNavegacion() {
   const turnosDia = estado.turnosPendientesCount;
 
   let html = `
-    <button class="pestana-navegacion pendiente ${estado.profesionalSeleccionado === "pendiente" ? "activo" : ""}" data-id="pendiente">
+    <button class="pestana-navegacion pendiente ${estado.profesionalSeleccionado === "reservado" ? "activo" : ""}" data-id="reservado">
       <svg class="icono" style="color: var(--color-primario);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <circle cx="12" cy="12" r="10" stroke-width="2"/>
         <line x1="12" y1="8" x2="12" y2="12" stroke-width="2" stroke-linecap="round"/>
@@ -184,9 +174,8 @@ function renderizarNavegacion() {
   const leyenda = document.getElementById("leyendaEstados");
   if (leyenda) {
     leyenda.innerHTML = `
-      <span class="leyenda-item"><span class="leyenda-dot" style="background:#f59e0b;"></span>Pendiente</span>
-      <span class="leyenda-item"><span class="leyenda-dot" style="background:#0369a1;"></span>Confirmado</span>
-      <span class="leyenda-item"><span class="leyenda-dot" style="background:#111111;"></span>Realizado</span>
+      <span class="leyenda-item"><span class="leyenda-dot" style="background:#f59e0b;"></span>Reservado</span>
+      <span class="leyenda-item"><span class="leyenda-dot" style="background:#111111;"></span>Completado</span>
     `;
   }
 
@@ -202,7 +191,7 @@ function renderizarNavegacion() {
 function renderizarEncabezado() {
   const turnosFiltrados = estado.turnos.filter(t => t.estado !== 'cancelado' && t.estado !== 'anulado');
   const profesional = estado.profesionales.find(p => p.id == estado.profesionalSeleccionado);
-  const titulo = estado.profesionalSeleccionado === "pendiente" ? "Turnos del Día" : (profesional?.nombre || "Turnos del Día");
+  const titulo = estado.profesionalSeleccionado === "reservado" ? "Turnos del Día" : (profesional?.nombre || "Turnos del Día");
 
   document.getElementById("tituloEncabezado").textContent = titulo;
   const fechaCorta = estado.fechaActual
@@ -267,6 +256,7 @@ function detectarSuperposiciones(turnos) {
 
 function renderizarGrilla() {
   const cuerpoGrilla = document.getElementById("cuerpoGrilla");
+  const esAdmin = obtenerSesion()?.rol === 'admin';
   const turnosFiltrados = estado.turnos.filter(t => t.estado !== 'cancelado' && t.estado !== 'anulado');
   let ranuraHtml = "";
   horariosDelDia.forEach((hora) => {
@@ -322,9 +312,8 @@ function renderizarGrilla() {
     
     // Usar el color según el estado del turno
     const coloresEstado = {
-      pendiente:  '#f59e0b',
-      confirmado: '#0369a1',
-      realizado:  '#111111',
+      reservado:  '#f59e0b',
+      completado: '#111111',
       cancelado:  '#dc2626',
       anulado:    '#6b7280',
     };
@@ -355,15 +344,80 @@ function renderizarGrilla() {
       </div>
       
       <div class="pie-turno-boton">
-        <div class="editar-turno">
+        <button type="button" class="editar-turno btn-ojo-turno" title="Ver detalles" aria-label="Ver detalles del turno">
           <svg class="icono" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
           </svg>
-        </div>
+        </button>
+        ${esAdmin && esEstadoReservado(turno.estado) ? `
+          <button type="button" class="editar-turno btn-tacho-turno" title="Eliminar turno" aria-label="Eliminar turno">
+            <svg class="icono" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3m-7 0h8"/>
+            </svg>
+          </button>
+        ` : ''}
       </div>
     `;
     // --- FIN DE MODIFICACIÓN 3 ---
+
+    const btnOjo = tarjeta.querySelector('.btn-ojo-turno');
+    if (btnOjo) {
+      btnOjo.addEventListener('click', (event) => {
+        event.stopPropagation();
+        estado.turnoSeleccionado = turno;
+        estado.modoEdicion = false;
+        renderizarModal();
+      });
+    }
+
+    const btnTacho = tarjeta.querySelector('.btn-tacho-turno');
+    if (btnTacho) {
+      btnTacho.addEventListener('click', async (event) => {
+        event.stopPropagation();
+
+        const confirmado = await confirmarAccion(
+          `¿Eliminás el turno de ${turno.nombre_cliente}?`,
+          'Eliminar turno',
+          'Sí, eliminar',
+          'Motivo sugerido: error de creación.'
+        );
+        if (!confirmado) return;
+
+        const restaurar = setBtnLoading(btnTacho, '...');
+        try {
+          const payload = {
+            ...turno,
+            id: turno.id,
+            cliente_id: turno.cliente_id,
+            empleado_id: turno.empleado_id,
+            servicio_id: turno.servicio_id,
+            hora_inicio: turno.hora ? turno.hora.substring(0, 5) : turno.hora_inicio,
+            hora_fin: turno.hora_fin ? turno.hora_fin.substring(0, 5) : turno.hora_fin,
+            estado: 'anulado',
+          };
+          const resultado = await createOrUpdateTurno(payload);
+          restaurar();
+
+          if (resultado) {
+            if (estado.turnoSeleccionado?.id === turno.id) {
+              estado.turnoSeleccionado = null;
+              estado.modoEdicion = false;
+              estado.modoRegistrarPago = false;
+              renderizarModal();
+            }
+            showNotification('Turno eliminado.', 'success');
+            recargarTurnosYAgenda();
+            _recargarDashboardStats();
+          } else {
+            showNotification('No se pudo eliminar el turno.', 'error');
+          }
+        } catch (error) {
+          restaurar();
+          showNotification('Error al eliminar el turno.', 'error');
+        }
+      });
+    }
 
     tarjeta.addEventListener("click", () => {
       estado.turnoSeleccionado = turno;
@@ -466,13 +520,13 @@ export function renderizarModal() {
   // --- MODO 2: EDITAR TURNO EXISTENTE ---
   else if (estado.modoEdicion) {
 
-    // ── Turno REALIZADO: solo se puede cambiar el cliente ──────────────────
-    if (turno.estado === 'realizado') {
+    // ── Turno COMPLETADO: solo se puede cambiar el cliente ──────────────────
+    if (turno.estado === 'completado') {
       tituloModal.textContent = "Corregir Cliente";
       cuerpoModal.innerHTML = `
         <form id="formEdicionCliente">
           <p style="color: var(--color-secundario); font-size: 0.85rem; margin-bottom: 1rem;">
-            Este turno ya fue realizado. Solo podés corregir los datos del cliente.
+            Este turno ya fue completado. Solo podés corregir los datos del cliente.
           </p>
           <div class="grupo-formulario">
             <label class="form-label" for="nombreCliente">Nombre del Cliente</label>
@@ -499,7 +553,7 @@ export function renderizarModal() {
 
     tituloModal.textContent = "Modificar Turno";
 
-    // En turnos no realizados, también se pueden ajustar datos del cliente.
+    // En turnos no completados, también se pueden ajustar datos del cliente.
     cuerpoModal.innerHTML = `
         <form id="formEdicion">
           <input type="hidden" id="horaInicioSeleccionada" required>
@@ -552,7 +606,7 @@ export function renderizarModal() {
           <div class="grupo-formulario">
             <label class="form-label" for="estado">Estado</label>
               <select id="estado" class="form-select" required>
-              ${[turno.estado || 'pendiente', ...(TRANSICIONES_VALIDAS[turno.estado || 'pendiente'] || [])].map(e =>
+              ${[turno.estado || 'reservado', ...(TRANSICIONES_VALIDAS[turno.estado || 'reservado'] || [])].map(e =>
                 `<option value="${e}">${ETIQUETAS_ESTADO[e] || e}</option>`
               ).join('')}
             </select>
@@ -592,7 +646,6 @@ export function renderizarModal() {
           <option value="efectivo"   ${metodoActual === 'efectivo'       ? 'selected' : ''}>Efectivo</option>
           <option value="transferencia" ${metodoActual === 'transferencia' ? 'selected' : ''}>Transferencia</option>
           <option value="tarjeta"    ${metodoActual === 'tarjeta'        ? 'selected' : ''}>Tarjeta</option>
-          <option value="sin_pago"   ${metodoActual === 'sin_pago'       ? 'selected' : ''}>Sin pago</option>
         </select>
       </div>
       <div class="pie-modal">
@@ -618,14 +671,14 @@ export function renderizarModal() {
     cuerpoModal.innerHTML = `
       <div class="detalles-turno-container">
         <div class="detalles-turno-header">
-          <div class="detalles-turno-nombre">${cliente.nombre}</div>
-          <div class="insignia-estado estado-${turno.estado || 'pendiente'}">${obtenerEtiquetaEstado(turno.estado || 'pendiente')}</div>
+          <div class="detalles-turno-nombre">${profesional.nombre || cliente.nombre}</div>
+          <div class="insignia-estado estado-${turno.estado || 'reservado'}">${obtenerEtiquetaEstado(turno.estado || 'reservado')}</div>
         </div>
         <div class="detalles-turno-servicio">${servicio.nombre}</div>
         <div class="detalles-turno-info">
           <div class="detalles-turno-item">
             <svg class="icono" style="width:16px; height:16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-            <span>${profesional.nombre}</span>
+            <span>${cliente.nombre}</span>
           </div>
           <div class="detalles-turno-item">
             <svg class="icono" style="width:16px; height:16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
@@ -659,15 +712,10 @@ export function renderizarModal() {
         ` : ''}
       </div>
       <div class="pie-modal pie-modal--detalles">
-        ${['pendiente', 'confirmado'].includes(turno.estado) ? `
+        ${esEstadoReservado(turno.estado) ? `
           <div class="pie-modal__fila">
             <button type="button" class="boton-primario" id="btnRegistrarPago">Registrar Pago</button>
-            ${turno.estado === 'pendiente'
-              ? estaEnVentanaDeConfirmacion(turno)
-                ? `<button type="button" class="boton-secundario" id="btnConfirmarTurno">Confirmar Turno</button>`
-                : `<button type="button" class="boton-secundario" id="btnConfirmarTurno" disabled title="Venció la ventana de confirmación">Plazo vencido</button>`
-              : `<button type="button" class="boton-secundario" id="btnRealizarTurno">Marcar Realizado</button>`
-            }
+            <button type="button" class="boton-secundario" id="btnCompletarTurno">Completar Turno</button>
           </div>
           <button type="button" class="boton-secundario pie-modal__btn-full" id="btnModificar">Modificar turno</button>
           <div class="pie-modal__zona-peligro" role="group" aria-label="Acciones de cancelación">
@@ -676,14 +724,6 @@ export function renderizarModal() {
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:13px;height:13px;flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
               Cancelar turno
             </button>
-            ${esAdmin ? `
-              <span class="btn-ghost-sep" aria-hidden="true">&middot;</span>
-              <button type="button" class="btn-ghost-peligro btn-ghost-anular" id="btnAnularTurno"
-                      title="La barbería cancela el turno">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:13px;height:13px;flex-shrink:0;"><circle cx="12" cy="12" r="9" stroke-width="2"/><path stroke-linecap="round" stroke-width="2" d="M5.636 5.636l12.728 12.728"/></svg>
-                Eliminar turno
-              </button>
-            ` : ''}
           </div>
         ` : turno.estado === 'cancelado' && esAdmin ? `
           <button type="button" class="boton-secundario eliminar pie-modal__btn-full" id="btnEliminarTurno">
@@ -713,7 +753,7 @@ export function renderizarModal() {
       hora_fin: turno.hora_fin ? turno.hora_fin.substring(0, 5) : turno.hora_fin,
     };
 
-    if (['pendiente', 'confirmado'].includes(turno.estado)) {
+    if (esEstadoReservado(turno.estado)) {
       document.getElementById("btnModificar").addEventListener("click", () => {
         estado.modoEdicion = true;
         renderizarModal();
@@ -724,80 +764,43 @@ export function renderizarModal() {
         renderizarModal();
       });
 
-      if (turno.estado === 'pendiente') {
-        document.getElementById("btnConfirmarTurno").addEventListener("click", async () => {
-          if (!estaEnVentanaDeConfirmacion(turno)) {
-            showNotification('No se puede confirmar: el plazo venció 15 minutos antes del turno.', 'error');
-            return;
+      const btnCompletarTurno = document.getElementById("btnCompletarTurno");
+      if (btnCompletarTurno) btnCompletarTurno.addEventListener("click", async () => {
+        const btn = btnCompletarTurno;
+        if (!turno.metodoPago || turno.metodoPago === 'sin_pago') {
+          showNotification('Registrá el pago antes de completar el turno.', 'error');
+          return;
+        }
+        const confirmado = await confirmarAccion(
+          `¿Marcás el turno de ${turno.nombre_cliente} como completado?`,
+          '¿Completar turno?',
+          'Completar'
+        );
+        if (!confirmado) return;
+        const restaurar = setBtnLoading(btn, 'Guardando...');
+        try {
+          const resultado = await createOrUpdateTurno({ ...payloadBase, estado: 'completado' });
+          restaurar();
+          if (resultado) {
+            estado.turnoSeleccionado = { ...turno, estado: 'completado' };
+            showNotification('Turno completado correctamente.', 'success');
+            recargarTurnosYAgenda();
+            _recargarDashboardStats();
+          } else {
+            showNotification('No se pudo completar el turno.', 'error');
           }
-          const btn = document.getElementById("btnConfirmarTurno");
-          const confirmado = await confirmarAccion(
-            `¿Confirmás el turno de ${turno.nombre_cliente}?`,
-            '¿Confirmar turno?',
-            'Confirmar'
-          );
-          if (!confirmado) return;
-          const restaurar = setBtnLoading(btn, 'Confirmando...');
-          try {
-            const resultado = await createOrUpdateTurno({ ...payloadBase, estado: 'confirmado' });
-            restaurar();
-            if (resultado) {
-              estado.turnoSeleccionado = { ...turno, estado: 'confirmado' };
-              showNotification('Turno confirmado correctamente.', 'success');
-              recargarTurnosYAgenda();
-              _recargarDashboardStats();
-            } else {
-              showNotification('No se pudo confirmar el turno.', 'error');
-            }
-          } catch (error) {
-            restaurar();
-            showNotification('Error al confirmar el turno.', 'error');
-          }
-        });
-      }
-
-      if (turno.estado === 'confirmado') {
-        document.getElementById("btnRealizarTurno").addEventListener("click", async () => {
-          const btn = document.getElementById("btnRealizarTurno");
-          if (!yaComenzóElTurno(turno)) {
-            showNotification('No se puede marcar como realizado antes de la hora de inicio del turno.', 'error');
-            return;
-          }
-          if (!turno.metodoPago || turno.metodoPago === 'sin_pago') {
-            showNotification('Registrá el pago antes de marcar el turno como realizado.', 'error');
-            return;
-          }
-          const confirmado = await confirmarAccion(
-            `¿Marcás el turno de ${turno.nombre_cliente} como realizado?`,
-            '¿Marcar como realizado?',
-            'Realizado'
-          );
-          if (!confirmado) return;
-          const restaurar = setBtnLoading(btn, 'Guardando...');
-          try {
-            const resultado = await createOrUpdateTurno({ ...payloadBase, estado: 'realizado' });
-            restaurar();
-            if (resultado) {
-              estado.turnoSeleccionado = { ...turno, estado: 'realizado' };
-              showNotification('Turno marcado como realizado.', 'success');
-              recargarTurnosYAgenda();
-              _recargarDashboardStats();
-            } else {
-              showNotification('No se pudo actualizar el turno.', 'error');
-            }
-          } catch (error) {
-            restaurar();
-            showNotification('Error al actualizar el turno.', 'error');
-          }
-        });
-      }
+        } catch (error) {
+          restaurar();
+          showNotification('Error al completar el turno.', 'error');
+        }
+      });
 
       document.getElementById("btnCancelarEstado").addEventListener("click", async () => {
         const confirmado = await confirmarAccion(
-          `¿Cancelás el turno de ${turno.nombre_cliente}? (el cliente avisó que no puede asistir)`,
+          `¿Cancelás el turno de ${turno.nombre_cliente}?`,
           'Cancelar turno',
           'Sí, cancelar',
-          'Motivo sugerido: no se puede atender o hubo un error de creación.'
+          'Motivo sugerido: el cliente canceló o no puede asistir.'
         );
         if (!confirmado) return;
         const btn = document.getElementById("btnCancelarEstado");
@@ -822,36 +825,6 @@ export function renderizarModal() {
         }
       });
 
-      const btnAnularTurno = document.getElementById("btnAnularTurno");
-      if (btnAnularTurno) btnAnularTurno.addEventListener("click", async () => {
-        const confirmado = await confirmarAccion(
-          `¿Eliminás el turno de ${turno.nombre_cliente}?`,
-          'Eliminar turno',
-          'Sí, eliminar',
-          'Motivo sugerido: no se puede atender o hubo un error de creación.'
-        );
-        if (!confirmado) return;
-        const btn = btnAnularTurno;
-        const restaurar = setBtnLoading(btn, 'Anulando...');
-        try {
-          const resultado = await createOrUpdateTurno({ ...payloadBase, estado: 'anulado' });
-          restaurar();
-          if (resultado) {
-            showNotification('Turno anulado.', 'success');
-            estado.turnoSeleccionado = null;
-            estado.modoEdicion = false;
-            estado.modoRegistrarPago = false;
-            renderizarModal();
-            recargarTurnosYAgenda();
-            _recargarDashboardStats();
-          } else {
-            showNotification('No se pudo anular el turno.', 'error');
-          }
-        } catch (error) {
-          restaurar();
-          showNotification('Error al anular el turno.', 'error');
-        }
-      });
     }
 
     if (turno.estado === 'cancelado') {
@@ -911,19 +884,14 @@ function setupModalPagoListeners(turno) {
       showNotification('Seleccioná un método de pago.', 'error');
       return;
     }
+    if (select.value === 'sin_pago') {
+      showNotification('Seleccioná un método válido para registrar el cobro.', 'error');
+      return;
+    }
     const btn = document.getElementById('btnConfirmarPago');
     const restaurar = setBtnLoading(btn, 'Guardando...');
     try {
-      const resultado = await createOrUpdateTurno({
-        ...turno,
-        id: turno.id,
-        cliente_id: turno.cliente_id,
-        empleado_id: turno.empleado_id,
-        servicio_id: turno.servicio_id,
-        hora_inicio: turno.hora ? turno.hora.substring(0, 5) : turno.hora_inicio,
-        hora_fin: turno.hora_fin ? turno.hora_fin.substring(0, 5) : turno.hora_fin,
-        metodoPago: select.value,
-      });
+      const resultado = await registrarPagoTurno(turno.id, select.value, turno.precio);
       restaurar();
       if (resultado) {
         estado.turnoSeleccionado = { ...turno, metodoPago: select.value };
@@ -932,11 +900,11 @@ function setupModalPagoListeners(turno) {
         recargarTurnosYAgenda();
         _recargarDashboardStats();
       } else {
-        showNotification('No se pudo guardar el pago.', 'error');
+        showNotification(estado.error || 'No se pudo guardar el pago.', 'error');
       }
     } catch (error) {
       restaurar();
-      showNotification('Error al guardar el pago.', 'error');
+      showNotification(error?.message || estado.error || 'Error al guardar el pago.', 'error');
     }
   });
 }
@@ -1171,7 +1139,7 @@ function setupModalCreacionListeners() {
       fecha: fecha,
       hora_inicio: horaInicio, // <-- Se envía "HH:MM"
       hora_fin: horaFinFormateada, // <-- Se envía "HH:MM"
-      estado: "pendiente",
+      estado: "reservado",
       observaciones: document.getElementById("observaciones").value || null,
       precio: precio,
       origen: 'admin'
@@ -1202,7 +1170,7 @@ function setupModalCreacionListeners() {
 
 // ===============================================
 // ===============================================
-// FUNCIÓN: Listener para editar solo el cliente (turno realizado)
+// FUNCIÓN: Listener para editar solo el cliente (turno completado)
 // ===============================================
 function setupModalEdicionClienteListener(turno) {
   document.getElementById('btnCancelarEdicion').addEventListener('click', () => {
@@ -1378,7 +1346,7 @@ function setupModalEdicionListeners(turno) {
   const inicializarFormulario = async () => {
     // 1. Poner datos simples
     inputObservaciones.value = turno.observaciones || "";
-    selectEstado.value = turno.estado || "pendiente";
+    selectEstado.value = turno.estado || "reservado";
 
     // Inicializar cards de fecha con la fecha original del turno preseleccionada
     // (incluye la fecha del turno aunque sea de ayer)
@@ -1428,7 +1396,7 @@ function setupModalEdicionListeners(turno) {
 
     // --- Validar transición de estado (máquina de estados) ---
     const nuevoEstado = document.getElementById("estado").value;
-    const estadoActual = turno.estado || 'pendiente';
+    const estadoActual = turno.estado || 'reservado';
     if (!validarTransicion(estadoActual, nuevoEstado)) {
       const transicionesPermitidas = TRANSICIONES_VALIDAS[estadoActual];
       const esEstadoFinal = Array.isArray(transicionesPermitidas) && transicionesPermitidas.length === 0;
@@ -1560,38 +1528,6 @@ export async function recargarTurnosYAgenda() {
     estado.turnos = turnos;
     estado.turnosPendientesCount = turnosPendientesCount;
 
-    // Auto-eliminar turnos pendientes de hoy que superaron la ventana de confirmación
-    const hoy = formatearFechaParaAPI(new Date());
-    const pendientesVencidos = turnos.filter(t =>
-      t.estado === 'pendiente' &&
-      t.fecha === hoy &&
-      !estaEnVentanaDeConfirmacion(t)
-    );
-
-    if (pendientesVencidos.length > 0) {
-      await Promise.all(pendientesVencidos.map(t => createOrUpdateTurno({
-        id: t.id,
-        cliente_id: t.cliente_id,
-        empleado_id: t.empleado_id,
-        servicio_id: t.servicio_id,
-        hora_inicio: t.hora ? t.hora.substring(0, 5) : t.hora_inicio,
-        hora_fin: t.hora_fin ? t.hora_fin.substring(0, 5) : t.hora_fin,
-        estado: 'cancelado',
-      })));
-      const idsCancelados = new Set(pendientesVencidos.map(t => t.id));
-      // Actualizar estado local: marcar como cancelado (desaparecerán de la grilla)
-      estado.turnos = estado.turnos.map(t =>
-        idsCancelados.has(t.id) ? { ...t, estado: 'cancelado' } : t
-      );
-      estado.turnosPendientesCount = estado.turnos.filter(t =>
-        t.estado === 'pendiente' && t.fecha === hoy
-      ).length;
-      const n = pendientesVencidos.length;
-      showNotification(
-        `${n === 1 ? '1 turno pendiente fue cancelado' : `${n} turnos pendientes fueron cancelados`} por no confirmarse a tiempo.`,
-        'warning'
-      );
-    }
   } catch (error) {
     console.error('No se pudieron recargar los turnos', error);
     estado.turnos = [];
