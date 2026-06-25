@@ -7,6 +7,172 @@ import { sembrarDB, dbGetEmpleados, dbGetServicios } from './db.js';
 // 2. Importar Servicios API
 import * as api from './api.js';
 
+// ─── HISTORIAL ───────────────────────────────────────────────────────────────
+const ETIQUETAS_HISTORIAL = {
+  pendiente:  { txt: 'Pendiente',  cls: 'estado-pendiente'  },
+  confirmado: { txt: 'Confirmado', cls: 'estado-confirmado' },
+  realizado:  { txt: 'Realizado',  cls: 'estado-realizado'  },
+  cancelado:  { txt: 'Cancelado',  cls: 'estado-cancelado'  },
+  anulado:    { txt: 'Eliminado',  cls: 'estado-anulado'    },
+};
+
+let _historialTurnos = [];
+let _historialFiltro = 'todos';
+let _historialBusqueda = '';
+let _historialFecha = '';
+
+function renderizarTablaHistorial() {
+  const cuerpo = document.getElementById('historialCuerpo');
+  if (!cuerpo) return;
+
+  const porEstado = _historialFiltro === 'todos'
+    ? _historialTurnos
+    : _historialTurnos.filter(t => t.estado === _historialFiltro);
+
+  const texto = _historialBusqueda.trim().toLowerCase();
+  const filtrados = porEstado.filter(t => {
+    const coincideFecha = !_historialFecha || t.fecha === _historialFecha;
+    if (!coincideFecha) return false;
+
+    if (!texto) return true;
+    const bolsa = [t.nombre_cliente, t.nombre_servicio, t.nombre_empleado, t.estado, t.fecha]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+    return bolsa.includes(texto);
+  });
+
+  if (filtrados.length === 0) {
+    cuerpo.innerHTML = `<p class="historial-vacio">No hay turnos para mostrar con esos filtros.</p>`;
+    return;
+  }
+
+  const filas = filtrados.map(t => {
+    const e = ETIQUETAS_HISTORIAL[t.estado] || { txt: t.estado, cls: '' };
+    const idx = _historialTurnos.indexOf(t);
+    return `<tr>
+      <td>${t.fecha}</td>
+      <td class="col-hora">${(t.hora || '').substring(0, 5)}</td>
+      <td>${t.nombre_cliente}</td>
+      <td class="col-servicio">${t.nombre_servicio}</td>
+      <td class="col-barbero">${t.nombre_empleado}</td>
+      <td><span class="insignia-estado col-estado ${e.cls}">${e.txt}</span></td>
+      <td class="col-ojo">
+        <button type="button" class="btn-ojo-historial" data-idx="${idx}" aria-label="Ver detalle del turno">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:15px;height:15px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  cuerpo.innerHTML = `
+    <div class="historial-tabla-wrap">
+      <table class="historial-tabla">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th class="col-hora">Hora</th>
+            <th>Cliente</th>
+            <th class="col-servicio">Servicio</th>
+            <th class="col-barbero">Barbero</th>
+            <th class="col-estado">Estado</th>
+            <th class="col-ojo"></th>
+          </tr>
+        </thead>
+        <tbody>${filas}</tbody>
+      </table>
+    </div>`;
+
+  cuerpo.querySelectorAll('.btn-ojo-historial').forEach(btn => {
+    btn.addEventListener('click', () => {
+      renderizarDetalleHistorial(_historialTurnos[Number(btn.dataset.idx)]);
+    });
+  });
+}
+
+function renderizarDetalleHistorial(turno) {
+  const e = ETIQUETAS_HISTORIAL[turno.estado] || { txt: turno.estado, cls: '' };
+  const cuerpo = document.getElementById('historialCuerpo');
+  const hora = (turno.hora || '').substring(0, 5);
+  const horaFin = (turno.hora_fin || '').substring(0, 5);
+  cuerpo.innerHTML = `
+    <button type="button" class="historial-volver" id="btnVolverHistorial">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+      Volver al historial
+    </button>
+    <div class="historial-detalle">
+      <div class="historial-detalle-fila"><span>Cliente</span><strong>${turno.nombre_cliente}</strong></div>
+      <div class="historial-detalle-fila"><span>Servicio</span><strong>${turno.nombre_servicio}</strong></div>
+      <div class="historial-detalle-fila"><span>Barbero</span><strong>${turno.nombre_empleado}</strong></div>
+      <div class="historial-detalle-fila"><span>Fecha</span><strong>${turno.fecha}</strong></div>
+      <div class="historial-detalle-fila"><span>Hora</span><strong>${hora}${horaFin ? ` - ${horaFin}` : ''}</strong></div>
+      <div class="historial-detalle-fila"><span>Estado</span><span class="insignia-estado ${e.cls}">${e.txt}</span></div>
+      ${turno.precio ? `<div class="historial-detalle-fila"><span>Precio</span><strong>$ ${Number(turno.precio).toLocaleString('es-AR')}</strong></div>` : ''}
+      ${turno.observaciones ? `<div class="historial-detalle-fila"><span>Notas</span><span>${turno.observaciones}</span></div>` : ''}
+    </div>`;
+  document.getElementById('btnVolverHistorial').addEventListener('click', renderizarTablaHistorial);
+}
+
+async function abrirHistorial() {
+  const modal = document.getElementById('modalHistorial');
+  if (!modal) return;
+  modal.hidden = false;
+  document.getElementById('historialCuerpo').innerHTML = `<p class="historial-cargando">Cargando...</p>`;
+
+  _historialTurnos = await api.fetchHistorial();
+  _historialFiltro = 'todos';
+  _historialBusqueda = '';
+  _historialFecha = '';
+
+  const inputBuscar = document.getElementById('historialBuscar');
+  const inputFecha = document.getElementById('historialFecha');
+  if (inputBuscar) inputBuscar.value = '';
+  if (inputFecha) inputFecha.value = '';
+
+  // Resetear chips
+  document.querySelectorAll('#historialFiltros .chip-filtro').forEach(btn => {
+    btn.classList.toggle('activo', btn.dataset.estado === 'todos');
+  });
+
+  renderizarTablaHistorial();
+}
+
+function setupHistorialListeners() {
+  const btnAbrir = document.getElementById('btnHistorial');
+  const btnCerrar = document.getElementById('btnCerrarHistorial');
+  const overlay = document.getElementById('modalHistorial');
+
+  if (btnAbrir) btnAbrir.addEventListener('click', abrirHistorial);
+
+  if (btnCerrar) btnCerrar.addEventListener('click', () => { overlay.hidden = true; });
+
+  if (overlay) {
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !overlay.hidden) overlay.hidden = true;
+    });
+  }
+
+  document.getElementById('historialFiltros')?.addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip-filtro');
+    if (!chip) return;
+    document.querySelectorAll('#historialFiltros .chip-filtro').forEach(b => b.classList.remove('activo'));
+    chip.classList.add('activo');
+    _historialFiltro = chip.dataset.estado;
+    renderizarTablaHistorial();
+  });
+
+  document.getElementById('historialBuscar')?.addEventListener('input', (e) => {
+    _historialBusqueda = e.target.value || '';
+    renderizarTablaHistorial();
+  });
+
+  document.getElementById('historialFecha')?.addEventListener('change', (e) => {
+    _historialFecha = e.target.value || '';
+    renderizarTablaHistorial();
+  });
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 // 3. Importar Módulos de Funcionalidad
 import { renderizar, recargarTurnosYAgenda, setupAgendaEventListeners, renderizarModal } from './agenda.js';
 import { renderFinancialData } from './finanzas.js'
@@ -102,6 +268,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderizar();
     setupAgendaEventListeners(ui.recargarDashboardStats); // Inyecta la dependencia
   }
+
+  setupHistorialListeners();
 });
 
 // ===================================================

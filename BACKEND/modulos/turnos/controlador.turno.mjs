@@ -1,13 +1,17 @@
 import modelo from "./modelo.turno.mjs";
 import modeloServicio from '../servicios/modelo.servicio.mjs';
+import notificacionesTurno from './notificaciones.turno.mjs';
 
 // ─── MÁQUINA DE ESTADOS ───────────────────────────────────────────────────────
 const TRANSICIONES_VALIDAS = {
-    'pendiente':  ['confirmado', 'cancelado'],
-    'confirmado': ['realizado',  'cancelado'],
+    'pendiente':  ['confirmado', 'cancelado', 'anulado'],
+    'confirmado': ['realizado',  'cancelado', 'anulado'],
     'realizado':  [],   // estado final — sin cambios permitidos
-    'cancelado':  []    // estado final — sin cambios permitidos
+    'cancelado':  [],   // estado final — sin cambios permitidos
+    'anulado':    []    // estado final — turno creado por error (solo admin)
 };
+
+const ESTADOS_FINALES = ['realizado', 'cancelado', 'anulado'];
 
 function validarTransicionEstado(estadoActual, estadoNuevo) {
     if (estadoActual === estadoNuevo) return true;
@@ -60,7 +64,7 @@ async function agregarTurno(req, res) {
         estado, precio, origen
     } = req.body;
 
-    const estadosPermitidos = ["pendiente", "confirmado", "cancelado", "realizado"];
+    const estadosPermitidos = ["pendiente", "confirmado", "cancelado", "realizado", "anulado"];
     const expresionHora = /^\d{2}:\d{2}$/;
 
     const fechaNumero = new Date(fecha);
@@ -123,6 +127,11 @@ async function agregarTurno(req, res) {
         // ────────────────────────────────────────────────────────────────────
 
         const turnoCreado = await modelo.agregarTurno(req.body);
+        if (['pendiente', 'confirmado'].includes(turnoCreado.estado)) {
+            notificacionesTurno
+                .enviarConfirmacionReserva(turnoCreado.id)
+                .catch(error => console.error('[notificaciones] Error enviando confirmación de reserva:', error?.message || error));
+        }
         res.status(201).json({ mensaje: "Turno agregado con éxito", turno: turnoCreado });
     } catch (error) {
         console.error("Error en controlador.agregarUnTurno:", error);
@@ -136,6 +145,7 @@ async function modificarTurno(req, res) {
     try {
         const turnoId = parseInt(req.params.id);
         const { cliente_id, empleado_id, servicio_id, fecha, hora_inicio, hora_fin, estado, precio } = req.body;
+        const rolUsuario = String(req.headers['x-user-role'] || '').toLowerCase();
 
         if (isNaN(turnoId)) {
             return res.status(400).json({ mensaje: 'El ID del turno no es válido. Debe ser un número.' });
@@ -146,10 +156,14 @@ async function modificarTurno(req, res) {
             return res.status(404).json({ mensaje: "El turno que desea modificar no existe." });
         }
 
+        const fechaActual = turnoExistente.fecha;
+        const horaActual = (turnoExistente.hora_inicio || '').substring(0, 5);
+
         // ── Máquina de estados ───────────────────────────────────────────────
-        // Cancelado: completamente bloqueado
-        if (turnoExistente.estado === 'cancelado') {
-            return res.status(400).json({ mensaje: 'No se puede modificar un turno cancelado.' });
+        // Anulado y Cancelado: completamente bloqueados.
+        // 'realizado' se maneja como excepción en el bloque siguiente.
+        if (ESTADOS_FINALES.includes(turnoExistente.estado) && turnoExistente.estado !== 'realizado') {
+            return res.status(400).json({ mensaje: `No se puede modificar un turno en estado '${turnoExistente.estado}'.` });
         }
 
         // Realizado: solo se permite actualizar el cliente
@@ -174,6 +188,10 @@ async function modificarTurno(req, res) {
             });
         }
 
+        if (estado === 'anulado' && rolUsuario !== 'admin') {
+            return res.status(403).json({ mensaje: 'Solo un administrador puede anular turnos.' });
+        }
+
         // Validación: no se puede marcar como realizado antes de la hora de inicio ni después de 24h
         if (estado === 'realizado') {
             const ahora = new Date();
@@ -189,7 +207,7 @@ async function modificarTurno(req, res) {
         }
         // ────────────────────────────────────────────────────────────────────
 
-        const estadosPermitidos = ["pendiente", "confirmado", "cancelado", "realizado"];
+        const estadosPermitidos = ["pendiente", "confirmado", "cancelado", "realizado", "anulado"];
         const expresionHora = /^\d{2}:\d{2}$/;
 
         const fechaNumero = new Date(fecha);
@@ -237,6 +255,19 @@ async function modificarTurno(req, res) {
         const modificado = await modelo.modificarTurno(turnoId, req.body);
 
         if (modificado) {
+            const estadoReservado = ['pendiente', 'confirmado'].includes(turnoExistente.estado);
+            const fechaReprogramada = fecha !== fechaActual;
+            const horaReprogramada = (hora_inicio || '').substring(0, 5) !== horaActual;
+
+            if (estadoReservado && fechaReprogramada && horaReprogramada) {
+                notificacionesTurno
+                    .enviarReprogramacion(turnoId, {
+                        fecha: fechaActual,
+                        hora_inicio: horaActual,
+                        hora_fin: (turnoExistente.hora_fin || '').substring(0, 5)
+                    })
+                    .catch(error => console.error('[notificaciones] Error enviando email de reprogramación:', error?.message || error));
+            }
             res.status(200).json({ mensaje: `Turno con ID ${turnoId} modificado con éxito.` });
         } else {
             res.status(500).json({ mensaje: 'No se pudo modificar el turno por una razón desconocida.' });
@@ -253,9 +284,14 @@ async function modificarTurno(req, res) {
 // Función para eliminar 1 turno
 async function eliminarTurno(req, res) {
     const turnoId = parseInt(req.params.id);
+    const rolUsuario = String(req.headers['x-user-role'] || '').toLowerCase();
 
     if (isNaN(turnoId)) {
         return res.status(400).json({ mensaje: 'ID de turno inválido. Debe ser un número.' });
+    }
+
+    if (rolUsuario !== 'admin') {
+        return res.status(403).json({ mensaje: 'Solo un administrador puede eliminar turnos.' });
     }
 
     try {
@@ -267,10 +303,10 @@ async function eliminarTurno(req, res) {
         }
 
         // ── Máquina de estados ───────────────────────────────────────────────
-        // No permitir eliminar turnos que ya fueron realizados
-        if (turnoAEliminar.estado === 'realizado') {
+        // No permitir eliminar turnos en estado final
+        if (ESTADOS_FINALES.includes(turnoAEliminar.estado)) {
             return res.status(400).json({
-                mensaje: 'No se puede eliminar un turno que ya fue realizado. Solo se puede cancelar.'
+                mensaje: `No se puede eliminar un turno en estado '${turnoAEliminar.estado}'. Usar estado 'anulado' para registrar errores del sistema.`
             });
         }
         // ────────────────────────────────────────────────────────────────────
@@ -390,6 +426,31 @@ async function obtenerTurnosConDetalles(req, res) {
     }
 }
 
+async function procesarRecordatoriosTurnos(req, res) {
+    const tokenConfigurado = (process.env.REMINDERS_CRON_TOKEN || '').trim();
+    const tokenRecibido = (req.query.token || '').trim();
+    const esCronVercel = Boolean(req.headers['x-vercel-cron']);
+    const tokenValido = tokenConfigurado && tokenRecibido && tokenConfigurado === tokenRecibido;
+
+    if (!esCronVercel && !tokenValido) {
+        return res.status(401).json({ mensaje: 'No autorizado para ejecutar recordatorios.' });
+    }
+
+    try {
+        const resultado = await notificacionesTurno.procesarRecordatorios();
+        return res.status(200).json({
+            mensaje: 'Proceso de recordatorios ejecutado.',
+            ...resultado
+        });
+    } catch (error) {
+        console.error('Error en controlador.procesarRecordatoriosTurnos:', error);
+        return res.status(500).json({
+            mensaje: 'Error interno al procesar recordatorios.',
+            detalle: error.message
+        });
+    }
+}
+
 export default {
     obtenerTurnos,
     obtenerUnTurno,
@@ -397,5 +458,6 @@ export default {
     modificarTurno,
     eliminarTurno,
     obtenerHorariosDisponibles,
-    obtenerTurnosConDetalles
+    obtenerTurnosConDetalles,
+    procesarRecordatoriosTurnos
 };

@@ -16,7 +16,7 @@ let reservaActual = {
   fecha: null,
   hora_inicio: null,
   hora_fin: null,
-  cliente: null,
+  cliente: null,  // { nombre, telefono, email }
   total: null,
 };
 let fechasDisponibles = [];
@@ -191,8 +191,15 @@ function cargarHorarios(horarios) {
 }
 
 function cargarResumen() {
-  document.getElementById('resumen-nombre').textContent = reservaActual.cliente.nombre;
+  document.getElementById('resumen-nombre').textContent   = reservaActual.cliente.nombre;
   document.getElementById('resumen-telefono').textContent = reservaActual.cliente.telefono;
+  const emailFila = document.getElementById('resumen-email-fila');
+  if (reservaActual.cliente.email) {
+    document.getElementById('resumen-email').textContent = reservaActual.cliente.email;
+    emailFila.style.display = '';
+  } else {
+    emailFila.style.display = 'none';
+  }
   document.getElementById('resumen-servicio').textContent = reservaActual.servicio;
   document.getElementById('resumen-barbero').textContent = reservaActual.barbero;
   document.getElementById('resumen-fecha').textContent = formatearFecha(reservaActual.fecha);
@@ -205,6 +212,7 @@ function cargarResumen() {
 // LLAMADAS A LA API
 // ---------------------------------------------------------------
 async function obtenerOCrearClienteID(nombre, telefono) {
+  // Mantenida por compatibilidad — el flujo principal ya usa /api/v1/reservas
   try {
     const res = await fetch(`${API_BASE_URL}/clientes/obtener-o-crear`, {
       method: 'POST',
@@ -221,37 +229,28 @@ async function obtenerOCrearClienteID(nombre, telefono) {
 }
 
 async function crearTurno() {
-  const cliente_id = await obtenerOCrearClienteID(
-    reservaActual.cliente.nombre,
-    reservaActual.cliente.telefono
-  );
-
-  if (!cliente_id) {
-    alert('Error al procesar los datos del cliente. Intentá de nuevo.');
-    return null;
-  }
+  const { nombre, telefono, email } = reservaActual.cliente;
 
   const turnoData = {
-    cliente_id,
-    empleado_id: reservaActual.barbero_id,
-    servicio_id: reservaActual.servicio_id,
-    fecha: reservaActual.fecha,
-    hora_inicio: reservaActual.hora_inicio,
-    hora_fin: reservaActual.hora_fin,
-    estado: 'pendiente',
+    nombre,
+    telefono,
+    email:        email || null,
+    servicio_id:  reservaActual.servicio_id,
+    empleado_id:  reservaActual.barbero_id,
+    fecha:        reservaActual.fecha,
+    hora_inicio:  reservaActual.hora_inicio,
     observaciones: null,
-    precio: reservaActual.total,
   };
 
   try {
-    const res = await fetch(`${API_BASE_URL}/turnos`, {
+    const res = await fetch(`${API_BASE_URL}/reservas`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(turnoData),
     });
     if (!res.ok) {
       const err = await res.json();
-      throw new Error(err.message || res.statusText);
+      throw new Error(err.mensaje || res.statusText);
     }
     return await res.json();
   } catch (err) {
@@ -321,48 +320,62 @@ function seleccionarHora(horario) {
 // FORMULARIO (paso 5)
 // ---------------------------------------------------------------
 function configurarValidacionFormulario() {
-  const nombreInput = document.getElementById('nombre');
+  const nombreInput   = document.getElementById('nombre');
   const telefonoInput = document.getElementById('telefono');
-  const continuarBtn = document.getElementById('btn-continuar');
-  const nombreError = document.getElementById('nombre-error');
+  const emailInput    = document.getElementById('email');
+  const continuarBtn  = document.getElementById('btn-continuar');
+  const nombreError   = document.getElementById('nombre-error');
   const telefonoError = document.getElementById('telefono-error');
+  const emailError    = document.getElementById('email-error');
 
   const regexNombre = /^[a-zA-ZñÑáéíóúÁÉÍÓÚ\s]{3,}$/;
-  const regexTelefono = /^\d{8,}$/;
+  const regexEmail  = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const tocado = { nombre: false, telefono: false, email: false };
 
-  function validarNombre() {
-    const val = nombreInput.value.trim();
-    if (!val) { nombreError.textContent = ''; nombreInput.classList.remove('invalido'); return false; }
-    if (regexNombre.test(val)) { nombreError.textContent = ''; nombreInput.classList.remove('invalido'); return true; }
-    nombreError.textContent = 'Mínimo 3 letras, sin números.';
-    nombreInput.classList.add('invalido');
-    return false;
+  function validar(mostrarErrores = false) {
+    const nombreOk   = regexNombre.test(nombreInput.value.trim());
+    const telefonoOk = telefonoInput.value.trim().length >= 8;
+    const emailVal   = emailInput.value.trim();
+    const emailOk    = regexEmail.test(emailVal);
+
+    const mostrarNombre = mostrarErrores || tocado.nombre;
+    const mostrarTelefono = mostrarErrores || tocado.telefono;
+    const mostrarEmail = mostrarErrores || tocado.email;
+
+    nombreError.textContent   = !mostrarNombre || nombreOk ? '' : 'Ingresá un nombre válido (mín. 3 letras).';
+    telefonoError.textContent = !mostrarTelefono || telefonoOk ? '' : 'Ingresá un teléfono válido.';
+    emailError.textContent    = !mostrarEmail || emailOk ? '' : 'El email es obligatorio y debe tener formato válido (ej: juan@mail.com).';
+
+    continuarBtn.disabled = !(nombreOk && telefonoOk && emailOk);
+    return nombreOk && telefonoOk && emailOk;
   }
 
-  function validarTelefono() {
-    const val = telefonoInput.value.trim();
-    if (!val) { telefonoError.textContent = ''; telefonoInput.classList.remove('invalido'); return false; }
-    if (regexTelefono.test(val)) { telefonoError.textContent = ''; telefonoInput.classList.remove('invalido'); return true; }
-    telefonoError.textContent = 'Solo números, mínimo 8 dígitos.';
-    telefonoInput.classList.add('invalido');
-    return false;
-  }
+  nombreInput.addEventListener('input', () => { tocado.nombre = true; validar(false); });
+  telefonoInput.addEventListener('input', () => { tocado.telefono = true; validar(false); });
+  emailInput.addEventListener('input', () => { tocado.email = true; validar(false); });
 
-  function sincronizarBoton() {
-    continuarBtn.disabled = !(validarNombre() && validarTelefono());
-  }
+  nombreInput.addEventListener('blur', () => { tocado.nombre = true; validar(false); });
+  telefonoInput.addEventListener('blur', () => { tocado.telefono = true; validar(false); });
+  emailInput.addEventListener('blur', () => { tocado.email = true; validar(false); });
 
-  nombreInput.addEventListener('input', sincronizarBoton);
-  telefonoInput.addEventListener('input', sincronizarBoton);
-  sincronizarBoton();
+  validar(false);
+
+  document.getElementById('btn-continuar').addEventListener('click', (e) => {
+    const ok = validar(true);
+    if (!ok) e.preventDefault();
+  });
 }
 
 function guardarDatosCliente() {
-  const nombre = document.getElementById('nombre').value.trim();
+  const nombre   = document.getElementById('nombre').value.trim();
   const telefono = document.getElementById('telefono').value.trim();
+  const email    = document.getElementById('email').value.trim();
+  const regexNombre = /^[a-zA-ZñÑáéíóúÁÉÍÓÚ\s]{3,}$/;
+  const regexEmail  = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const telefonoCompleto = telefono.startsWith('+') ? telefono : `+54${telefono}`;
-  if (nombre && telefono) {
-    reservaActual.cliente = { nombre, telefono: telefonoCompleto };
+  const datosValidos = regexNombre.test(nombre) && telefono.length >= 8 && regexEmail.test(email);
+  if (datosValidos) {
+    reservaActual.cliente = { nombre, telefono: telefonoCompleto, email };
     cargarResumen();
     irAPaso(6);
   }
@@ -426,6 +439,7 @@ function resetearReserva() {
   };
   document.getElementById('nombre').value = '';
   document.getElementById('telefono').value = '';
+  document.getElementById('email').value = '';
   cargarServicios();
 }
 

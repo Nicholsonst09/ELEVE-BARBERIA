@@ -1,26 +1,35 @@
 import { supabaseAdmin } from "../../db/supabaseClient.mjs";
 
-// Función para obtener todos los servicios
+// Selector base que incluye el join con estado_servicio
+const SELECT_SERVICIO_BASE = `
+    id,
+    nombre,
+    precio,
+    duracion_min,
+    descripcion,
+    estado_id,
+    creado,
+    modificado,
+    estado_servicio!estado_id(codigo, nombre)
+`;
+
+// Función para obtener todos los servicios activos
 async function obtenerServicios() {
     try {
         const { data: servicios, error } = await supabaseAdmin
             .from('servicios')
-            .select(`
-                id,
-                nombre,
-                precio,
-                duracion_min,
-                descripcion,
-                activo,
-                creado,
-                modificado
-                `)
+            .select(SELECT_SERVICIO_BASE)
             .order('nombre', { ascending: true });
 
-        if (error) {
-            throw error;
-        }
-        return servicios;
+        if (error) throw error;
+
+        // Filtrar activos y mapear el estado para compatibilidad
+        return servicios
+            .filter(s => s.estado_servicio?.codigo === 'activo')
+            .map(({ estado_servicio, ...s }) => ({
+                ...s,
+                estado: estado_servicio?.codigo || null
+            }));
     } catch (error) {
         console.error("Error al obtener servicios:", error.message);
         throw error;
@@ -28,7 +37,6 @@ async function obtenerServicios() {
 }
 
 //Funcion para buscar empleados por id del servicio
-//(Ver si es necesario traer especialidades y horarios)
 async function buscarEmpleadosPorServicio(servicio_id){
     try {
         const {data: empleados, error} = await supabaseAdmin
@@ -40,24 +48,23 @@ async function buscarEmpleadosPorServicio(servicio_id){
                     nombre,
                     especialidades,
                     horarios_disponibles,
-                    activo
+                    estado_id,
+                    estado_empleado!estado_id(codigo)
                 )
             `)
-            .eq('servicio_id', servicio_id)
-            .eq('empleados.activo', true);  //Para traer solo los barberos activos
+            .eq('servicio_id', servicio_id);
 
-        if (error) {
-            throw error;
-        }
+        if (error) throw error;
 
-        const arrayEmpleados = empleados.map(empleado =>({
-            id: empleado.empleados.id,
-            nombre: empleado.empleados.nombre,
-            especialidades: empleado.empleados.especialidades,
-            horarios_disponibles: empleado.empleados.horarios_disponibles
-        }));
-
-        return arrayEmpleados;
+        // Solo empleados activos, sin exponer estado_empleado
+        return empleados
+            .filter(e => e.empleados?.estado_empleado?.codigo === 'activo')
+            .map(e => ({
+                id: e.empleados.id,
+                nombre: e.empleados.nombre,
+                especialidades: e.empleados.especialidades,
+                horarios_disponibles: e.empleados.horarios_disponibles
+            }));
 
     }catch (error) {
         console.error("Error al buscar empleados por servicio:", error.message);

@@ -55,34 +55,55 @@ async function obtenerUnCliente(id) {
 }
 
 //Funcion para buscar cliente existente o crearlo en su defecto
-async function buscarOCrearCliente(nombre, telefono) {
+// Busca primero por teléfono, luego por email. Si encuentra por cualquiera
+// de los dos, actualiza el campo faltante. Si no encuentra, crea uno nuevo.
+async function buscarOCrearCliente(nombre, telefono, email = null) {
     try {
-        let { data: cliente, error: errorBusqueda } = await supabaseAdmin
+        // 1. Buscar por teléfono
+        let { data: clientePorTel, error: errTel } = await supabaseAdmin
             .from('clientes')
-            .select('id')
+            .select('id, email')
             .eq('telefono', telefono)
             .single();
 
-        if (errorBusqueda && errorBusqueda.code !== 'PGRST116') { // PGRST116 es "no rows found"
-            throw errorBusqueda;
+        if (errTel && errTel.code !== 'PGRST116') throw errTel;
+
+        if (clientePorTel) {
+            if (email && !clientePorTel.email) {
+                await supabaseAdmin.from('clientes').update({ email }).eq('id', clientePorTel.id);
+            }
+            return clientePorTel.id;
         }
 
-        if (cliente) {
-            return cliente.id;
+        // 2. Si no encontró por teléfono y tiene email, buscar por email
+        if (email) {
+            let { data: clientePorEmail, error: errEmail } = await supabaseAdmin
+                .from('clientes')
+                .select('id, telefono')
+                .eq('email', email)
+                .single();
+
+            if (errEmail && errEmail.code !== 'PGRST116') throw errEmail;
+
+            if (clientePorEmail) {
+                // Actualizar el teléfono si el que tenemos es nuevo
+                if (!clientePorEmail.telefono) {
+                    await supabaseAdmin.from('clientes').update({ telefono }).eq('id', clientePorEmail.id);
+                }
+                return clientePorEmail.id;
+            }
         }
 
-        
-        const nuevoClienteData = {
-            nombre: nombre,
-            telefono: telefono,
-        };
-
-        const clienteNuevo = await crearCliente(nuevoClienteData); 
-
-        return clienteNuevo.id; 
+        // 3. No existe: crear nuevo cliente
+        const clienteNuevo = await crearCliente({
+            nombre,
+            telefono,
+            ...(email ? { email } : {})
+        });
+        return clienteNuevo.id;
 
     } catch (error) {
-        console.error("Error en modelo.buscarOCrearCliente:", error); 
+        console.error("Error en modelo.buscarOCrearCliente:", error);
         throw error;
     }
 }

@@ -162,6 +162,10 @@
                         <p id="current-date"></p>
                     </div>
                     <div class="acciones-pagina">
+                        <button class="boton-secundario" id="btnHistorial">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:15px;height:15px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            Historial
+                        </button>
                         <button class="boton-primario" id="btnNuevoTurno">
                             <i class="fas fa-plus"></i>
                             Nuevo Turno
@@ -175,7 +179,7 @@
                             <i class="fas fa-calendar"></i>
                         </div>
                         <div class="informacion-estadistica">
-                            <p class="etiqueta-estadistica">Total Citas</p>
+                            <p class="etiqueta-estadistica">Total Turnos</p>
                             <p class="valor-estadistica" id="total-appointments">4</p>
                         </div>
                     </div>
@@ -184,8 +188,8 @@
                             <i class="fas fa-clock"></i>
                         </div>
                         <div class="informacion-estadistica">
-                            <p class="etiqueta-estadistica">Confirmadas</p>
-                            <p class="valor-estadistica" id="confirmed-appointments">2</p>
+                            <p class="etiqueta-estadistica">Turnos Reservados</p>
+                            <p class="valor-estadistica" id="reserved-appointments">2</p>
                         </div>
                     </div>
                     <div class="tarjeta-estadistica">
@@ -193,8 +197,8 @@
                             <i class="fas fa-user"></i>
                         </div>
                         <div class="informacion-estadistica">
-                            <p class="etiqueta-estadistica">Pendientes</p>
-                            <p class="valor-estadistica" id="pending-appointments">1</p>
+                            <p class="etiqueta-estadistica">Turnos Completados</p>
+                            <p class="valor-estadistica" id="completed-appointments">1</p>
                         </div>
                     </div>
                     <div class="tarjeta-estadistica">
@@ -906,6 +910,36 @@
     </div>
 
     <script src="./js/main.js" type="module"></script>
+
+    <!-- Modal Historial -->
+    <div id="modalHistorial" class="historial-overlay" role="dialog" aria-modal="true" aria-labelledby="tituloHistorial" hidden>
+      <div class="historial-panel">
+        <div class="historial-cabecera">
+          <h3 id="tituloHistorial">Historial de turnos</h3>
+          <button type="button" class="historial-cerrar" id="btnCerrarHistorial" aria-label="Cerrar historial">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px;height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div class="historial-filtros" id="historialFiltros" role="group" aria-label="Filtrar por estado">
+          <button class="chip-filtro activo" data-estado="todos">Todos</button>
+          <button class="chip-filtro" data-estado="realizado">Realizados</button>
+          <button class="chip-filtro" data-estado="cancelado">Cancelados</button>
+          <button class="chip-filtro" data-estado="anulado">Eliminados</button>
+        </div>
+                <div class="historial-busqueda-fila">
+                    <div class="historial-input-icono">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35m1.6-4.15a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        <input type="search" id="historialBuscar" class="historial-input" placeholder="Buscar cliente, servicio o barbero..." aria-label="Buscar en historial">
+                    </div>
+                    <input type="date" id="historialFecha" class="historial-fecha" aria-label="Filtrar historial por fecha">
+                </div>
+        <div class="historial-cuerpo" id="historialCuerpo">
+          <p class="historial-cargando">Cargando...</p>
+        </div>
+      </div>
+    </div>
 </body>
 
 </html>

@@ -44,10 +44,16 @@ export function switchTab(tabId) {
  * Actualiza las 4 tarjetas de estadísticas del dashboard.
  */
 export function updateStats() {
-  const { total, confirmados, pendientes, ingresos } = estado.dashboardStats;
+  const turnos = estado.turnos || [];
+  const total = turnos.filter(t => !['cancelado', 'anulado'].includes(t.estado)).length;
+  const reservados = turnos.filter(t => ['pendiente', 'confirmado'].includes(t.estado)).length;
+  const completados = turnos.filter(t => t.estado === 'realizado').length;
+  const ingresos    = turnos
+    .filter(t => t.estado === 'realizado')
+    .reduce((sum, t) => sum + (Number(t.precio) || 0), 0);
   document.getElementById("total-appointments").textContent = total;
-  document.getElementById("confirmed-appointments").textContent = confirmados;
-  document.getElementById("pending-appointments").textContent = pendientes;
+  document.getElementById("reserved-appointments").textContent = reservados;
+  document.getElementById("completed-appointments").textContent = completados;
   document.getElementById("daily-revenue").textContent = formatCurrency(ingresos);
 }
 
@@ -55,13 +61,7 @@ export function updateStats() {
  * Vuelve a cargar las estadísticas del dashboard y actualiza la UI.
  */
 export async function recargarDashboardStats() {
-  try {
-    estado.dashboardStats = await fetchDashboardStats(estado.fechaActual);
-  } catch (error) {
-    console.error('No se pudieron recargar las estadísticas', error);
-  } finally {
-    updateStats();
-  }
+  updateStats();
 }
 
 // --- Funciones del Modal "Nuevo Turno" (legacy) ---
