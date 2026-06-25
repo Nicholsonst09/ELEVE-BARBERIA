@@ -8,9 +8,8 @@ async function obtenerServicios(req, res) {
         if (servicios.length === 0) {
             return res.status(200).json({ mensaje: "No hay servicios en la base de datos." });
         }
-        const serviciosActivos = servicios.filter(servicio => servicio.activo === true);
-
-        res.status(200).json(serviciosActivos);
+        // El filtro de activos ya se aplica en el modelo
+        res.status(200).json(servicios);
     } catch (error) {
         console.error("Error en controlador.obtenerServicios:", error);
         res.status(500).json({ mensaje: "Error interno del servidor al obtener servicios.", detalle: error.message });

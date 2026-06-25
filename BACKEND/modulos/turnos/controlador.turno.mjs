@@ -3,11 +3,14 @@ import modeloServicio from '../servicios/modelo.servicio.mjs';
 
 // ─── MÁQUINA DE ESTADOS ───────────────────────────────────────────────────────
 const TRANSICIONES_VALIDAS = {
-    'pendiente':  ['confirmado', 'cancelado'],
-    'confirmado': ['realizado',  'cancelado'],
+    'pendiente':  ['confirmado', 'cancelado', 'anulado'],
+    'confirmado': ['realizado',  'cancelado', 'anulado'],
     'realizado':  [],   // estado final — sin cambios permitidos
-    'cancelado':  []    // estado final — sin cambios permitidos
+    'cancelado':  [],   // estado final — sin cambios permitidos
+    'anulado':    []    // estado final — turno creado por error (solo admin)
 };
+
+const ESTADOS_FINALES = ['realizado', 'cancelado', 'anulado'];
 
 function validarTransicionEstado(estadoActual, estadoNuevo) {
     if (estadoActual === estadoNuevo) return true;
@@ -60,7 +63,7 @@ async function agregarTurno(req, res) {
         estado, precio, origen
     } = req.body;
 
-    const estadosPermitidos = ["pendiente", "confirmado", "cancelado", "realizado"];
+    const estadosPermitidos = ["pendiente", "confirmado", "cancelado", "realizado", "anulado"];
     const expresionHora = /^\d{2}:\d{2}$/;
 
     const fechaNumero = new Date(fecha);
@@ -147,9 +150,9 @@ async function modificarTurno(req, res) {
         }
 
         // ── Máquina de estados ───────────────────────────────────────────────
-        // Cancelado: completamente bloqueado
-        if (turnoExistente.estado === 'cancelado') {
-            return res.status(400).json({ mensaje: 'No se puede modificar un turno cancelado.' });
+        // Anulado y Cancelado: completamente bloqueados
+        if (ESTADOS_FINALES.includes(turnoExistente.estado)) {
+            return res.status(400).json({ mensaje: `No se puede modificar un turno en estado '${turnoExistente.estado}'.` });
         }
 
         // Realizado: solo se permite actualizar el cliente
@@ -189,7 +192,7 @@ async function modificarTurno(req, res) {
         }
         // ────────────────────────────────────────────────────────────────────
 
-        const estadosPermitidos = ["pendiente", "confirmado", "cancelado", "realizado"];
+        const estadosPermitidos = ["pendiente", "confirmado", "cancelado", "realizado", "anulado"];
         const expresionHora = /^\d{2}:\d{2}$/;
 
         const fechaNumero = new Date(fecha);
@@ -267,10 +270,10 @@ async function eliminarTurno(req, res) {
         }
 
         // ── Máquina de estados ───────────────────────────────────────────────
-        // No permitir eliminar turnos que ya fueron realizados
-        if (turnoAEliminar.estado === 'realizado') {
+        // No permitir eliminar turnos en estado final
+        if (ESTADOS_FINALES.includes(turnoAEliminar.estado)) {
             return res.status(400).json({
-                mensaje: 'No se puede eliminar un turno que ya fue realizado. Solo se puede cancelar.'
+                mensaje: `No se puede eliminar un turno en estado '${turnoAEliminar.estado}'. Usar estado 'anulado' para registrar errores del sistema.`
             });
         }
         // ────────────────────────────────────────────────────────────────────

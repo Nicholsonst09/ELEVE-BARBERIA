@@ -6,15 +6,26 @@
 
 Un turno solo puede moverse entre estados de forma ordenada. No puede saltar pasos ni retroceder.
 
+### Diferencia entre `cancelado` y `anulado`
+
+| Estado | Quién lo genera | Motivo |
+|---|---|---|
+| `cancelado` | El cliente o el negocio | El turno existía correctamente pero no se va a realizar |
+| `anulado` | El sistema / un admin | El turno fue creado por error y debe dejarse sin efecto |
+
+Los turnos `anulados` **no deben mostrarse en la agenda** ni contar en reportes de asistencia. Son equivalentes a una eliminación lógica.
 
 ### Transiciones permitidas
 
 ```
-pendiente  → confirmado | cancelado
-confirmado → realizado  | cancelado
+pendiente  → confirmado | cancelado | anulado
+confirmado → realizado  | cancelado | anulado
 realizado  → (ninguna)
 cancelado  → (ninguna)
+anulado    → (ninguna)
 ```
+
+> `anulado` solo puede ser disparado por un usuario con rol de administrador, nunca desde el flujo normal del cliente.
 
 ### La lógica
 
@@ -22,10 +33,11 @@ cancelado  → (ninguna)
 
 ```js
 const TRANSICIONES_VALIDAS = {
-  pendiente:  ['confirmado', 'cancelado'],
-  confirmado: ['realizado',  'cancelado'],
+  pendiente:  ['confirmado', 'cancelado', 'anulado'],
+  confirmado: ['realizado',  'cancelado', 'anulado'],
   realizado:  [],
-  cancelado:  []
+  cancelado:  [],
+  anulado:    []
 };
 
 function validarTransicionEstado(estadoActual, estadoNuevo) {
@@ -34,13 +46,17 @@ function validarTransicionEstado(estadoActual, estadoNuevo) {
 }
 ```
 
+> ⚠️ Pendiente de implementar: verificar que el usuario que dispara `anulado` tenga rol `admin` antes de permitir la transición. Los demás roles no deben poder anular.
+
 Se ejecuta en cada `PUT /turnos/:id`. Si la transición no es válida o el turno ya está en estado final → `400 Bad Request`.
 
 **Frontend — `agenda.js`**
 
 Mismo mapa `TRANSICIONES_VALIDAS`. Se usa en dos lugares:
-- **Al renderizar el `<select>`**: solo muestra las opciones válidas desde el estado actual.
+- **Al renderizar el `<select>`**: solo muestra las opciones válidas desde el estado actual. La opción `anulado` debe mostrarse visualmente diferenciada (ej. color rojo/gris) y solo si el usuario es admin.
 - **Al guardar**: valida antes de llamar a la API y muestra una notificación amigable si no es válido.
+
+> ⚠️ Pendiente de implementar: los turnos con estado `anulado` deben filtrarse al renderizar la agenda (no deben aparecer como tarjetas). Actualmente se filtran `cancelado`; extender ese filtro para incluir `anulado`.
 
 ---
 
@@ -54,11 +70,13 @@ Antes de crear o modificar un turno, el backend verifica que el profesional no t
 
 ```js
 async function verificarSolapamiento(empleado_id, fecha, hora_inicio, hora_fin, turno_id_excluir = null) {
-  // Busca turnos del mismo empleado, misma fecha, que no estén cancelados
+  // Busca turnos del mismo empleado, misma fecha, que no estén cancelados ni anulados
   // Al modificar, excluye el turno actual para no bloquearse a sí mismo
   // Un conflicto existe si: hora_inicio < fin_otro && hora_fin > inicio_otro
 }
 ```
+
+> ⚠️ Pendiente de implementar: asegurarse de que el filtro de solapamiento excluya también los turnos con estado `anulado`, igual que hace con los `cancelado`.
 
 **Backend — `controlador.turno.mjs`**
 
@@ -75,6 +93,7 @@ Se aplica en `POST /turnos` y `PUT /turnos/:id`:
 | Mismo empleado, horario parcialmente superpuesto | `409` — conflicto de horario |
 | Distinto empleado, mismo horario | `201` ✅ — permitido |
 | Mismo empleado, turno cancelado existente | `201` ✅ — los cancelados no bloquean |
+| Mismo empleado, turno anulado existente | `201` ✅ — los anulados no bloquean |
 | Fecha anterior a hoy | `400` — fecha inválida |
 | Hoy, menos de 1h de anticipación | `400` — requiere mínimo 1 hora |
 

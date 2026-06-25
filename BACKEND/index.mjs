@@ -4,6 +4,7 @@ import rutasApiTurnos from './modulos/turnos/rutas.turno.mjs';
 import rutasApiServicios from './modulos/servicios/rutas.servicio.mjs';
 import rutasApiEmpleados from './modulos/empleados/rutas.empleado.mjs';
 import rutasApiCliente from './modulos/clientes/rutas.cliente.mjs';
+import rutasReservas from './modulos/reservas/rutas.reserva.mjs';
 import bodyParser from 'body-parser';
 import cors from 'cors';
 
@@ -14,7 +15,10 @@ app.use(bodyParser.json());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Rutas de la API (Endpoints)
+// Rutas públicas — página de reservas del cliente (sin autenticación)
+app.use(rutasReservas);
+
+// Rutas del back office (backoffice)
 app.use(rutasApiTurnos);
 app.use(rutasApiServicios);
 app.use(rutasApiEmpleados);

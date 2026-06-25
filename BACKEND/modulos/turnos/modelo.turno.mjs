@@ -1,31 +1,61 @@
 import { supabaseAdmin } from "../../db/supabaseClient.mjs";
 
+// ─── Cache de estados de turno ────────────────────────────────────────────────
+// Evita consultar estado_turno en cada operación. Se invalida nunca (son datos
+// de catálogo que no cambian en runtime).
+let _estadosTurnoCache = null;
+
+async function obtenerEstadosTurnoMap() {
+    if (_estadosTurnoCache) return _estadosTurnoCache;
+    const { data, error } = await supabaseAdmin
+        .from('estado_turno')
+        .select('id, codigo, nombre, permite_cambios');
+    if (error) throw error;
+    _estadosTurnoCache = {};
+    data.forEach(e => { _estadosTurnoCache[e.codigo] = e; });
+    return _estadosTurnoCache;
+}
+
+// Selector reutilizable para turnos (incluye el join con estado_turno)
+const SELECT_TURNO_BASE = `
+    id,
+    cliente_id,
+    empleado_id,
+    servicio_id,
+    fecha,
+    hora_inicio,
+    hora_fin,
+    estado_id,
+    observaciones,
+    precio,
+    creado,
+    modificado,
+    estado_turno!estado_id(id, codigo, nombre, permite_cambios)
+`;
+
+// Aplana el objeto embebido estado_turno al campo 'estado' (string) que
+// usa el controlador, manteniendo compatibilidad con la máquina de estados.
+function mapearEstado(turno) {
+    const { estado_turno, ...resto } = turno;
+    return {
+        ...resto,
+        estado:          estado_turno?.codigo        || null,
+        estado_nombre:   estado_turno?.nombre         || null,
+        permite_cambios: estado_turno?.permite_cambios ?? true
+    };
+}
+
 // Función para obtener todos los turnos
 async function obtenerTurnos() {
     try {
         const { data: turnos, error } = await supabaseAdmin
             .from('turnos')
-            .select(`
-                id,
-                cliente_id,
-                empleado_id,
-                servicio_id,
-                fecha,
-                hora_inicio,
-                hora_fin,
-                estado,
-                observaciones,
-                precio,
-                creado,
-                modificado
-                `)
+            .select(SELECT_TURNO_BASE)
             .order('fecha', { ascending: true })
             .order('hora_inicio', { ascending: true });
 
-        if (error) {
-            throw error;
-        }
-        return turnos;
+        if (error) throw error;
+        return turnos.map(mapearEstado);
     } catch (error) {
         console.error("Error al obtener turnos:", error.message);
         throw error;
@@ -37,30 +67,15 @@ async function obtenerUnTurno(id) {
     try {
         const { data: turno, error } = await supabaseAdmin
             .from('turnos')
-            .select(`
-                id,
-                cliente_id,
-                empleado_id,
-                servicio_id,
-                fecha,
-                hora_inicio,
-                hora_fin,
-                estado,
-                observaciones,
-                precio,
-                creado,
-                modificado
-            `)
+            .select(SELECT_TURNO_BASE)
             .eq('id', id)
             .single();
 
         if (error) {
-            if (error.code === 'PGRST116') {
-                return null;
-            }
+            if (error.code === 'PGRST116') return null;
             throw error;
         }
-        return turno;
+        return mapearEstado(turno);
     } catch (error) {
         console.error(`Error al obtener turno con ID ${id}:`, error.message);
         throw error;
@@ -71,7 +86,7 @@ async function obtenerUnTurno(id) {
 // Función para agregar un turno
 async function agregarTurno(nuevoTurno) {
     try {
-        const { 
+        const {
             cliente_id,
             empleado_id,
             servicio_id,
@@ -83,22 +98,26 @@ async function agregarTurno(nuevoTurno) {
             precio
         } = nuevoTurno;
 
+        // Resolver el código de estado a su ID en la tabla estado_turno
+        const estados = await obtenerEstadosTurnoMap();
+        const codigoEstado = estado || 'pendiente';
+        const estadoObj = estados[codigoEstado];
+        if (!estadoObj) throw new Error(`Estado '${codigoEstado}' no encontrado en estado_turno.`);
+
         const { data, error } = await supabaseAdmin
             .from('turnos')
-            .insert([
-                {
-                    cliente_id: cliente_id,
-                    empleado_id,
-                    servicio_id,
-                    fecha,
-                    hora_inicio,
-                    hora_fin,
-                    estado: estado || 'pendiente', //Sería como el valor por defecto si no se especifica
-                    observaciones: observaciones || null,
-                    precio
-                }
-            ])
-            .select()
+            .insert([{
+                cliente_id,
+                empleado_id,
+                servicio_id,
+                fecha,
+                hora_inicio,
+                hora_fin,
+                estado_id: estadoObj.id,
+                observaciones: observaciones || null,
+                precio
+            }])
+            .select(SELECT_TURNO_BASE)
             .single();
 
         if (error) {
@@ -106,7 +125,7 @@ async function agregarTurno(nuevoTurno) {
             throw new Error(`Error al agregar turno: ${error.message}`);
         }
 
-        return data;
+        return mapearEstado(data);
     } catch (error) {
         console.error("Error en modelo.agregarTurno:", error);
         throw error;
@@ -130,21 +149,30 @@ async function modificarTurno(id, turnoModificar) {
             precio
         } = turnoModificar;
 
+        const actualizacion = {
+            cliente_id,
+            empleado_id,
+            servicio_id,
+            fecha,
+            hora_inicio,
+            hora_fin,
+            observaciones,
+            precio
+        };
+
+        // Resolver estado → estado_id solo si se envió un estado
+        if (estado !== undefined) {
+            const estados = await obtenerEstadosTurnoMap();
+            const estadoObj = estados[estado];
+            if (!estadoObj) throw new Error(`Estado '${estado}' no encontrado en estado_turno.`);
+            actualizacion.estado_id = estadoObj.id;
+        }
+
         const { data, error } = await supabaseAdmin
             .from('turnos')
-            .update({
-                cliente_id: cliente_id,
-                empleado_id: empleado_id,
-                servicio_id: servicio_id,
-                fecha: fecha,
-                hora_inicio: hora_inicio,
-                hora_fin: hora_fin,
-                estado: estado,
-                observaciones: observaciones,
-                precio: precio
-            })
+            .update(actualizacion)
             .eq('id', id)
-            .select()
+            .select(SELECT_TURNO_BASE)
             .single();
 
         if (error) {
@@ -206,18 +234,22 @@ async function obtenerHorariosDisponibles(empleado_id, fecha, duracionServicio, 
             };
         }
 
-        //Obtener turnos ocupados del empleado en esa fecha
-        const {data: turnosOcupados, error: errorTurnos} = await supabaseAdmin
+        // Obtener turnos del empleado en esa fecha y filtrar activos en JS
+        const {data: turnosBD, error: errorTurnos} = await supabaseAdmin
             .from('turnos')
-            .select('hora_inicio, hora_fin, estado, cliente_id')
+            .select('hora_inicio, hora_fin, estado_turno!estado_id(codigo)')
             .eq('empleado_id', empleado_id)
             .eq('fecha', fecha)
-            .neq('estado', 'cancelado') // Para excluir los cancelados
             .order('hora_inicio', { ascending: true });
-    
+
             if (errorTurnos) {
                 throw errorTurnos;
             }
+
+            // Excluir cancelados y anulados (no bloquean horarios)
+            const turnosOcupados = turnosBD.filter(t =>
+                !['cancelado', 'anulado'].includes(t.estado_turno?.codigo)
+            );
             
             // Horarios posibles del día usando la configuración dinámica
             const horariosDelDia = generarHorariosDelDia(
@@ -457,13 +489,14 @@ async function obtenerTurnosConDetalles({empleadoId, fecha}){
                 fecha,
                 hora_inicio,
                 hora_fin,
-                estado,
+                estado_id,
                 precio,
                 observaciones,
                 cliente_id,
                 empleado_id,
                 servicio_id,
-                empleados!inner(nombre),           
+                estado_turno!estado_id(id, codigo, nombre, permite_cambios),
+                empleados!inner(nombre),
                 clientes!inner(nombre, telefono),
                 servicios!inner(nombre)
             `, {count: 'exact'});
@@ -492,7 +525,9 @@ async function obtenerTurnosConDetalles({empleadoId, fecha}){
                 fecha: turno.fecha,
                 hora: turno.hora_inicio,
                 hora_fin : turno.hora_fin,
-                estado: turno.estado,
+                estado: turno.estado_turno?.codigo  || null,
+                estado_nombre: turno.estado_turno?.nombre || null,
+                permite_cambios: turno.estado_turno?.permite_cambios ?? true,
                 precio: turno.precio,
                 cliente_id: turno.cliente_id,
                 empleado_id: turno.empleado_id,
@@ -519,10 +554,9 @@ async function obtenerTurnosConDetalles({empleadoId, fecha}){
 async function verificarSolapamiento(empleado_id, fecha, hora_inicio, hora_fin, turno_id_excluir = null) {
     let query = supabaseAdmin
         .from('turnos')
-        .select('id, hora_inicio, hora_fin, estado')
+        .select('id, hora_inicio, hora_fin, estado_turno!estado_id(codigo)')
         .eq('empleado_id', empleado_id)
-        .eq('fecha', fecha)
-        .neq('estado', 'cancelado');
+        .eq('fecha', fecha);
 
     if (turno_id_excluir) {
         query = query.neq('id', turno_id_excluir);
@@ -531,7 +565,12 @@ async function verificarSolapamiento(empleado_id, fecha, hora_inicio, hora_fin, 
     const { data: turnosExistentes, error } = await query;
     if (error) throw error;
 
-    const conflicto = turnosExistentes.find(t =>
+    // Excluir cancelados y anulados en JS (más confiable que filtrar sobre FK en PostgREST)
+    const turnosActivos = turnosExistentes.filter(t =>
+        !['cancelado', 'anulado'].includes(t.estado_turno?.codigo)
+    );
+
+    const conflicto = turnosActivos.find(t =>
         hora_inicio < t.hora_fin && hora_fin > t.hora_inicio
     );
 
@@ -559,6 +598,11 @@ async function modificarSoloCliente(id, cliente_id) {
 // Función para cancelar turnos pendientes de una fecha que superaron el umbral de confirmación (15 min antes)
 async function cancelarPendientesVencidos(fecha) {
     try {
+        const estados = await obtenerEstadosTurnoMap();
+        const pendienteId = estados['pendiente']?.id;
+        const canceladoId  = estados['cancelado']?.id;
+        if (!pendienteId || !canceladoId) throw new Error('No se encontraron los estados requeridos en estado_turno.');
+
         const ahora = new Date();
         const umbral = new Date(ahora.getTime() + 15 * 60000);
         const horaUmbral = `${umbral.getHours().toString().padStart(2, '0')}:${umbral.getMinutes().toString().padStart(2, '0')}`;
@@ -567,7 +611,7 @@ async function cancelarPendientesVencidos(fecha) {
             .from('turnos')
             .select('id')
             .eq('fecha', fecha)
-            .eq('estado', 'pendiente')
+            .eq('estado_id', pendienteId)
             .lte('hora_inicio', horaUmbral);
 
         if (errorBusqueda) throw errorBusqueda;
@@ -577,7 +621,7 @@ async function cancelarPendientesVencidos(fecha) {
 
         const { error: errorActualizacion } = await supabaseAdmin
             .from('turnos')
-            .update({ estado: 'cancelado' })
+            .update({ estado_id: canceladoId })
             .in('id', ids);
 
         if (errorActualizacion) throw errorActualizacion;

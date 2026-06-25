@@ -2,7 +2,7 @@
 <html lang="es">
 
 <head>
-  <base href="/Reservas/">
+<!--   <base href="/Reservas/"> -->
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="format-detection" content="telephone=no">
@@ -136,6 +136,11 @@
               <input class="form-input" type="tel" id="telefono" placeholder="Sin 0 y sin 15" autocomplete="off">
               <span class="form-error" id="telefono-error"></span>
             </div>
+            <div class="form-grupo">
+              <label class="form-label" for="email">Email <span class="form-label__opcional">(opcional)</span></label>
+              <input class="form-input" type="email" id="email" placeholder="tu@email.com" autocomplete="email">
+              <span class="form-error" id="email-error"></span>
+            </div>
             <button class="btn-confirmar" id="btn-continuar" disabled>Continuar</button>
           </div>
 
@@ -150,6 +155,8 @@
                   id="resumen-nombre"></span></div>
               <div class="resumen__fila"><span class="resumen__label">Teléfono</span><span class="resumen__valor"
                   id="resumen-telefono"></span></div>
+              <div class="resumen__fila resumen__fila--email" id="resumen-email-fila"><span class="resumen__label">Email</span><span class="resumen__valor"
+                  id="resumen-email"></span></div>
               <div class="resumen__sep"></div>
               <div class="resumen__fila"><span class="resumen__label">Servicio</span><span class="resumen__valor"
                   id="resumen-servicio"></span></div>
