@@ -1,11 +1,5 @@
 {
   "version": 2,
-  "crons": [
-    {
-      "path": "/api/v1/turnos/notificaciones/recordatorios",
-      "schedule": "*/5 * * * *"
-    }
-  ],
   "builds": [
     {
       "src": "index.mjs",
