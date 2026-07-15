@@ -2,13 +2,16 @@
 <html lang="es">
 
 <head>
-  <base href="/Reservas/">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="format-detection" content="telephone=no">
   <title>Reservar Turno — Elevé Barbería</title>
   <meta name="description" content="Reservá tu turno en Elevé Barbería." />
   <link rel="icon" type="image/png" href="img/LOGO-ELEVE-2.png" sizes="25x25">
+  <!-- Icono al agregar la pagina a la pantalla de inicio (iPhone y Android) -->
+  <link rel="apple-touch-icon" href="img/LOGO-ELEVE-PREVISUALIZACION.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#111111">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
   <link rel="stylesheet" href="./css/styles.css">
 </head>
@@ -33,7 +36,7 @@
       <div class="nav__links">
         <a href="#reservar">Reservar</a>
         <a href="#contacto">Contacto</a>
-        <a href="https://wa.me/542944806944" target="_blank" rel="noopener" class="nav__link-whatsapp">
+        <a id="nav-whatsapp-link" href="https://wa.me/542944806944" target="_blank" rel="noopener" class="nav__link-whatsapp">
           WhatsApp
         </a>
       </div>
@@ -61,7 +64,7 @@
 
         <!-- Imagen izquierda (dentro del card) -->
         <div class="reserva-imagen">
-          <img src="img/foto-barber-01.jpeg" alt="Elevé Barbería" />
+          <img id="reserva-imagen-principal" src="img/foto-barber-01.jpeg" alt="Elevé Barbería" />
         </div>
 
         <!-- Panel derecho: formulario -->
@@ -78,8 +81,6 @@
             <div class="progreso__paso" data-paso="4">4</div>
             <div class="progreso__linea"></div>
             <div class="progreso__paso" data-paso="5">5</div>
-            <div class="progreso__linea"></div>
-            <div class="progreso__paso" data-paso="6">6</div>
           </div>
 
           <!-- Paso 1: Servicio -->
@@ -87,7 +88,9 @@
             <div class="paso__cab">
               <h2 class="paso__titulo">Seleccioná un servicio</h2>
             </div>
-            <div class="servicios-grid" id="servicios-container"></div>
+            <div class="paso__cuerpo">
+              <div class="servicios-grid" id="servicios-container"></div>
+            </div>
           </div>
 
           <!-- Paso 2: Barbero -->
@@ -96,84 +99,89 @@
               <h2 class="paso__titulo">Elegí tu barbero</h2>
               <button class="btn-volver"><i class="ti ti-chevron-left"></i> Volver</button>
             </div>
-            <div class="barberos-grid" id="barberos-container"></div>
+            <div class="paso__cuerpo">
+              <div class="barberos-grid" id="barberos-container"></div>
+            </div>
           </div>
 
-          <!-- Paso 3: Fecha -->
+          <!-- Paso 3: Fecha y horario -->
           <div class="paso" id="paso-3">
             <div class="paso__cab">
-              <h2 class="paso__titulo">Elegí la fecha</h2>
+              <h2 class="paso__titulo">Elegí fecha y horario</h2>
               <button class="btn-volver"><i class="ti ti-chevron-left"></i> Volver</button>
             </div>
-            <div class="fechas-grid" id="fechas-container"></div>
+            <div class="paso__cuerpo">
+              <div class="fechas-grid" id="fechas-container"></div>
+              <div class="horarios-seccion">
+                <h3 class="horarios-subtitulo">Horarios disponibles</h3>
+                <div id="horarios-container"></div>
+                <div class="sin-horarios" id="sin-horarios" style="display:none;">
+                  <i class="ti ti-calendar-off sin-horarios__icono"></i>
+                  <p class="sin-horarios__titulo">No hay horarios disponibles para esta fecha</p>
+                  <button type="button" class="btn-siguiente-fecha" id="btn-siguiente-fecha-disponible">Ir a la próxima fecha disponible</button>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <!-- Paso 4: Horario -->
+          <!-- Paso 4: Datos -->
           <div class="paso" id="paso-4">
-            <div class="paso__cab">
-              <h2 class="paso__titulo">Elegí el horario</h2>
-              <button class="btn-volver"><i class="ti ti-chevron-left"></i> Volver</button>
-            </div>
-            <div class="horarios-grid" id="horarios-container"></div>
-            <div class="sin-horarios" id="sin-horarios" style="display:none;">
-              <p>Sin horarios disponibles. Probá otra fecha.</p>
-            </div>
-          </div>
-
-          <!-- Paso 5: Datos -->
-          <div class="paso" id="paso-5">
             <div class="paso__cab">
               <h2 class="paso__titulo">Tus datos</h2>
               <button class="btn-volver"><i class="ti ti-chevron-left"></i> Volver</button>
             </div>
-            <div class="form-grupo">
-              <label class="form-label" for="nombre">Nombre completo</label>
-              <input class="form-input" type="text" id="nombre" placeholder="Ej: Juan Pérez" autocomplete="off">
-              <span class="form-error" id="nombre-error"></span>
+            <div class="paso__cuerpo">
+              <div class="form-grupo">
+                <label class="form-label" for="nombre">Nombre completo</label>
+                <input class="form-input" type="text" id="nombre" placeholder="Ej: Juan Pérez" autocomplete="off">
+                <span class="form-error" id="nombre-error"></span>
+              </div>
+              <div class="form-grupo">
+                <label class="form-label" for="telefono">Teléfono</label>
+                <input class="form-input" type="tel" id="telefono" placeholder="Sin 0 y sin 15" autocomplete="off">
+                <span class="form-error" id="telefono-error"></span>
+              </div>
+              <div class="form-grupo">
+                <label class="form-label" for="email">Email</label>
+                <input class="form-input" type="email" id="email" placeholder="tu@email.com" autocomplete="email" required>
+                <span class="form-error" id="email-error"></span>
+              </div>
+              <button class="btn-confirmar" id="btn-continuar" disabled>Continuar</button>
             </div>
-            <div class="form-grupo">
-              <label class="form-label" for="telefono">Teléfono</label>
-              <input class="form-input" type="tel" id="telefono" placeholder="Sin 0 y sin 15" autocomplete="off">
-              <span class="form-error" id="telefono-error"></span>
-            </div>
-            <div class="form-grupo">
-              <label class="form-label" for="email">Email</label>
-              <input class="form-input" type="email" id="email" placeholder="tu@email.com" autocomplete="email" required>
-              <span class="form-error" id="email-error"></span>
-            </div>
-            <button class="btn-confirmar" id="btn-continuar" disabled>Continuar</button>
           </div>
 
-          <!-- Paso 6: Resumen -->
-          <div class="paso" id="paso-6">
+          <!-- Paso 5: Resumen -->
+          <div class="paso" id="paso-5">
             <div class="paso__cab">
               <h2 class="paso__titulo">Confirmá tu reserva</h2>
               <button class="btn-volver"><i class="ti ti-chevron-left"></i> Volver</button>
             </div>
-            <div class="resumen">
-              <div class="resumen__fila"><span class="resumen__label">Nombre</span><span class="resumen__valor"
-                  id="resumen-nombre"></span></div>
-              <div class="resumen__fila"><span class="resumen__label">Teléfono</span><span class="resumen__valor"
-                  id="resumen-telefono"></span></div>
-              <div class="resumen__fila resumen__fila--email" id="resumen-email-fila"><span class="resumen__label">Email</span><span class="resumen__valor"
-                  id="resumen-email"></span></div>
-              <div class="resumen__sep"></div>
-              <div class="resumen__fila"><span class="resumen__label">Servicio</span><span class="resumen__valor"
-                  id="resumen-servicio"></span></div>
-              <div class="resumen__fila"><span class="resumen__label">Barbero</span><span class="resumen__valor"
-                  id="resumen-barbero"></span></div>
-              <div class="resumen__fila"><span class="resumen__label">Fecha</span><span class="resumen__valor"
-                  id="resumen-fecha"></span></div>
-              <div class="resumen__fila"><span class="resumen__label">Hora</span><span class="resumen__valor"
-                  id="resumen-hora"></span></div>
-              <div class="resumen__fila"><span class="resumen__label">Duración</span><span class="resumen__valor"
-                  id="resumen-duracion"></span></div>
-              <div class="resumen__total">
-                <span class="resumen__label">Total</span>
-                <span class="resumen__precio" id="resumen-precio"></span>
+            <div class="paso__cuerpo">
+              <div class="resumen">
+                <div class="resumen__fila"><span class="resumen__label">Nombre</span><span class="resumen__valor"
+                    id="resumen-nombre"></span></div>
+                <div class="resumen__fila"><span class="resumen__label">Teléfono</span><span class="resumen__valor"
+                    id="resumen-telefono"></span></div>
+                <div class="resumen__fila resumen__fila--email" id="resumen-email-fila"><span class="resumen__label">Email</span><span class="resumen__valor"
+                    id="resumen-email"></span></div>
+                <div class="resumen__sep"></div>
+                <div class="resumen__fila"><span class="resumen__label">Servicio</span><span class="resumen__valor"
+                    id="resumen-servicio"></span></div>
+                <div class="resumen__fila"><span class="resumen__label">Barbero</span><span class="resumen__valor"
+                    id="resumen-barbero"></span></div>
+                <div class="resumen__fila"><span class="resumen__label">Fecha</span><span class="resumen__valor"
+                    id="resumen-fecha"></span></div>
+                <div class="resumen__fila"><span class="resumen__label">Hora</span><span class="resumen__valor"
+                    id="resumen-hora"></span></div>
+                <div class="resumen__fila"><span class="resumen__label">Duración</span><span class="resumen__valor"
+                    id="resumen-duracion"></span></div>
+                <div class="resumen__total">
+                  <span class="resumen__label">Total</span>
+                  <span class="resumen__precio" id="resumen-precio"></span>
+                </div>
               </div>
+              <button class="btn-confirmar" id="btn-confirmar-reserva">Confirmar reserva</button>
             </div>
-            <button class="btn-confirmar" id="btn-confirmar-reserva">Confirmar reserva</button>
           </div>
 
           <!-- Pantalla de confirmación -->
@@ -184,6 +192,7 @@
             <h2 class="confirmacion__titulo">¡Turno confirmado!</h2>
             <p class="confirmacion__sub">Te esperamos. Recordá llegar<br>unos minutos antes.</p>
             <div class="confirmacion__detalle" id="confirmacion-detalle"></div>
+            <p class="confirmacion__email-aviso"><i class="ti ti-mail"></i> Te enviamos un mail con los detalles de tu reserva.</p>
             <button class="btn-nueva-reserva" id="btn-nueva-reserva">Hacer otra reserva</button>
           </div>
 
@@ -201,8 +210,8 @@
               <i class="ti ti-map-pin"></i>
               <div>
                 <strong>Dirección</strong>
-                <p>Av. Pueyrredón 182, Nueva Córdoba</p>
-                <a href="https://maps.google.com/?q=Elev%C3%A9+barber%C3%ADa,+Av.+Pueyrred%C3%B3n+182,+C%C3%B3rdoba"
+                <p id="contacto-direccion-texto">Av. Pueyrredón 182, Nueva Córdoba</p>
+                <a id="contacto-mapa-link" href="https://maps.google.com/?q=Elev%C3%A9+barber%C3%ADa,+Av.+Pueyrred%C3%B3n+182,+C%C3%B3rdoba"
                   target="_blank" class="link-mapa">Ver en Google Maps →</a>
               </div>
             </div>
@@ -210,29 +219,31 @@
               <i class="ti ti-clock"></i>
               <div>
                 <strong>Horario</strong>
-                <p>Lunes – Sábado: 11:00 – 19:00</p>
-                <p>Domingo: Cerrado</p>
+                <div id="contacto-horario-lineas">
+                  <p>Lunes – Sábado: 11:00 – 19:00</p>
+                  <p>Domingo: Cerrado</p>
+                </div>
               </div>
             </div>
             <div class="contacto-dato">
               <i class="ti ti-phone"></i>
               <div>
                 <strong>Teléfono</strong>
-                <p>+54 2944806944</p>
+                <p id="contacto-telefono-texto">+54 2944806944</p>
               </div>
             </div>
             <div class="contacto-dato">
               <i class="ti ti-mail"></i>
               <div>
                 <strong>Email</strong>
-                <p>Elevebarberia@hotmail.com</p>
+                <p id="contacto-email-texto">Elevebarberia@hotmail.com</p>
               </div>
             </div>
           </div>
           <div class="contacto-redes">
-            <a href="#" aria-label="Instagram"><i class="ti ti-brand-instagram"></i></a>
-            <a href="#" aria-label="Facebook"><i class="ti ti-brand-facebook"></i></a>
-            <a href="https://wa.me/542944806944" aria-label="WhatsApp" target="_blank"><i
+            <a id="contacto-instagram-link" href="#" aria-label="Instagram"><i class="ti ti-brand-instagram"></i></a>
+            <a id="contacto-facebook-link" href="#" aria-label="Facebook"><i class="ti ti-brand-facebook"></i></a>
+            <a id="contacto-whatsapp-link" href="https://wa.me/542944806944" aria-label="WhatsApp" target="_blank"><i
                 class="ti ti-brand-whatsapp"></i></a>
           </div>
           <p class="footer-copy">© 2025 Elevé Barbería · Todos los derechos reservados.</p>
@@ -240,7 +251,7 @@
 
         <!-- Mapa -->
         <div class="contacto-mapa">
-          <iframe
+          <iframe id="contacto-mapa-iframe"
             src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3404.5513280317814!2d-64.19372042439217!3d-31.426485574257168!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x9432a3bdc29738e9%3A0x493738ca9f6c4611!2zRWxldsOpIGJhcmJlcsOtYQ!5e0!3m2!1ses-419!2sar!4v1752303864605!5m2!1ses-419!2sar"
             width="100%" height="100%" style="border:0;" allowfullscreen="" loading="lazy"
             referrerpolicy="no-referrer-when-downgrade" title="Ubicación de Elevé Barbería"></iframe>
@@ -252,13 +263,13 @@
   </main>
 
   <!-- CTA flotante WhatsApp -->
-  <a href="https://wa.me/542944806944" target="_blank" rel="noopener" class="whatsapp-fab"
+  <a id="whatsapp-fab-link" href="https://wa.me/542944806944" target="_blank" rel="noopener" class="whatsapp-fab"
     aria-label="Contactar por WhatsApp">
     <i class="ti ti-brand-whatsapp"></i>
   </a>
 
-  <script src="./js/nav.js"></script>
-  <script src="./js/reserva.js" type="module"></script>
+  <script src="./js/nav.js?v=2"></script>
+  <script src="./js/reserva.js?v=2" type="module"></script>
 
 </body>
 

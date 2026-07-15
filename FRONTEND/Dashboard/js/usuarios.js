@@ -1,56 +1,42 @@
-import { showNotification, confirmarAccion } from './utilidades.js'
-
-// ───────────────────────────────────────────────
-// PERSISTENCIA LOCAL (localStorage)
-// ───────────────────────────────────────────────
-const LS_KEY        = 'eleve_usuarios'
-const LS_SEEDED_KEY = 'eleve_db_seeded'
-
-function cargarDesdeStorage() {
-  try {
-    const raw = localStorage.getItem(LS_KEY)
-    return raw ? JSON.parse(raw) : []
-  } catch {
-    return []
-  }
-}
-
-function guardarEnStorage(usuarios) {
-  localStorage.setItem(LS_KEY, JSON.stringify(usuarios))
-}
+import { showNotification, confirmarAccion, capturarValoresFormulario, restaurarValoresFormulario, setBtnLoading } from './utilidades.js'
+import { fetchProfesionales } from './api.js'
+import { fetchUsuarios, createUsuario, updateUsuario, deleteUsuario } from './api.js'
+import { estado } from './estado.js'
 
 // Estado local del módulo
-let usuarios = cargarDesdeStorage()
+let usuarios = []
 let usuariosFiltrados = [...usuarios]
+let empleadosDisponibles = []
 
-// ───────────────────────────────────────────────
-// SIEMBRA INICIAL DESDE JSON (simula BD)
-// Solo ocurre la primera vez (flag en localStorage)
-// ───────────────────────────────────────────────
-async function sembrarDesdeJSON() {
-  if (localStorage.getItem(LS_SEEDED_KEY)) return
-  try {
-    const res   = await fetch('./data/usuarios.json')
-    const datos = await res.json()
-    guardarEnStorage(datos)
-    localStorage.setItem(LS_SEEDED_KEY, '1')
-    usuarios          = datos
-    usuariosFiltrados = [...datos]
-  } catch (e) {
-    console.warn('[Eleve] No se pudo cargar usuarios.json:', e)
-  }
-}
+// Borrador por usuario (clave = id, o 'nuevo') para no perder lo tipeado si el
+// modal se cierra sin guardar. Las contraseñas quedan afuera a propósito.
+const CAMPOS_USUARIO = ['usuario-nombre', 'usuario-email', 'usuario-tipo', 'usuario-empleado-id']
+const _borradoresUsuario = {}
 
 // ───────────────────────────────────────────────
 // INICIALIZACIÓN
 // ───────────────────────────────────────────────
 export async function inicializarUsuarios() {
-  await sembrarDesdeJSON()
-  usuarios          = cargarDesdeStorage()
+  empleadosDisponibles = await fetchProfesionales().catch(() => [])
+  usuarios          = await fetchUsuarios()
   usuariosFiltrados = [...usuarios]
   setupEventListeners()
   renderizarUsuarios()
   renderizarMetricas()
+}
+
+function poblarSelectEmpleados(empleadoIdSeleccionado = '') {
+  const select = document.getElementById('usuario-empleado-id')
+  if (!select) return
+
+  const opciones = ['<option value="">Sin asignar</option>']
+  empleadosDisponibles.forEach((empleado) => {
+    opciones.push(`<option value="${empleado.id}">${empleado.nombre}</option>`)
+  })
+  select.innerHTML = opciones.join('')
+
+  const valor = String(empleadoIdSeleccionado || '')
+  if (valor) select.value = valor
 }
 
 // ───────────────────────────────────────────────
@@ -80,15 +66,7 @@ function setupEventListeners() {
   if (btnCerrar) btnCerrar.addEventListener('click', cerrarModal)
 
   const btnCancelar = document.querySelector('.btn-cancelar-usuario')
-  if (btnCancelar) btnCancelar.addEventListener('click', cerrarModal)
-
-  // Cerrar al hacer clic en fondo oscuro
-  const modal = document.getElementById('modal-usuario')
-  if (modal) {
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) cerrarModal()
-    })
-  }
+  if (btnCancelar) btnCancelar.addEventListener('click', cancelarModal)
 
   // Submit del formulario
   const form = document.getElementById('form-usuario')
@@ -100,6 +78,22 @@ function setupEventListeners() {
     btnToggle.addEventListener('click', () => {
       const input = document.getElementById('usuario-password')
       const icon  = btnToggle.querySelector('i')
+      if (input.type === 'password') {
+        input.type = 'text'
+        icon.className = 'fas fa-eye-slash'
+      } else {
+        input.type = 'password'
+        icon.className = 'fas fa-eye'
+      }
+    })
+  }
+
+  const btnToggleActual = document.getElementById('toggle-password-actual-usuario')
+  if (btnToggleActual) {
+    btnToggleActual.addEventListener('click', () => {
+      const input = document.getElementById('usuario-password-actual')
+      const icon  = btnToggleActual.querySelector('i')
+      if (!input || !icon) return
       if (input.type === 'password') {
         input.type = 'text'
         icon.className = 'fas fa-eye-slash'
@@ -136,11 +130,10 @@ function renderizarUsuarios() {
             <h4>${u.nombre}</h4>
             <span class="badge-tipo-usuario ${badgeClase}">${badgeTexto}</span>
           </div>
-          ${u.username ? `<p>@${u.username}</p>` : ''}
         </div>
         <div class="acciones-elemento">
           <button class="boton-icono" data-id="${u.id}" data-accion="editar" title="Editar">
-            <i class="fas fa-pencil-alt"></i>
+            <i class="fas fa-edit"></i>
           </button>
           <button class="boton-icono eliminar" data-id="${u.id}" data-accion="eliminar" title="Eliminar">
             <i class="fas fa-trash-alt"></i>
@@ -153,7 +146,8 @@ function renderizarUsuarios() {
   // Delegación de eventos en la lista
   lista.querySelectorAll('[data-accion]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      const id = btn.dataset.id
+      const id = Number(btn.dataset.id)
+      if (!Number.isInteger(id) || id <= 0) return
       if (btn.dataset.accion === 'editar') abrirModal(id)
       if (btn.dataset.accion === 'eliminar') confirmarEliminar(id)
     })
@@ -186,42 +180,69 @@ function abrirModal(id = null) {
   const form   = document.getElementById('form-usuario')
   const labelPass = document.getElementById('label-password-usuario')
   const inputPass = document.getElementById('usuario-password')
+  const grupoPasswordActual = document.getElementById('grupo-password-actual-usuario')
+  const inputPassActual = document.getElementById('usuario-password-actual')
 
   form.reset()
+  poblarSelectEmpleados()
   // Resetear visibilidad de contraseña
   if (inputPass) inputPass.type = 'password'
   const icon = document.querySelector('#toggle-password-usuario i')
   if (icon) icon.className = 'fas fa-eye'
+  if (inputPassActual) inputPassActual.type = 'password'
+  const iconActual = document.querySelector('#toggle-password-actual-usuario i')
+  if (iconActual) iconActual.className = 'fas fa-eye'
+  if (inputPassActual) inputPassActual.removeAttribute('required')
 
   if (id) {
-    const usuario = usuarios.find((u) => u.id === id)
+    const idNum = Number(id)
+    const usuario = usuarios.find((u) => Number(u.id) === idNum)
     if (!usuario) return
 
     titulo.textContent = 'Editar Usuario'
     if (labelPass) labelPass.textContent = 'Nueva Contraseña (dejar vacío para no cambiar)'
     if (inputPass) inputPass.removeAttribute('required')
+    if (grupoPasswordActual) grupoPasswordActual.style.display = ''
 
     document.getElementById('usuario-id').value       = usuario.id
     document.getElementById('usuario-nombre').value   = usuario.nombre
-    document.getElementById('usuario-username').value = usuario.username || ''
     document.getElementById('usuario-email').value    = usuario.email  || ''
     document.getElementById('usuario-tipo').value     = usuario.tipo
+    document.getElementById('usuario-empleado-id').value = usuario.empleado_id || ''
   } else {
     titulo.textContent = 'Nuevo Usuario'
     if (labelPass) labelPass.textContent = 'Contraseña'
     if (inputPass) inputPass.setAttribute('required', '')
+    if (grupoPasswordActual) grupoPasswordActual.style.display = 'none'
     document.getElementById('usuario-id').value       = ''
-    document.getElementById('usuario-username').value = ''
+    document.getElementById('usuario-empleado-id').value = ''
   }
+
+  restaurarValoresFormulario(_borradoresUsuario[String(id || 'nuevo')])
 
   modal.classList.add('activo')
   document.body.style.overflow = 'hidden'
 }
 
 function cerrarModal() {
+  const idActual = document.getElementById('usuario-id')?.value || 'nuevo'
+  _borradoresUsuario[idActual] = capturarValoresFormulario(CAMPOS_USUARIO)
+  _ocultarModal()
+}
+
+// Oculta el modal sin capturar borrador (se usa tras guardar con éxito).
+function _ocultarModal() {
   const modal = document.getElementById('modal-usuario')
   if (modal) modal.classList.remove('activo')
   document.body.style.overflow = ''
+}
+
+// "Cancelar" es una acción explícita de descarte: a diferencia de la X, borra
+// cualquier borrador pendiente para este formulario.
+function cancelarModal() {
+  const idActual = document.getElementById('usuario-id')?.value || 'nuevo'
+  delete _borradoresUsuario[idActual]
+  _ocultarModal()
 }
 
 // ───────────────────────────────────────────────
@@ -230,77 +251,96 @@ function cerrarModal() {
 async function guardarUsuario(e) {
   e.preventDefault()
 
-  const id       = document.getElementById('usuario-id').value
+  const idValor  = document.getElementById('usuario-id').value
+  const id       = idValor ? Number(idValor) : null
   const nombre   = document.getElementById('usuario-nombre').value.trim()
-  const username = document.getElementById('usuario-username').value.trim().toLowerCase()
-  const email    = document.getElementById('usuario-email').value.trim()
-  const password = document.getElementById('usuario-password').value
+  const email    = document.getElementById('usuario-email').value.trim().toLowerCase()
+  const passwordActual = document.getElementById('usuario-password-actual')?.value || ''
+  const passwordNueva = document.getElementById('usuario-password').value
   const tipo     = document.getElementById('usuario-tipo').value
+  const empleadoIdValor = document.getElementById('usuario-empleado-id').value
+  const empleado_id = empleadoIdValor ? Number(empleadoIdValor) : null
 
-  if (!nombre || !tipo || !username) {
-    showNotification('Nombre, usuario y tipo son obligatorios', 'error')
+  if (!nombre || !email || !tipo) {
+    showNotification('Nombre, email y tipo son obligatorios', 'error')
     return
   }
 
-  // Validar que el username no esté tomado por otro usuario
-  const duplicado = usuarios.find((u) => u.username === username && u.id !== id)
+  if (tipo === 'empleado' && !empleado_id) {
+    showNotification('Los usuarios de tipo empleado deben estar asociados a un empleado', 'error')
+    return
+  }
+
+  if (empleadoIdValor && !Number.isInteger(empleado_id)) {
+    showNotification('El empleado asociado no es válido', 'error')
+    return
+  }
+
+  // Validar que el email no esté tomado por otro usuario
+  const duplicado = usuarios.find((u) => (u.email || '').toLowerCase() === email && Number(u.id) !== Number(id || 0))
   if (duplicado) {
-    showNotification(`El nombre de usuario "${username}" ya está en uso`, 'error')
+    showNotification(`El email "${email}" ya está en uso`, 'error')
     return
   }
 
-  const esEdicion = !!id
+  const esEdicion = Number.isInteger(id) && id > 0
 
-  if (!esEdicion && !password) {
+  if (!esEdicion && !passwordNueva) {
     showNotification('La contraseña es obligatoria al crear un usuario', 'error')
     return
   }
 
-  if (esEdicion) {
-    // Actualizar
-    const idx = usuarios.findIndex((u) => u.id === id)
-    if (idx === -1) return
-
-    usuarios[idx] = {
-      ...usuarios[idx],
-      nombre,
-      username,
-      email,
-      tipo,
-      modificado: new Date().toISOString(),
-      // Solo actualiza la contraseña si se ingresó una nueva
-      ...(password ? { passwordHash: btoa(password) } : {}),
-    }
-
-    showNotification('Usuario actualizado correctamente', 'success')
-  } else {
-    // Crear nuevo
-    const nuevoUsuario = {
-      id:           crypto.randomUUID(),
-      nombre,
-      username,
-      email,
-      tipo,
-      passwordHash: btoa(password), // Codificación básica (no criptografía real)
-      creado:       new Date().toISOString(),
-      modificado:   new Date().toISOString(),
-    }
-    usuarios.push(nuevoUsuario)
-    showNotification('Usuario creado correctamente', 'success')
+  if (esEdicion && passwordNueva && !passwordActual) {
+    showNotification('Para cambiar la contraseña, ingresá la contraseña actual', 'error')
+    return
   }
 
-  guardarEnStorage(usuarios)
+  if (esEdicion && passwordActual && !passwordNueva) {
+    showNotification('Ingresá la nueva contraseña para completar el cambio', 'error')
+    return
+  }
+
+  const payload = {
+    nombre,
+    email,
+    tipo,
+    empleado_id,
+    ...(passwordNueva ? { password: passwordNueva } : {}),
+    ...(esEdicion && passwordActual ? { password_actual: passwordActual, current_password: passwordActual } : {}),
+    ...(esEdicion && passwordNueva ? { password_nueva: passwordNueva, new_password: passwordNueva } : {}),
+  }
+
+  const btn = e.target.closest('form')?.querySelector('[type="submit"]') ||
+               document.querySelector('#modal-usuario [type="submit"]')
+  const restaurar = setBtnLoading(btn)
+
+  const resultado = esEdicion
+    ? await updateUsuario(id, payload)
+    : await createUsuario(payload)
+
+  restaurar()
+  if (!resultado) {
+    showNotification(estado.error || `No se pudo ${esEdicion ? 'actualizar' : 'crear'} el usuario`, 'error')
+    return
+  }
+
+  delete _borradoresUsuario[id || 'nuevo']
+  usuarios = await fetchUsuarios()
   usuariosFiltrados = [...usuarios]
-  cerrarModal()
+  _ocultarModal()
   renderizarUsuarios()
   renderizarMetricas()
+  showNotification(esEdicion ? 'Usuario actualizado correctamente' : 'Usuario creado correctamente', 'success')
 }
 
 // ───────────────────────────────────────────────
 // ELIMINAR
 // ───────────────────────────────────────────────
 async function confirmarEliminar(id) {
-  const usuario = usuarios.find((u) => u.id === id)
+  const idNum = Number(id)
+  if (!Number.isInteger(idNum) || idNum <= 0) return
+
+  const usuario = usuarios.find((u) => Number(u.id) === idNum)
   if (!usuario) return
 
   const ok = await confirmarAccion(
@@ -310,12 +350,17 @@ async function confirmarEliminar(id) {
   )
   if (!ok) return
 
-  usuarios = usuarios.filter((u) => u.id !== id)
-  usuariosFiltrados = usuariosFiltrados.filter((u) => u.id !== id)
-  guardarEnStorage(usuarios)
+  const resultado = await deleteUsuario(idNum)
+  if (!resultado) {
+    showNotification('No se pudo desactivar el usuario', 'error')
+    return
+  }
+
+  usuarios = await fetchUsuarios()
+  usuariosFiltrados = [...usuarios]
   renderizarUsuarios()
   renderizarMetricas()
-  showNotification('Usuario eliminado correctamente', 'success')
+  showNotification('Usuario desactivado correctamente', 'success')
 }
 
 // ───────────────────────────────────────────────

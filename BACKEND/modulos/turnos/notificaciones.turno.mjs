@@ -1,7 +1,11 @@
 import modeloTurno from './modelo.turno.mjs';
+import modeloNegocio from '../negocio/modelo.negocio.mjs';
 import { enviarEmail, obtenerEmailAdmin } from '../../integraciones/resend/resendClient.mjs';
 
-const WHATSAPP_DESTINO = String(process.env.WHATSAPP_CONTACT_NUMBER || '5492944134510').replace(/\D/g, '');
+const WHATSAPP_FALLBACK = String(process.env.WHATSAPP_CONTACT_NUMBER || '3518524236').replace(/\D/g, '');
+const LOGO_URL = process.env.EMAIL_LOGO_URL || 'https://admin.elevebarberia.surweb.com.ar/img/logo-eleve-02.jpg';
+const PANEL_URL = process.env.ADMIN_PANEL_URL || 'https://admin.elevebarberia.surweb.com.ar';
+const RESERVAS_URL = process.env.RESERVAS_URL || 'https://elevebarberia.surweb.com.ar';
 
 function escaparHtml(valor) {
         return String(valor ?? '')
@@ -37,6 +41,7 @@ function formatearFechaHora(fecha, horaInicio, horaFin) {
 function htmlBase({ tipo, titulo, subtitulo, detalleHtml, turno }) {
         const badges = {
                 confirmacion: { txt: 'Reserva confirmada', color: '#0f766e', fondo: '#ecfeff' },
+        cancelacion: { txt: 'Turno cancelado', color: '#b91c1c', fondo: '#fef2f2' },
                 reprogramacion: { txt: 'Turno reprogramado', color: '#b45309', fondo: '#fff7ed' },
                 recordatorio: { txt: 'Recordatorio 1h antes', color: '#1d4ed8', fondo: '#eff6ff' }
         };
@@ -51,9 +56,11 @@ function htmlBase({ tipo, titulo, subtitulo, detalleHtml, turno }) {
     return `
             <div style="margin:0;padding:24px;background:#f5f5f5;font-family:Arial,sans-serif;color:#111;">
                 <div style="max-width:580px;margin:0 auto;background:#fff;border:1px solid #ececec;border-radius:14px;overflow:hidden;">
-                    <div style="background:#111;color:#fff;padding:18px 20px;">
-                        <div style="font-size:18px;font-weight:700;letter-spacing:0.2px;">ELEVE Barberia</div>
-                        <div style="font-size:12px;opacity:0.82;margin-top:3px;">Gestion de turnos</div>
+                    <div style="background:#111;padding:16px 20px;">
+                        <div style="background:#fff;display:inline-block;padding:8px 14px;border-radius:8px;">
+                            <img src="${LOGO_URL}" width="130" alt="ELEVE Barber Studio" style="display:block;border:0;">
+                        </div>
+                        <div style="color:#fff;font-size:12px;opacity:0.82;margin-top:8px;">Gestion de turnos</div>
                     </div>
 
                     <div style="padding:18px 20px 10px;">
@@ -102,14 +109,15 @@ function construirMensajeWhatsapp(turno, accion) {
                 `ID Turno: ${turno.id}`;
 }
 
-function linkWhatsapp(turno, accion) {
+function linkWhatsapp(turno, accion, whatsappDestino) {
         const texto = encodeURIComponent(construirMensajeWhatsapp(turno, accion));
-        return `https://wa.me/${WHATSAPP_DESTINO}?text=${texto}`;
+        const numero = String(whatsappDestino || '').replace(/\D/g, '') || WHATSAPP_FALLBACK;
+        return `https://wa.me/${numero}?text=${texto}`;
 }
 
-function bloqueAccionesCliente(turno) {
-        const linkCancelar = linkWhatsapp(turno, 'cancelar');
-        const linkReprogramar = linkWhatsapp(turno, 'reprogramar');
+function bloqueAccionesCliente(turno, whatsappDestino) {
+        const linkCancelar = linkWhatsapp(turno, 'cancelar', whatsappDestino);
+        const linkReprogramar = linkWhatsapp(turno, 'reprogramar', whatsappDestino);
 
         return `
             <div style="margin-top:16px;">
@@ -130,9 +138,26 @@ function bloqueAccionesCliente(turno) {
         `;
 }
 
+function bloqueAccionesReservar() {
+        return `
+            <div style="margin-top:16px;">
+                <a href="${RESERVAS_URL}" style="display:block;text-align:center;padding:10px 14px;background:#111;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:13px;">Reservar un nuevo turno</a>
+            </div>
+        `;
+}
+
+function bloqueAccionesPanel() {
+        return `
+            <div style="margin-top:16px;">
+                <a href="${PANEL_URL}" style="display:block;text-align:center;padding:10px 14px;background:#111;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:13px;">Ver en el panel</a>
+            </div>
+        `;
+}
+
 function destinatariosConfirmacion(turno) {
     const to = [];
     if (turno.email_cliente) to.push(turno.email_cliente);
+    if (turno.email_empleado) to.push(turno.email_empleado);
     const adminEmail = obtenerEmailAdmin();
     if (adminEmail) to.push(adminEmail);
     return to;
@@ -146,17 +171,30 @@ async function enviarConfirmacionReserva(turnoId) {
     }
 
     const subject = `Reserva confirmada - ${turno.nombre_cliente}`;
+    const subjectInterno = `Reserva confirmada - ${turno.nombre_cliente} con ${turno.nombre_empleado}`;
     const resultados = [];
 
     if (turno.email_cliente) {
+        const configNegocio = await modeloNegocio.obtenerConfigNegocio();
         const htmlCliente = htmlBase({
             tipo: 'confirmacion',
             titulo: 'Reserva registrada',
             subtitulo: 'Tu turno fue cargado correctamente en ELEVE Barberia.',
-            detalleHtml: `Conserva este email como comprobante.${bloqueAccionesCliente(turno)}`,
+            detalleHtml: `Conserva este email como comprobante.${bloqueAccionesCliente(turno, configNegocio.whatsapp)}`,
             turno
         });
         resultados.push(await enviarEmail({ to: [turno.email_cliente], subject, html: htmlCliente }));
+    }
+
+    if (turno.email_empleado) {
+        const htmlEmpleado = htmlBase({
+            tipo: 'confirmacion',
+            titulo: 'Nueva reserva asignada',
+            subtitulo: 'Se registró un turno a tu nombre.',
+            detalleHtml: `Revisá la agenda para ver el detalle del servicio y la hora asignada.${bloqueAccionesPanel()}`,
+            turno
+        });
+        resultados.push(await enviarEmail({ to: [turno.email_empleado], subject: `[PROFESIONAL] ${subjectInterno}`, html: htmlEmpleado }));
     }
 
     const adminEmail = obtenerEmailAdmin();
@@ -165,10 +203,10 @@ async function enviarConfirmacionReserva(turnoId) {
             tipo: 'confirmacion',
             titulo: 'Nueva reserva registrada',
             subtitulo: 'Se registró una reserva desde la web de clientes.',
-            detalleHtml: 'Aviso interno para administración.',
+            detalleHtml: `Aviso interno para administración.${bloqueAccionesPanel()}`,
             turno
         });
-        resultados.push(await enviarEmail({ to: [adminEmail], subject: `[ADMIN] ${subject}`, html: htmlAdmin }));
+        resultados.push(await enviarEmail({ to: [adminEmail], subject: `[ADMIN] ${subjectInterno}`, html: htmlAdmin }));
     }
 
     return { enviados: resultados.length, resultados };
@@ -195,6 +233,54 @@ async function enviarReprogramacion(turnoId, turnoAnterior) {
     });
 
     return enviarEmail({ to, subject, html });
+}
+
+async function enviarCancelacion(turnoId) {
+    const turno = await modeloTurno.obtenerTurnoParaNotificacion(turnoId);
+    if (!turno) return { skipped: true, motivo: 'turno-no-encontrado' };
+    if (turno.estado !== 'cancelado') {
+        return { skipped: true, motivo: 'estado-no-cancelado' };
+    }
+
+    const resultados = [];
+    const subject = `Turno cancelado - ${turno.nombre_cliente}`;
+    const subjectInterno = `Turno cancelado - ${turno.nombre_cliente} con ${turno.nombre_empleado}`;
+
+    if (turno.email_cliente) {
+        const htmlCliente = htmlBase({
+            tipo: 'cancelacion',
+            titulo: 'Tu turno fue cancelado',
+            subtitulo: 'La cancelación se registró correctamente en ELEVE Barberia.',
+            detalleHtml: `Si queres un nuevo turno, podes reservar nuevamente desde la web.${bloqueAccionesReservar()}`,
+            turno
+        });
+        resultados.push(await enviarEmail({ to: [turno.email_cliente], subject, html: htmlCliente }));
+    }
+
+    if (turno.email_empleado) {
+        const htmlEmpleado = htmlBase({
+            tipo: 'cancelacion',
+            titulo: 'Turno cancelado',
+            subtitulo: 'Se registró una cancelación de turno en tu agenda.',
+            detalleHtml: `El horario queda liberado para nuevos turnos.${bloqueAccionesPanel()}`,
+            turno
+        });
+        resultados.push(await enviarEmail({ to: [turno.email_empleado], subject: `[PROFESIONAL] ${subjectInterno}`, html: htmlEmpleado }));
+    }
+
+    const adminEmail = obtenerEmailAdmin();
+    if (adminEmail) {
+        const htmlAdmin = htmlBase({
+            tipo: 'cancelacion',
+            titulo: 'Turno cancelado',
+            subtitulo: 'Se registró una cancelación de turno.',
+            detalleHtml: `Aviso interno para administración.${bloqueAccionesPanel()}`,
+            turno
+        });
+        resultados.push(await enviarEmail({ to: [adminEmail], subject: `[ADMIN] ${subjectInterno}`, html: htmlAdmin }));
+    }
+
+    return { enviados: resultados.length, resultados };
 }
 
 async function enviarRecordatorioTurno(turno) {
@@ -243,5 +329,6 @@ async function procesarRecordatorios() {
 export default {
     enviarConfirmacionReserva,
     enviarReprogramacion,
+    enviarCancelacion,
     procesarRecordatorios
 };

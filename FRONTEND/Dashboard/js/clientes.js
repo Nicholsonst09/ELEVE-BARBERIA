@@ -1,9 +1,14 @@
 import { estado } from "./estado.js"
-import { showNotification, confirmarAccion, setBtnLoading } from "./utilidades.js"
+import { showNotification, confirmarAccion, setBtnLoading, capturarValoresFormulario, restaurarValoresFormulario } from "./utilidades.js"
 import { fetchClientes, updateCliente, deleteCliente } from "./api.js"
 
 let clientesFiltrados = []
 let estadisticasClientes = null
+
+// Borrador por cliente (clave = id, o 'nuevo' para el formulario de alta) para no perder
+// lo tipeado si el modal se cierra sin guardar (ej: para consultar otra cosa).
+const CAMPOS_CLIENTE = ['cliente-nombre', 'cliente-telefono', 'cliente-email', 'cliente-notas']
+const _borradoresCliente = {}
 
 export async function inicializarClientes() {
   await cargarClientes()
@@ -54,7 +59,7 @@ function setupClientesEventListeners() {
 
   const btnCancelarModal = document.querySelector('#modal-cliente .btn-cancelar-cliente')
   if (btnCancelarModal) {
-    btnCancelarModal.addEventListener('click', cerrarModalCliente)
+    btnCancelarModal.addEventListener('click', cancelarModalCliente)
   }
 
   const formCliente = document.getElementById('form-cliente')
@@ -76,14 +81,12 @@ function renderizarClientes() {
     <div class="elemento-lista" data-id="${cliente.id}">
       <div class="info-elemento">
         <h4>${cliente.nombre}</h4>
-        <p>${cliente.telefono || 'Sin teléfono'}</p>
-        ${cliente.email ? `<p>${cliente.email}</p>` : ''}
-        ${cliente.preferencias ? `<small>${cliente.preferencias}</small>` : ''}
+        <p>${cliente.telefono || cliente.email || 'Sin contacto'}</p>
         <small>${cliente.visitas_realizadas || 0} visitas realizadas</small>
       </div>
       <div class="acciones-elemento">
         <button class="boton-icono editar" data-cliente-id="${cliente.id}" title="Editar">
-          <i class="fas fa-pencil-alt"></i>
+          <i class="fas fa-edit"></i>
         </button>
         <button class="boton-icono eliminar" data-cliente-id="${cliente.id}" title="Eliminar">
           <i class="fas fa-trash-alt"></i>
@@ -125,11 +128,29 @@ export function abrirModalCliente(clienteId = null) {
     document.getElementById("cliente-id").value = ""
   }
 
+  restaurarValoresFormulario(_borradoresCliente[String(clienteId || 'nuevo')])
+
   modal.classList.add("activo")
   document.body.style.overflow = "hidden"
 }
 
 export function cerrarModalCliente() {
+  const idActual = document.getElementById("cliente-id")?.value || 'nuevo'
+  _borradoresCliente[idActual] = capturarValoresFormulario(CAMPOS_CLIENTE)
+  _ocultarModalCliente()
+}
+
+// "Cancelar" es una acción explícita de descarte: a diferencia de la X, borra
+// cualquier borrador pendiente para este formulario.
+function cancelarModalCliente() {
+  const idActual = document.getElementById("cliente-id")?.value || 'nuevo'
+  delete _borradoresCliente[idActual]
+  _ocultarModalCliente()
+}
+
+// Oculta el modal sin capturar borrador (se usa tras guardar con éxito, donde
+// el borrador ya se descartó y no queremos que el DOM recién guardado lo recree).
+function _ocultarModalCliente() {
   const modal = document.getElementById("modal-cliente")
   modal.classList.remove("activo")
   document.body.style.overflow = ""
@@ -153,8 +174,9 @@ export async function guardarCliente(e) {
   const resultado = await updateCliente(clienteData)
   restaurar()
   if (resultado) {
+    delete _borradoresCliente[clienteData.id || 'nuevo']
     showNotification(clienteData.id ? "Cliente actualizado correctamente" : "Cliente creado correctamente", "success")
-    cerrarModalCliente()
+    _ocultarModalCliente()
     await cargarClientes()
     renderizarClientes()
     actualizarMetricasClientes()

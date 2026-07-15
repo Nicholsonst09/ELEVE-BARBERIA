@@ -1,16 +1,29 @@
 // ===================================================
-// auth.js — Sistema de autenticación (DEMO / FRONTEND)
-// TODO: reemplazar lógica por JWT real en producción
+// auth.js — Autenticación real contra backend + Supabase Auth
+// La UI de login vive en login.html / js/login.js. Este módulo se encarga
+// de la sesión, la validación contra el backend y los permisos del panel.
 // ===================================================
 import { confirmarAccion } from './utilidades.js'
+import { API_BASE_URL } from './config.js?v=2'
 
 const SESSION_KEY     = 'eleve_session'
-const LS_USUARIOS_KEY = 'eleve_usuarios'
+const LOGIN_URL        = 'login.html'
 
 // Módulos permitidos según rol
 const MODULOS_POR_ROL = {
-  admin:    ['agenda', 'financiero', 'clientes', 'servicios', 'empleados', 'usuarios'],
-  empleado: ['agenda', 'clientes'],
+  admin:    ['agenda', 'financiero', 'clientes', 'servicios', 'caja', 'productos', 'negocio', 'empleados', 'usuarios'],
+  empleado: ['agenda', 'caja'],
+}
+
+function _modulosParaRol(rol) {
+  return MODULOS_POR_ROL[rol] || MODULOS_POR_ROL.empleado
+}
+
+/** Mantiene modulos al día si la sesión quedó guardada antes de agregar pestañas nuevas */
+function _sincronizarSesion(sesion) {
+  const actualizada = { ...sesion, modulos: _modulosParaRol(sesion.rol) }
+  guardarSesion(actualizada)
+  return actualizada
 }
 
 // ─────────────────────────────────────────────────
@@ -25,252 +38,95 @@ export function obtenerSesion() {
   }
 }
 
-function guardarSesion(datosUsuario) {
+export function guardarSesion(datosUsuario) {
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(datosUsuario))
 }
 
 export function cerrarSesion() {
   sessionStorage.removeItem(SESSION_KEY)
-  location.reload()
+  window.location.href = LOGIN_URL
+}
+
+function limpiarSesionSilenciosa() {
+  sessionStorage.removeItem(SESSION_KEY)
 }
 
 // ─────────────────────────────────────────────────
 // INICIALIZACIÓN — llama esto en main.js ANTES de
-// cargar cualquier otro módulo
+// cargar cualquier otro módulo. Si no hay sesión válida,
+// redirige a login.html en lugar de mostrar un overlay.
 // ─────────────────────────────────────────────────
-export function inicializarAuth() {
+async function obtenerPerfilActual(accessToken) {
+  const response = await fetch(`${API_BASE_URL}/auth/me`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+  if (!response.ok) return null
+  const data = await response.json()
+  return data?.usuario || null
+}
+
+export function construirSesionDesdeRespuesta(usuario, session) {
+  return {
+    usuario: usuario.username || usuario.email,
+    nombre: usuario.nombre,
+    usuarioId: usuario.id,
+    empleadoId: usuario.empleado_id || null,
+    avatarUrl: usuario.empleado?.avatar_url || null,
+    rol: usuario.tipo || usuario.rol,
+    modulos: _modulosParaRol(usuario.tipo || usuario.rol),
+    accessToken: session?.access_token || null,
+    refreshToken: session?.refresh_token || null,
+    expiresAt: session?.expires_at || null,
+    email: usuario.email || null,
+  }
+}
+
+export async function inicializarAuth() {
+  _setupLogout()
+
   const sesion = obtenerSesion()
 
-  if (sesion) {
-    // Ya hay sesión activa: ocultar overlay y aplicar permisos
-    _ocultarOverlay()
-    _aplicarPermisos(sesion)
-    _mostrarUsuarioEnHeader(sesion)
-  } else {
-    // Sin sesión: mostrar overlay de login
-    _mostrarOverlay()
+  if (!sesion?.accessToken) {
+    window.location.replace(LOGIN_URL)
+    return null
   }
 
-  _setupLoginForm()
-  _setupRecuperarPassword()
-  _setupLogout()
-}
-
-// ─────────────────────────────────────────────────
-// MOSTRAR / OCULTAR OVERLAY
-// ─────────────────────────────────────────────────
-function _mostrarOverlay() {
-  const overlay = document.getElementById('login-overlay')
-  if (overlay) overlay.classList.add('activo')
-  document.body.style.overflow = 'hidden'
-}
-
-function _ocultarOverlay() {
-  const overlay = document.getElementById('login-overlay')
-  if (overlay) overlay.classList.remove('activo')
-  document.body.style.overflow = ''
-}
-
-// ─────────────────────────────────────────────────
-// FORMULARIO DE LOGIN
-// ─────────────────────────────────────────────────
-function _setupLoginForm() {
-  const form    = document.getElementById('form-login')
-  const btnToggle = document.getElementById('toggle-login-password')
-  const inputPw   = document.getElementById('login-password')
-  const errorDiv  = document.getElementById('login-error')
-
-  if (!form) return
-
-  // Toggle visibilidad contraseña
-  if (btnToggle && inputPw) {
-    btnToggle.addEventListener('click', () => {
-      const visible = inputPw.type === 'text'
-      inputPw.type = visible ? 'password' : 'text'
-      btnToggle.querySelector('i').className = visible ? 'fas fa-eye' : 'fas fa-eye-slash'
-    })
+  const usuario = await obtenerPerfilActual(sesion.accessToken)
+  if (!usuario) {
+    limpiarSesionSilenciosa()
+    window.location.replace(LOGIN_URL)
+    return null
   }
 
-  form.addEventListener('submit', (e) => {
-    e.preventDefault()
-
-    const usuarioIngresado  = document.getElementById('login-usuario').value.trim()
-    const passwordIngresada = inputPw ? inputPw.value : ''
-
-    // Buscar en la "BD" (localStorage, sembrado desde usuarios.json)
-    let sesionData = null
-    try {
-      const raw = localStorage.getItem(LS_USUARIOS_KEY)
-      const storedUsers = raw ? JSON.parse(raw) : []
-      const match = storedUsers.find(
-        (u) => u.username === usuarioIngresado &&
-               u.passwordHash &&
-               atob(u.passwordHash) === passwordIngresada
-      )
-      if (match) {
-        sesionData = {
-          usuario: match.username,
-          nombre:  match.nombre,
-          rol:     match.tipo,
-          modulos: MODULOS_POR_ROL[match.tipo] || MODULOS_POR_ROL.empleado,
-        }
-      }
-    } catch { /* localStorage inaccesible */ }
-
-    if (!sesionData) {
-      if (errorDiv) {
-        errorDiv.textContent = 'Usuario o contraseña incorrectos'
-        errorDiv.classList.add('visible')
-        // Shake en la tarjeta
-        const card = document.querySelector('.login-card')
-        if (card) {
-          card.classList.add('shake')
-          card.addEventListener('animationend', () => card.classList.remove('shake'), { once: true })
-        }
-      }
-      return
-    }
-
-    // Credenciales correctas
-    if (errorDiv) errorDiv.classList.remove('visible')
-
-    guardarSesion(sesionData)
-
-    // Animación de exit antes de ocultar
-    const overlay = document.getElementById('login-overlay')
-    if (overlay) {
-      overlay.classList.add('saliendo')
-      overlay.addEventListener('animationend', () => {
-        _ocultarOverlay()
-        overlay.classList.remove('saliendo')
-        _aplicarPermisos(sesionData)
-        _mostrarUsuarioEnHeader(sesionData)
-      }, { once: true })
-    }
+  const sesionActualizada = _sincronizarSesion({
+    ...sesion,
+    usuario: usuario.username || usuario.email,
+    nombre: usuario.nombre,
+    usuarioId: usuario.id,
+    empleadoId: usuario.empleado_id || null,
+    avatarUrl: usuario.empleado?.avatar_url || null,
+    rol: usuario.tipo || usuario.rol,
   })
-}
-
-// ─────────────────────────────────────────────────
-// RECUPERAR CONTRASEÑA
-// ─────────────────────────────────────────────────
-function _setupRecuperarPassword() {
-  const linkRecuperar      = document.getElementById('link-recuperar')
-  const linkVolver         = document.getElementById('link-volver-login')
-  const formLogin          = document.getElementById('form-login')
-  const headerPrincipal    = document.getElementById('login-header-principal')
-  const panelRecuperar     = document.getElementById('panel-recuperar')
-  const paso1              = document.getElementById('recuperar-paso1')
-  const paso2              = document.getElementById('recuperar-paso2')
-  const errorDiv           = document.getElementById('recuperar-error')
-  const error2Div          = document.getElementById('recuperar-error2')
-  const btnEnviarMail      = document.getElementById('btn-enviar-mail')
-  const btnConfirmar       = document.getElementById('btn-confirmar-recuperar')
-
-  if (!linkRecuperar || !panelRecuperar) return
-
-  let emailUsuarioEnRecuperacion = ''
-
-  const mostrarError = (div, msg) => {
-    div.textContent = msg
-    div.classList.add('visible')
-  }
-  const limpiarError = (div) => div.classList.remove('visible')
-
-  const mostrarRecuperar = () => {
-    formLogin.style.display         = 'none'
-    headerPrincipal.style.display   = 'none'
-    panelRecuperar.style.display    = 'block'
-    paso1.style.display             = 'block'
-    paso2.style.display             = 'none'
-    document.getElementById('recuperar-email').value = ''
-    limpiarError(errorDiv)
-  }
-
-  const mostrarLogin = () => {
-    panelRecuperar.style.display  = 'none'
-    formLogin.style.display       = ''
-    headerPrincipal.style.display = ''
-    emailUsuarioEnRecuperacion    = ''
-  }
-
-  linkRecuperar.addEventListener('click', (e) => { e.preventDefault(); mostrarRecuperar() })
-  linkVolver.addEventListener('click',    (e) => { e.preventDefault(); mostrarLogin() })
-
-  // ── Paso 1: validar email y simular envío ──
-  btnEnviarMail.addEventListener('click', () => {
-    const email = document.getElementById('recuperar-email').value.trim()
-    limpiarError(errorDiv)
-
-    if (!email) { mostrarError(errorDiv, 'Ingresá tu correo electrónico.'); return }
-
-    // Buscar usuario por email en localStorage
-    let usuarios = []
-    try {
-      const raw = localStorage.getItem(LS_USUARIOS_KEY)
-      usuarios = raw ? JSON.parse(raw) : []
-    } catch { /* sin acceso */ }
-
-    const usuario = usuarios.find(u => u.email === email)
-    if (!usuario) { mostrarError(errorDiv, 'No encontramos una cuenta con ese correo.'); return }
-
-    emailUsuarioEnRecuperacion = email
-
-    // Simular envío y avanzar al paso 2
-    paso1.style.display = 'none'
-    paso2.style.display = 'block'
-    document.getElementById('recuperar-nueva').value     = ''
-    document.getElementById('recuperar-confirmar').value = ''
-    limpiarError(error2Div)
-  })
-
-  // ── Paso 2: cambiar contraseña ──
-  btnConfirmar.addEventListener('click', () => {
-    const nueva     = document.getElementById('recuperar-nueva').value
-    const confirmar = document.getElementById('recuperar-confirmar').value
-    limpiarError(error2Div)
-
-    if (!nueva || !confirmar) { mostrarError(error2Div, 'Completá ambos campos.'); return }
-    if (nueva.length < 6)     { mostrarError(error2Div, 'La contraseña debe tener al menos 6 caracteres.'); return }
-    if (nueva !== confirmar)  { mostrarError(error2Div, 'Las contraseñas no coinciden.'); return }
-
-    let usuarios = []
-    try {
-      const raw = localStorage.getItem(LS_USUARIOS_KEY)
-      usuarios = raw ? JSON.parse(raw) : []
-    } catch { /* sin acceso */ }
-
-    const idx = usuarios.findIndex(u => u.email === emailUsuarioEnRecuperacion)
-    if (idx === -1) { mostrarError(error2Div, 'Error inesperado. Volvé a intentarlo.'); return }
-
-    usuarios[idx].passwordHash = btoa(nueva)
-    localStorage.setItem(LS_USUARIOS_KEY, JSON.stringify(usuarios))
-
-    mostrarLogin()
-
-    const loginError = document.getElementById('login-error')
-    if (loginError) {
-      loginError.style.color = 'var(--c-completado, #16a34a)'
-      loginError.textContent = '✓ Contraseña actualizada. Podés iniciar sesión.'
-      loginError.classList.add('visible')
-    }
-  })
+  _aplicarPermisos(sesionActualizada)
+  _mostrarUsuarioEnHeader(sesionActualizada)
+  return sesionActualizada
 }
 
 // ─────────────────────────────────────────────────
 // LOGOUT
 // ─────────────────────────────────────────────────
 function _setupLogout() {
-  const btnLogout = document.getElementById('btn-logout')
-  if (btnLogout) {
-    btnLogout.addEventListener('click', async () => {
-      const ok = await confirmarAccion(
-        'Tu sesión se cerrará y tendrás que volver a ingresar.',
-        'Cerrar sesión',
-        'Sí, salir'
-      )
-      if (ok) cerrarSesion()
-    })
+  const manejarLogout = async () => {
+    const ok = await confirmarAccion(
+      'Tu sesión se cerrará y tendrás que volver a ingresar.',
+      'Cerrar sesión',
+      'Sí, salir'
+    )
+    if (ok) cerrarSesion()
   }
+
+  document.getElementById('btn-logout')?.addEventListener('click', manejarLogout)
+  document.getElementById('btn-logout-nav')?.addEventListener('click', manejarLogout)
 }
 
 // ─────────────────────────────────────────────────
@@ -278,20 +134,33 @@ function _setupLogout() {
 // ─────────────────────────────────────────────────
 function _aplicarPermisos(sesion) {
   const botones = document.querySelectorAll('.boton-navegacion[data-tab]')
+  const modulos = sesion.modulos || _modulosParaRol(sesion.rol)
 
   botones.forEach((btn) => {
     const tab = btn.dataset.tab
-    if (sesion.modulos.includes(tab)) {
+    if (modulos.includes(tab)) {
       btn.style.display = ''
+      btn.removeAttribute('aria-hidden')
     } else {
       btn.style.display = 'none'
-      // Si la pestaña activa ahora no está permitida, redirigir a la primera permitida
+      btn.setAttribute('aria-hidden', 'true')
       const contenidoActivo = document.getElementById(tab)
       if (contenidoActivo && contenidoActivo.classList.contains('activo')) {
-        const primerPermitido = sesion.modulos[0]
+        const primerPermitido = modulos[0]
         _activarTab(primerPermitido, botones)
       }
     }
+  })
+
+  // Si un grupo del menú se quedó sin ítems visibles (ej: rol empleado),
+  // ocultamos el grupo entero para no dejar un título flotando sin botones.
+  // Los grupos sin pestañas propias (ej: Ver Reservas / Cerrar sesión) no
+  // tienen data-tab y quedan afuera de este chequeo, siempre visibles.
+  document.querySelectorAll('.grupo-navegacion').forEach((grupo) => {
+    const botonesDelGrupo = grupo.querySelectorAll('.boton-navegacion[data-tab]')
+    if (botonesDelGrupo.length === 0) return
+    const tieneVisibles = Array.from(botonesDelGrupo).some((btn) => btn.style.display !== 'none')
+    grupo.style.display = tieneVisibles ? '' : 'none'
   })
 }
 
@@ -316,12 +185,23 @@ function _mostrarUsuarioEnHeader(sesion) {
   if (!contenedor) return
 
   const esAdmin = sesion.rol === 'admin'
+  const avatarHtml = sesion.avatarUrl
+    ? `<img src="${sesion.avatarUrl}" alt="" class="usuario-header-avatar">`
+    : ''
+  // Solo admin lleva insignia; empleado muestra únicamente el nombre.
+  const badgeHtml = esAdmin
+    ? `<span class="usuario-header-badge badge-admin">Admin</span>`
+    : ''
+  // El nombre siempre se muestra (aunque el usuario no tenga empleado asociado,
+  // caso típico de un admin sin ficha de empleado); si por algún motivo llega
+  // vacío, cae al usuario/email en vez de dejar el header en blanco.
+  const nombreMostrado = sesion.nombre || sesion.usuario || sesion.email || 'Usuario'
+
   contenedor.innerHTML = `
     <div class="usuario-header-info">
-      <span class="usuario-header-nombre">${sesion.nombre}</span>
-      <span class="usuario-header-badge ${esAdmin ? 'badge-admin' : 'badge-empleado'}">
-        ${esAdmin ? 'Admin' : 'Empleado'}
-      </span>
+      ${avatarHtml}
+      <span class="usuario-header-nombre">${nombreMostrado}</span>
+      ${badgeHtml}
     </div>
   `
 }

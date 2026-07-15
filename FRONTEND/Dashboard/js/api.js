@@ -1,7 +1,7 @@
 // js/api.js
 import { API_BASE_URL, estado } from './estado.js';
-import { formatearFechaParaAPI } from './utilidades.js';
-import { obtenerSesion } from './auth.js';
+import { formatearFechaParaAPI, showNotification } from './utilidades.js';
+import { obtenerSesion, cerrarSesion } from './auth.js';
 
 /**
  * Manejador de errores centralizado para fetch.
@@ -13,23 +13,145 @@ function manejarErrorFetch(mensaje, error) {
   estado.error = mensaje; // Muta el estado importado
 }
 
+// Intercepta cualquier 401 que devuelva el backend (token de sesión vencido)
+// para avisarle al usuario y mandarlo a login, en vez de dejar que cada una
+// de las funciones de este archivo falle en silencio. Se parchea el fetch
+// global (en vez de tocar cada llamada) porque este módulo solo se carga en
+// el panel de gestión, nunca en login.html.
+let sesionExpiradaEnCurso = false;
+
+function manejarSesionExpirada() {
+  if (sesionExpiradaEnCurso) return;
+  sesionExpiradaEnCurso = true;
+  showNotification('Tu sesión expiró. Iniciá sesión de nuevo.', 'warning');
+  setTimeout(() => cerrarSesion(), 1500);
+}
+
+const fetchOriginal = window.fetch.bind(window);
+window.fetch = async (...args) => {
+  const respuesta = await fetchOriginal(...args);
+  const url = typeof args[0] === 'string' ? args[0] : args[0]?.url || '';
+  // /auth/me ya maneja su propio 401 en inicializarAuth(); no duplicar el aviso ahí.
+  if (respuesta.status === 401 && url.startsWith(API_BASE_URL) && !url.includes('/auth/me')) {
+    manejarSesionExpirada();
+  }
+  return respuesta;
+};
+
 function construirHeadersJSON() {
   const sesion = obtenerSesion?.();
   const headers = { 'Content-Type': 'application/json' };
+  if (sesion?.accessToken) headers.Authorization = `Bearer ${sesion.accessToken}`;
   if (sesion?.rol) headers['x-user-role'] = sesion.rol;
+  if (sesion?.usuarioId && Number.isFinite(Number(sesion.usuarioId))) headers['x-user-id'] = String(Number(sesion.usuarioId));
   return headers;
 }
 
 function construirHeadersSimple() {
   const sesion = obtenerSesion?.();
   const headers = {};
+  if (sesion?.accessToken) headers.Authorization = `Bearer ${sesion.accessToken}`;
   if (sesion?.rol) headers['x-user-role'] = sesion.rol;
+  if (sesion?.usuarioId && Number.isFinite(Number(sesion.usuarioId))) headers['x-user-id'] = String(Number(sesion.usuarioId));
   return headers;
+}
+
+function obtenerUsuarioIdSesion() {
+  const sesion = obtenerSesion?.();
+  const usuarioId = Number(sesion?.usuarioId);
+  return Number.isFinite(usuarioId) && usuarioId > 0 ? usuarioId : null;
+}
+
+// Reintenta la request ante fallos de red transitorios (p.ej. cold start del
+// backend en Vercel) y ante respuestas 5xx/429, que suelen ser hiccups
+// pasajeros del backend o de Supabase — a diferencia de un 4xx (esos no se
+// reintentan, porque repetir el mismo pedido no los va a arreglar).
+// Backoff 1s/2s/4s: un cold start de Vercel puede tardar varios segundos en
+// levantar la función, así que las esperas entre intentos son exponenciales
+// en vez de lineales. fetchFn debe aceptar un AbortSignal para que cada
+// intento corte a los 10s en vez de quedar colgado esperando una conexión
+// que nunca va a responder.
+async function fetchConReintento(fetchFn, intentos = 4, esperaBaseMs = 1000) {
+  let ultimoError;
+  for (let intento = 1; intento <= intentos; intento++) {
+    try {
+      const respuesta = await fetchFn(AbortSignal.timeout(10000));
+      const esErrorTransitorio = !respuesta.ok && (respuesta.status >= 500 || respuesta.status === 429);
+      if (esErrorTransitorio && intento < intentos) {
+        await new Promise((resolve) => setTimeout(resolve, esperaBaseMs * 2 ** (intento - 1)));
+        continue;
+      }
+      return respuesta;
+    } catch (error) {
+      ultimoError = error;
+      if (intento === intentos) throw error;
+      await new Promise((resolve) => setTimeout(resolve, esperaBaseMs * 2 ** (intento - 1)));
+    }
+  }
+  throw ultimoError;
+}
+
+export async function fetchNegocioConfig() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/negocio/config`, {
+      headers: construirHeadersSimple(),
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    manejarErrorFetch('No se pudo cargar la configuracion del negocio', error);
+    return null;
+  }
+}
+
+export async function updateNegocioConfig(payload) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/negocio/config`, {
+      method: 'PUT',
+      headers: construirHeadersJSON(),
+      body: JSON.stringify(payload || {}),
+    });
+
+    if (!response.ok) {
+      let detalle = '';
+      try {
+        const dataError = await response.json();
+        detalle = dataError?.detalle || dataError?.mensaje || '';
+      } catch (_) {
+        detalle = '';
+      }
+      throw new Error(detalle || `HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    manejarErrorFetch('No se pudo actualizar la configuracion del negocio', error);
+    return null;
+  }
+}
+
+export async function verificarConflictosHorarios(payload) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/negocio/horarios/conflictos`, {
+      method: 'POST',
+      headers: construirHeadersJSON(),
+      body: JSON.stringify(payload || {}),
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const data = await response.json();
+    return data.turnos || [];
+  } catch (error) {
+    manejarErrorFetch('No se pudieron verificar conflictos de horarios', error);
+    return null;
+  }
 }
 
 export async function fetchProfesionales() {
   try {
-    const response = await fetch(`${API_BASE_URL}/empleados`);
+    const response = await fetchConReintento((signal) => fetch(`${API_BASE_URL}/empleados`, {
+      headers: construirHeadersSimple(),
+      signal,
+    }));
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const data = await response.json();
     return data.empleados || data;
@@ -51,7 +173,9 @@ export async function fetchTurnos() {
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/turnos/detalles?${params.toString()}`);
+    const response = await fetch(`${API_BASE_URL}/turnos/detalles?${params.toString()}`, {
+      headers: construirHeadersSimple(),
+    });
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const data = await response.json();
     console.log(data);
@@ -68,7 +192,9 @@ export async function fetchTurnosPendientesCount(fecha) {
     const params = new URLSearchParams({
       fecha: formatearFechaParaAPI(fecha)
     });
-    const response = await fetch(`${API_BASE_URL}/turnos/detalles?${params.toString()}`);
+    const response = await fetch(`${API_BASE_URL}/turnos/detalles?${params.toString()}`, {
+      headers: construirHeadersSimple(),
+    });
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const data = await response.json();
     const turnos = data.data || [];
@@ -81,7 +207,10 @@ export async function fetchTurnosPendientesCount(fecha) {
 
 export async function fetchServicios() {
   try {
-    const response = await fetch(`${API_BASE_URL}/servicios`);
+    const response = await fetchConReintento((signal) => fetch(`${API_BASE_URL}/servicios`, {
+      headers: construirHeadersSimple(),
+      signal,
+    }));
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const data = await response.json();
     return data.servicios || data;
@@ -91,10 +220,80 @@ export async function fetchServicios() {
   }
 }
 
+export async function fetchProductos() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/productos`, {
+      headers: construirHeadersSimple(),
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const data = await response.json();
+    return {
+      productos: data.productos || [],
+      categorias: data.categorias || [],
+    };
+  } catch (error) {
+    manejarErrorFetch('No se pudieron cargar los productos', error);
+    return { productos: [], categorias: [] };
+  }
+}
+
+export async function createOrUpdateProducto(productoData) {
+  const esEdicion = !!productoData.id;
+  const url = esEdicion ? `${API_BASE_URL}/productos/${productoData.id}` : `${API_BASE_URL}/productos`;
+  const method = esEdicion ? 'PUT' : 'POST';
+
+  try {
+    const response = await fetch(url, {
+      method,
+      headers: construirHeadersJSON(),
+      body: JSON.stringify(productoData),
+    });
+
+    if (!response.ok) {
+      let detalle = `HTTP error! status: ${response.status}`;
+      try {
+        const body = await response.json();
+        detalle = body?.detalle || body?.mensaje || detalle;
+      } catch (_) {
+        // noop
+      }
+      throw new Error(detalle);
+    }
+
+    return await response.json();
+  } catch (error) {
+    manejarErrorFetch(`No se pudo ${esEdicion ? 'actualizar' : 'crear'} el producto`, error);
+    return null;
+  }
+}
+
+export async function deleteProducto(productoId) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/productos/${productoId}`, {
+      method: 'DELETE',
+      headers: construirHeadersSimple(),
+    });
+
+    if (!response.ok) {
+      let detalle = `HTTP error! status: ${response.status}`;
+      try {
+        const body = await response.json();
+        detalle = body?.detalle || body?.mensaje || detalle;
+      } catch (_) {
+        // noop
+      }
+      throw new Error(detalle);
+    }
+
+    return await response.json();
+  } catch (error) {
+    manejarErrorFetch('No se pudo eliminar el producto', error);
+    return null;
+  }
+}
+
 function normalizarEstadoTurno(estadoTurno) {
   const valor = String(estadoTurno || '').toLowerCase();
-  if (valor === 'pendiente' || valor === 'confirmado') return 'reservado';
-  if (valor === 'realizado') return 'completado';
   return valor;
 }
 
@@ -145,9 +344,14 @@ function obtenerRangosPeriodo(periodo, fechaBase = new Date()) {
   return { inicio, fin, inicioPrevio, finPrevio, diffDias };
 }
 
-function estaEnRango(fecha, inicio, fin) {
-  if (!fecha) return false;
-  return fecha >= inicio && fecha <= fin;
+function inicioDelDia(fecha = new Date()) {
+  const copia = new Date(fecha);
+  copia.setHours(0, 0, 0, 0);
+  return copia;
+}
+
+function redondearNumero(valor, decimales = 2) {
+  return Number(Number(valor || 0).toFixed(decimales));
 }
 
 function construirRespuestaFinancieraVacia(periodo) {
@@ -156,19 +360,35 @@ function construirRespuestaFinancieraVacia(periodo) {
       [periodo]: {
         ingresosTotales: 0,
         cambioIngresos: 0,
+        ventasTotales: 0,
+        ticketPromedio: 0,
+        comisionesTotales: 0,
+        utilidadNeta: 0,
+        tasaAnulacion: 0,
+        ventasAnuladas: 0,
         turnosTotales: 0,
         ingresoPromedioPorTurno: 0,
         tasaOcupacion: 0,
         horasTotales: 0,
         fidelidad: { nuevos: 0, recurrentes: 0 },
         estadoTurnos: { completados: 0, cancelados: 0, ausentes: 0 },
+        turnosCompletados: 0,
+        turnosCancelados: 0,
+        tasaCancelacionTurnos: 0,
+        turnosRegistrados: 0,
+        turnosReservados: 0,
+        servicioMasSolicitado: null,
+        horaPico: null,
       },
     },
     serviciosPorEmpleado: { [periodo]: [] },
+    cantidadServiciosPorEmpleado: { [periodo]: [] },
     ingresosPorEmpleado: { [periodo]: [] },
     ocupacionPorEmpleado: { [periodo]: [] },
     turnosPorHora: { [periodo]: [] },
     serviciosPopularesDona: [],
+    metodosPagoDona: [],
+    tipoVentaDona: [],
   };
 }
 
@@ -177,7 +397,9 @@ export async function fetchDashboardStats(fecha) {
     const params = new URLSearchParams({
       fecha: formatearFechaParaAPI(fecha || estado.fechaActual),
     });
-    const response = await fetch(`${API_BASE_URL}/turnos/detalles?${params.toString()}`);
+    const response = await fetch(`${API_BASE_URL}/turnos/detalles?${params.toString()}`, {
+      headers: construirHeadersSimple(),
+    });
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const data = await response.json();
     const turnos = data.data || [];
@@ -199,143 +421,119 @@ export async function fetchDashboardStats(fecha) {
   }
 }
 
+export async function fetchIndicadoresFinancieros(filtros = {}) {
+  try {
+    const params = new URLSearchParams();
+    if (filtros.desde) params.set('desde', filtros.desde);
+    if (filtros.hasta) params.set('hasta', filtros.hasta);
+    if (filtros.empleado_id) params.set('empleado_id', filtros.empleado_id);
+
+    const response = await fetch(`${API_BASE_URL}/indicadores/financieros?${params.toString()}`, {
+      headers: construirHeadersSimple(),
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    manejarErrorFetch('No se pudieron cargar los indicadores financieros', error);
+    return null;
+  }
+}
+
 export async function fetchFinancialData(periodo = 'week') {
   try {
-    const response = await fetch(`${API_BASE_URL}/turnos/detalles`);
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-    const payload = await response.json();
-    const turnos = payload.data || [];
+    const { inicio, fin, inicioPrevio, finPrevio, diffDias } = obtenerRangosPeriodo(periodo, estado.fechaActual || new Date());
+    const desdeActual = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate(), 0, 0, 0, 0).toISOString();
+    const hastaActual = new Date(fin.getFullYear(), fin.getMonth(), fin.getDate(), 23, 59, 59, 999).toISOString();
+    const desdePrevio = new Date(inicioPrevio.getFullYear(), inicioPrevio.getMonth(), inicioPrevio.getDate(), 0, 0, 0, 0).toISOString();
+    const hastaPrevio = new Date(finPrevio.getFullYear(), finPrevio.getMonth(), finPrevio.getDate(), 23, 59, 59, 999).toISOString();
 
-    if (!Array.isArray(turnos) || turnos.length === 0) {
+    const [actual, previo] = await Promise.all([
+      fetchIndicadoresFinancieros({ desde: desdeActual, hasta: hastaActual }),
+      fetchIndicadoresFinancieros({ desde: desdePrevio, hasta: hastaPrevio }),
+    ]);
+
+    if (!actual) {
       return construirRespuestaFinancieraVacia(periodo);
     }
 
-    const { inicio, fin, inicioPrevio, finPrevio, diffDias } = obtenerRangosPeriodo(periodo, estado.fechaActual || new Date());
+    const {
+      ingresosTotales, ventasTotales, ventasAnuladas, ticketPromedio,
+      tasaAnulacion, comisionesTotales, utilidadNeta,
+      turnosCompletados, turnosCancelados, tasaCancelacionTurnos, horaPico,
+      turnosRegistrados, turnosReservados, tasaOcupacion,
+    } = actual.resumen;
 
-    const turnosConFecha = turnos
-      .map(t => ({ ...t, __fecha: parseFecha(t.fecha), __estado: normalizarEstadoTurno(t.estado) }))
-      .filter(t => t.__fecha);
-
-    const actuales = turnosConFecha.filter(t => estaEnRango(t.__fecha, inicio, fin));
-    const previos = turnosConFecha.filter(t => estaEnRango(t.__fecha, inicioPrevio, finPrevio));
-
-    const esCompletado = (t) => t.__estado === 'completado';
-    const esCancelado = (t) => t.__estado === 'cancelado';
-    const esAnulado = (t) => t.__estado === 'anulado';
-
-    const completados = actuales.filter(esCompletado);
-    const cancelados = actuales.filter(esCancelado);
-    const anulados = actuales.filter(esAnulado);
-
-    const ingresosTotales = completados.reduce((acc, t) => acc + (Number(t.precio) || 0), 0);
-    const ingresosPrevios = previos
-      .filter(esCompletado)
-      .reduce((acc, t) => acc + (Number(t.precio) || 0), 0);
-
+    const ingresosPrevios = previo?.resumen?.ingresosTotales || 0;
     const cambioIngresos = ingresosPrevios > 0
       ? ((ingresosTotales - ingresosPrevios) / ingresosPrevios) * 100
       : (ingresosTotales > 0 ? 100 : 0);
 
-    const turnosTotales = actuales.filter(t => t.__estado !== 'anulado').length;
-    const ingresoPromedioPorTurno = completados.length > 0 ? ingresosTotales / completados.length : 0;
-    const tasaOcupacion = turnosTotales > 0 ? (completados.length / turnosTotales) * 100 : 0;
-    const horasTotales = completados.reduce((acc, t) => acc + duracionTurnoEnMinutos(t), 0) / 60;
-
-    const primerTurnoPorCliente = new Map();
-    turnosConFecha.forEach((t) => {
-      if (!t.cliente_id) return;
-      const existente = primerTurnoPorCliente.get(t.cliente_id);
-      if (!existente || t.__fecha < existente) {
-        primerTurnoPorCliente.set(t.cliente_id, t.__fecha);
-      }
-    });
-
-    const clientesPeriodo = Array.from(new Set(actuales.map(t => t.cliente_id).filter(Boolean)));
-    const nuevos = clientesPeriodo.filter((clienteId) => {
-      const primeraFecha = primerTurnoPorCliente.get(clienteId);
-      return estaEnRango(primeraFecha, inicio, fin);
-    }).length;
-    const recurrentes = Math.max(0, clientesPeriodo.length - nuevos);
-
-    const serviciosPorEmpleadoMap = new Map();
-    const ingresosPorEmpleadoMap = new Map();
-    const minutosPorEmpleadoMap = new Map();
-    const minutosCompletadosPorEmpleadoMap = new Map();
-    const turnosPorHoraMap = new Map();
-    const serviciosPopularesMap = new Map();
-
-    actuales.forEach((t) => {
-      const empleado = t.nombre_empleado || 'Sin asignar';
-      const servicio = t.nombre_servicio || 'Servicio';
-      const hora = parseHoraHHMM(t.hora || t.hora_inicio) || '00:00';
-      const minutos = duracionTurnoEnMinutos(t);
-
-      if (!esAnulado(t) && !esCancelado(t)) {
-        turnosPorHoraMap.set(hora, (turnosPorHoraMap.get(hora) || 0) + 1);
-        minutosPorEmpleadoMap.set(empleado, (minutosPorEmpleadoMap.get(empleado) || 0) + minutos);
-      }
-
-      if (esCompletado(t)) {
-        serviciosPorEmpleadoMap.set(empleado, (serviciosPorEmpleadoMap.get(empleado) || 0) + 1);
-        ingresosPorEmpleadoMap.set(empleado, (ingresosPorEmpleadoMap.get(empleado) || 0) + (Number(t.precio) || 0));
-        minutosCompletadosPorEmpleadoMap.set(empleado, (minutosCompletadosPorEmpleadoMap.get(empleado) || 0) + minutos);
-        serviciosPopularesMap.set(servicio, (serviciosPopularesMap.get(servicio) || 0) + 1);
-      }
-    });
-
-    const serviciosPorEmpleado = Array.from(serviciosPorEmpleadoMap.entries())
-      .map(([nombre, cantidad]) => ({ nombre, cantidad }))
-      .sort((a, b) => b.cantidad - a.cantidad)
+    const ventasPorEmpleado = actual.porEmpleado
+      .map((empleado) => ({ nombre: empleado.nombre, monto: redondearNumero(empleado.ingresos) }))
       .slice(0, 5);
 
-    const ingresosPorEmpleado = Array.from(ingresosPorEmpleadoMap.entries())
-      .map(([nombre, monto]) => ({ nombre, monto: Number(monto.toFixed(2)) }))
-      .sort((a, b) => b.monto - a.monto)
+    const comisionesPorEmpleado = [...actual.porEmpleado]
+      .sort((a, b) => b.comision - a.comision)
+      .map((empleado) => ({ nombre: empleado.nombre, monto: redondearNumero(empleado.comision) }))
       .slice(0, 5);
 
-    const ocupacionPorEmpleado = Array.from(minutosPorEmpleadoMap.entries())
-      .map(([nombre, minutosProgramados]) => {
-        const completadosMin = minutosCompletadosPorEmpleadoMap.get(nombre) || 0;
-        const porcentaje = minutosProgramados > 0 ? (completadosMin / minutosProgramados) * 100 : 0;
-        return { nombre, porcentaje: Math.round(porcentaje) };
-      })
-      .sort((a, b) => b.porcentaje - a.porcentaje)
+    const cantidadServiciosPorEmpleado = (actual.serviciosPorEmpleado || [])
+      .map((empleado) => ({ nombre: empleado.nombre, cantidad: empleado.cantidad }))
       .slice(0, 5);
-
-    const turnosPorHora = Array.from(turnosPorHoraMap.entries())
-      .map(([hora, cantidad]) => ({ hora, cantidad }))
-      .sort((a, b) => a.hora.localeCompare(b.hora));
 
     const colores = ['#1a1a1a', '#404040', '#737373', '#a3a3a3', '#d4d4d4'];
-    const serviciosPopularesDona = Array.from(serviciosPopularesMap.entries())
-      .map(([nombre, cantidad], i) => ({ nombre, cantidad, color: colores[i % colores.length] }))
-      .sort((a, b) => b.cantidad - a.cantidad)
-      .slice(0, 5);
+    const serviciosPopularesDona = (actual.serviciosPopulares || [])
+      .slice(0, 5)
+      .map((servicio, index) => ({ nombre: servicio.nombre, cantidad: servicio.cantidad, color: colores[index % colores.length] }));
 
-    const normalizarNumero = (valor) => Number(Number(valor).toFixed(1));
+    const metodosPagoDona = (actual.metodosPago || [])
+      .slice(0, 5)
+      .map((metodo, index) => ({ nombre: metodo.nombre, cantidad: redondearNumero(metodo.monto), color: colores[index % colores.length] }));
+
+    const tipoVentaDona = (actual.tipoVenta || [])
+      .slice(0, 5)
+      .map((tipo, index) => ({ nombre: tipo.nombre, cantidad: redondearNumero(tipo.monto), color: colores[index % colores.length] }));
+
+    const ocupacionPorEmpleado = (actual.ocupacionPorEmpleado || [])
+      .map((empleado) => ({ nombre: empleado.nombre, cantidad: redondearNumero(empleado.porcentaje, 1) }));
+
+    const servicioMasSolicitado = actual.serviciosPopulares?.[0]?.nombre || null;
 
     return {
       kpis: {
         [periodo]: {
-          ingresosTotales: Number(ingresosTotales.toFixed(2)),
-          cambioIngresos: normalizarNumero(cambioIngresos),
-          turnosTotales,
-          ingresoPromedioPorTurno: Number(ingresoPromedioPorTurno.toFixed(2)),
-          tasaOcupacion: Math.round(tasaOcupacion),
-          horasTotales: normalizarNumero(horasTotales),
-          fidelidad: { nuevos, recurrentes },
-          estadoTurnos: {
-            completados: completados.length,
-            cancelados: cancelados.length,
-            ausentes: anulados.length,
-          },
+          ingresosTotales: redondearNumero(ingresosTotales),
+          cambioIngresos: redondearNumero(cambioIngresos, 1),
+          ventasTotales,
+          ticketPromedio: redondearNumero(ticketPromedio),
+          comisionesTotales: redondearNumero(comisionesTotales),
+          utilidadNeta: redondearNumero(utilidadNeta),
+          tasaAnulacion: redondearNumero(tasaAnulacion, 1),
+          ventasAnuladas,
+          turnosTotales: ventasTotales,
+          ingresoPromedioPorTurno: redondearNumero(ticketPromedio),
+          tasaOcupacion: redondearNumero(tasaOcupacion, 1),
+          horasTotales: redondearNumero(comisionesTotales),
+          fidelidad: { nuevos: ventasTotales, recurrentes: 0 },
+          estadoTurnos: { completados: ventasTotales, cancelados: ventasAnuladas, ausentes: 0 },
+          turnosCompletados: turnosCompletados || 0,
+          turnosCancelados: turnosCancelados || 0,
+          tasaCancelacionTurnos: redondearNumero(tasaCancelacionTurnos, 1),
+          turnosRegistrados: turnosRegistrados || 0,
+          turnosReservados: turnosReservados || 0,
+          servicioMasSolicitado,
+          horaPico: horaPico || null,
         },
       },
-      serviciosPorEmpleado: { [periodo]: serviciosPorEmpleado },
-      ingresosPorEmpleado: { [periodo]: ingresosPorEmpleado },
+      serviciosPorEmpleado: { [periodo]: ventasPorEmpleado },
+      cantidadServiciosPorEmpleado: { [periodo]: cantidadServiciosPorEmpleado },
+      ingresosPorEmpleado: { [periodo]: ventasPorEmpleado },
       ocupacionPorEmpleado: { [periodo]: ocupacionPorEmpleado },
-      turnosPorHora: { [periodo]: turnosPorHora },
+      comisionesPorEmpleado: { [periodo]: comisionesPorEmpleado },
+      turnosPorHora: { [periodo]: actual.porHora || [] },
       serviciosPopularesDona,
+      metodosPagoDona,
+      tipoVentaDona,
       meta: {
         inicio: inicio.toISOString().slice(0, 10),
         fin: fin.toISOString().slice(0, 10),
@@ -345,6 +543,158 @@ export async function fetchFinancialData(periodo = 'week') {
   } catch (error) {
     manejarErrorFetch('No se pudieron cargar los datos financieros', error);
     return construirRespuestaFinancieraVacia(periodo);
+  }
+}
+
+export async function fetchCajaVentas(filtros = {}) {
+  try {
+    const params = new URLSearchParams();
+    if (filtros.desde) params.set('desde', filtros.desde);
+    if (filtros.hasta) params.set('hasta', filtros.hasta);
+    if (filtros.usuario_id) params.set('usuario_id', filtros.usuario_id);
+    if (filtros.empleado_id) params.set('empleado_id', filtros.empleado_id);
+    if (filtros.estado) params.set('estado', filtros.estado);
+    if (filtros.limite) params.set('limite', filtros.limite);
+    if (filtros.offset) params.set('offset', filtros.offset);
+
+    const response = await fetch(`${API_BASE_URL}/caja/ventas?${params.toString()}`, {
+      headers: construirHeadersSimple(),
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const data = await response.json();
+    return data.ventas || [];
+  } catch (error) {
+    manejarErrorFetch('No se pudieron cargar las ventas de caja', error);
+    return [];
+  }
+}
+
+export async function createCajaVenta(ventaData) {
+  try {
+    const usuarioIdSesion = obtenerUsuarioIdSesion();
+    const payload = {
+      ...ventaData,
+      usuario_id: Number.isFinite(Number(ventaData?.usuario_id)) ? Number(ventaData.usuario_id) : usuarioIdSesion,
+    };
+
+    const response = await fetch(`${API_BASE_URL}/caja/ventas`, {
+      method: 'POST',
+      headers: construirHeadersJSON(),
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      let detalle = '';
+      try {
+        const errData = await response.json();
+        detalle = errData?.detalle || errData?.mensaje || '';
+      } catch (_) {}
+      throw new Error(detalle || `HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    manejarErrorFetch('No se pudo registrar la venta de caja', error);
+    return null;
+  }
+}
+
+export async function anularCajaVenta(ventaId) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/caja/ventas/${ventaId}/anular`, {
+      method: 'PATCH',
+      headers: construirHeadersSimple(),
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    manejarErrorFetch('No se pudo anular la venta', error);
+    return null;
+  }
+}
+
+export async function reactivarCajaVenta(ventaId) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/caja/ventas/${ventaId}/reactivar`, {
+      method: 'PATCH',
+      headers: construirHeadersSimple(),
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    manejarErrorFetch('No se pudo registrar la venta nuevamente', error);
+    return null;
+  }
+}
+
+export async function fetchUsuarios() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/usuarios`, {
+      headers: construirHeadersSimple(),
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const data = await response.json();
+    return data.usuarios || [];
+  } catch (error) {
+    manejarErrorFetch('No se pudieron cargar los usuarios', error);
+    return [];
+  }
+}
+
+export async function createUsuario(usuarioData) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/usuarios`, {
+      method: 'POST',
+      headers: construirHeadersJSON(),
+      body: JSON.stringify(usuarioData),
+    });
+    if (!response.ok) {
+      let detalle = '';
+      try {
+        const dataError = await response.json();
+        detalle = dataError?.detalle || dataError?.mensaje || '';
+      } catch (_) {}
+      throw new Error(detalle || `HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    manejarErrorFetch(error.message || 'No se pudo crear el usuario', error);
+    return null;
+  }
+}
+
+export async function updateUsuario(usuarioId, usuarioData) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/usuarios/${usuarioId}`, {
+      method: 'PUT',
+      headers: construirHeadersJSON(),
+      body: JSON.stringify(usuarioData),
+    });
+    if (!response.ok) {
+      let detalle = '';
+      try {
+        const dataError = await response.json();
+        detalle = dataError?.detalle || dataError?.mensaje || '';
+      } catch (_) {}
+      throw new Error(detalle || `HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    manejarErrorFetch(error.message || 'No se pudo actualizar el usuario', error);
+    return null;
+  }
+}
+
+export async function deleteUsuario(usuarioId) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/usuarios/${usuarioId}`, {
+      method: 'DELETE',
+      headers: construirHeadersSimple(),
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    if (response.status === 204) return { success: true };
+    return await response.json();
+  } catch (error) {
+    manejarErrorFetch('No se pudo desactivar el usuario', error);
+    return null;
   }
 }
 
@@ -433,7 +783,10 @@ export async function eliminarTurno(turnoId) {
 export async function fetchProfesionalesPorServicio(servicioId) {
   if (!servicioId) return [];
   try {
-    const response = await fetch(`${API_BASE_URL}/servicios/${servicioId}/empleados`);
+    const response = await fetchConReintento((signal) => fetch(`${API_BASE_URL}/servicios/${servicioId}/empleados`, {
+      headers: construirHeadersSimple(),
+      signal,
+    }));
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const data = await response.json();
     // Ajusta 'data.empleados' según la respuesta real de tu API
@@ -457,7 +810,10 @@ export async function fetchHorariosDisponibles(empleadoId, servicioId, fecha, or
   if (!empleadoId || !servicioId || !fecha) return [];
   try {
     const url = `${API_BASE_URL}/turnos/horarios-disponibles/${empleadoId}/${servicioId}/${fecha}?origen=${origen}`;
-    const response = await fetch(url);
+    const response = await fetchConReintento((signal) => fetch(url, {
+      headers: construirHeadersSimple(),
+      signal,
+    }));
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const data = await response.json();
     // Ajusta 'data.horarios' según la respuesta real de tu API
@@ -480,7 +836,7 @@ export async function buscarOCrearCliente(nombre, telefono, email = null) {
   try {
     const response = await fetch(`${API_BASE_URL}/clientes/obtener-o-crear`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: construirHeadersJSON(),
       body: JSON.stringify({ nombre, telefono, email })
     });
     
@@ -503,7 +859,9 @@ export async function buscarOCrearCliente(nombre, telefono, email = null) {
 
 export async function fetchHistorial() {
   try {
-    const response = await fetch(`${API_BASE_URL}/turnos/detalles`);
+    const response = await fetch(`${API_BASE_URL}/turnos/detalles`, {
+      headers: construirHeadersSimple(),
+    });
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const data = await response.json();
     return data.data ?? (Array.isArray(data) ? data : []);
@@ -515,7 +873,9 @@ export async function fetchHistorial() {
 
 export async function fetchClientes() {
   try {
-    const response = await fetch(`${API_BASE_URL}/clientes`)
+    const response = await fetch(`${API_BASE_URL}/clientes`, {
+      headers: construirHeadersSimple(),
+    })
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
     const data = await response.json()
     if (Array.isArray(data)) {
@@ -539,7 +899,7 @@ export async function updateCliente(clienteData) {
   try {
     const response = await fetch(url, {
       method: method,
-      headers: { "Content-Type": "application/json" },
+      headers: construirHeadersJSON(),
       body: JSON.stringify(clienteData),
     })
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
@@ -554,6 +914,7 @@ export async function deleteCliente(clienteId) {
   try {
     const response = await fetch(`${API_BASE_URL}/clientes/${clienteId}`, {
       method: "DELETE",
+      headers: construirHeadersSimple(),
     })
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
     return { success: true }
@@ -571,7 +932,7 @@ export async function createOrUpdateServicio(servicioData) {
   try {
     const response = await fetch(url, {
       method: method,
-      headers: { "Content-Type": "application/json" },
+      headers: construirHeadersJSON(),
       body: JSON.stringify(servicioData),
     })
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
@@ -586,6 +947,7 @@ export async function deleteServicio(servicioId) {
   try {
     const response = await fetch(`${API_BASE_URL}/servicios/${servicioId}`, {
       method: "DELETE",
+      headers: construirHeadersSimple(),
     })
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
     if (response.status === 204) {
@@ -598,6 +960,21 @@ export async function deleteServicio(servicioId) {
   }
 }
 
+export async function cambiarEstadoServicio(servicioId, activo) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/servicios/${servicioId}/estado`, {
+      method: "PATCH",
+      headers: construirHeadersJSON(),
+      body: JSON.stringify({ activo }),
+    })
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+    return await response.json()
+  } catch (error) {
+    manejarErrorFetch(`No se pudo ${activo ? "activar" : "desactivar"} el servicio`, error)
+    return null
+  }
+}
+
 export async function createOrUpdateEmpleado(empleadoData) {
   const esEdicion = !!empleadoData.id
   const url = esEdicion ? `${API_BASE_URL}/empleados/${empleadoData.id}` : `${API_BASE_URL}/empleados`
@@ -606,14 +983,113 @@ export async function createOrUpdateEmpleado(empleadoData) {
   try {
     const response = await fetch(url, {
       method: method,
-      headers: { "Content-Type": "application/json" },
+      headers: construirHeadersJSON(),
       body: JSON.stringify(empleadoData),
     })
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+    if (!response.ok) {
+      const cuerpo = await response.json().catch(() => null)
+      throw new Error(cuerpo?.mensaje || `HTTP error! status: ${response.status}`)
+    }
     return await response.json()
   } catch (error) {
-    manejarErrorFetch(`No se pudo ${esEdicion ? "actualizar" : "crear"} el empleado`, error)
+    manejarErrorFetch(error.message || `No se pudo ${esEdicion ? "actualizar" : "crear"} el empleado`, error)
     return null
+  }
+}
+
+export async function uploadEmpleadoAvatar(file, empleadoId = null) {
+  try {
+    const formData = new FormData()
+    formData.append('avatar', file)
+    if (empleadoId) formData.append('empleado_id', String(empleadoId))
+
+    const response = await fetch(`${API_BASE_URL}/empleados/avatar/upload`, {
+      method: 'POST',
+      headers: construirHeadersSimple(),
+      body: formData,
+    })
+
+    if (!response.ok) {
+      let detalle = `HTTP error! status: ${response.status}`
+      try {
+        const body = await response.json()
+        detalle = body?.detalle || body?.mensaje || detalle
+      } catch (_) {
+        // noop
+      }
+      throw new Error(detalle)
+    }
+
+    return await response.json()
+  } catch (error) {
+    manejarErrorFetch('No se pudo subir el avatar del empleado', error)
+    return {
+      error: error?.message || 'Error desconocido al subir avatar'
+    }
+  }
+}
+
+export async function uploadProductoImagen(file, productoId = null) {
+  try {
+    const formData = new FormData()
+    formData.append('imagen', file)
+    if (productoId) formData.append('producto_id', String(productoId))
+
+    const response = await fetch(`${API_BASE_URL}/productos/imagen/upload`, {
+      method: 'POST',
+      headers: construirHeadersSimple(),
+      body: formData,
+    })
+
+    if (!response.ok) {
+      let detalle = `HTTP error! status: ${response.status}`
+      try {
+        const body = await response.json()
+        detalle = body?.detalle || body?.mensaje || detalle
+      } catch (_) {
+        // noop
+      }
+      throw new Error(detalle)
+    }
+
+    return await response.json()
+  } catch (error) {
+    manejarErrorFetch('No se pudo subir la imagen del producto', error)
+    return {
+      error: error?.message || 'Error desconocido al subir la imagen'
+    }
+  }
+}
+
+export async function uploadNegocioImagen(file, tipo = 'logo') {
+  try {
+    const formData = new FormData()
+    formData.append('imagen', file)
+    formData.append('tipo', tipo === 'reserva' ? 'reserva' : 'logo')
+
+    const response = await fetch(`${API_BASE_URL}/negocio/imagen/upload`, {
+      method: 'POST',
+      headers: construirHeadersSimple(),
+      body: formData,
+    })
+
+    if (!response.ok) {
+      let detalle = `HTTP error! status: ${response.status}`
+      try {
+        const body = await response.json()
+        detalle = body?.detalle || body?.mensaje || detalle
+      } catch (_) {
+        // noop
+      }
+      throw new Error(detalle)
+    }
+
+    return await response.json()
+  } catch (error) {
+    manejarErrorFetch('No se pudo subir la imagen del negocio', error)
+    return {
+      error: error?.message || 'Error desconocido al subir imagen del negocio'
+    }
   }
 }
 
@@ -621,6 +1097,7 @@ export async function deleteEmpleado(empleadoId) {
   try {
     const response = await fetch(`${API_BASE_URL}/empleados/${empleadoId}`, {
       method: "DELETE",
+      headers: construirHeadersSimple(),
     })
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
     if (response.status === 204) {
@@ -629,6 +1106,21 @@ export async function deleteEmpleado(empleadoId) {
     return await response.json()
   } catch (error) {
     manejarErrorFetch("No se pudo eliminar el empleado", error)
+    return null
+  }
+}
+
+export async function cambiarEstadoEmpleado(empleadoId, activo) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/empleados/${empleadoId}/estado`, {
+      method: "PATCH",
+      headers: construirHeadersJSON(),
+      body: JSON.stringify({ activo }),
+    })
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+    return await response.json()
+  } catch (error) {
+    manejarErrorFetch(`No se pudo ${activo ? "activar" : "desactivar"} el empleado`, error)
     return null
   }
 }

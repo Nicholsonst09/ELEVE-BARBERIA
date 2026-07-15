@@ -65,7 +65,7 @@ async function obtenerEmpleadosPorServicio(servicio_id) {
 
 // ─── Horarios disponibles ─────────────────────────────────────────────────────
 
-// Delega en el modelo de turnos usando origen='web' (incluye restricción de 30 min mínimo)
+// Delega en el modelo de turnos usando origen='web'
 async function obtenerHorariosDisponibles(empleado_id, duracion_min, fecha) {
     return modeloTurno.obtenerHorariosDisponibles(empleado_id, fecha, duracion_min, 'web');
 }

@@ -1,5 +1,5 @@
-// URL base de la API — definida en FRONTEND/shared/config.js
-export { API_BASE_URL } from '../../Configuracion/config.js';
+// URL base de la API — definida localmente para evitar problemas de rutas según la raíz del servidor
+export { API_BASE_URL } from './config.js?v=2';
 
 // --- Estado Global de la Aplicación ---
 export let estado = {
@@ -31,6 +31,13 @@ export let estado = {
   empleados: [],
   isLoading: true,
   error: null,
+  moduloVentasActivo: true,
+  permitirTurnosAtrasados: false,
+  // Días de la semana (0=domingo...6=sábado) en que el negocio está cerrado,
+  // según su horario semanal configurado. Se usa para no ofrecer esos días
+  // como cards de fecha al crear/editar un turno. Domingo cerrado por defecto
+  // hasta que se cargue la config real del negocio.
+  diasCerradosSemana: new Set([0]),
 };
 
 // Horarios fijos para la grilla

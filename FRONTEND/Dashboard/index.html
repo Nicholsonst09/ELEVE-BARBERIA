@@ -2,10 +2,24 @@
 <html lang="es">
 
 <head>
-    <base href="/Dashboard/">
     <meta charset="UTF-8">
+    <!-- Redirige de inmediato si no hay sesión guardada, antes de pintar el panel -->
+    <script>
+        (function () {
+            try {
+                var raw = sessionStorage.getItem('eleve_session');
+                var sesion = raw ? JSON.parse(raw) : null;
+                if (!sesion || !sesion.accessToken) {
+                    window.location.replace('login.html');
+                }
+            } catch (e) {
+                window.location.replace('login.html');
+            }
+        })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ELEVÉ - Gestión de Peluquería</title>
+    <link rel="icon" type="image/png" href="img/LOGO-ELEVE-2.png" sizes="25x25">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -14,143 +28,109 @@
 </head> 
 
 <body>
-    <!-- Actualizando todas las clases a español -->
-    <!-- Overlay de Login - Pantalla dividida -->
-    <div id="login-overlay" class="login-overlay">
-        <!-- Lado izquierdo: Imagen -->
-        <div class="login-imagen">
-            <div class="login-imagen-contenido">
-                <h2 class="login-imagen-titulo">Bienvenido a ELEVÉ</h2>
-                <p class="login-imagen-subtitulo">Tu barbería de confianza</p>
-            </div>
-        </div>
-
-        <!-- Lado derecho: Formulario -->
-        <div class="login-formulario">
-            <div class="login-card">
-                <div id="login-header-principal" class="login-header">
-                    <h1 class="login-titulo">Iniciar Sesión</h1>
-                    <p class="login-subtitulo">Ingresá tus credenciales para continuar</p>
-                </div>
-                <form id="form-login" class="login-form" autocomplete="off">
-                    <div class="grupo-formulario">
-                        <label class="form-label" for="login-usuario">Usuario</label>
-                        <input type="text" id="login-usuario" class="form-input" placeholder="Tu nombre de usuario"
-                            required autocomplete="username">
-                    </div>
-                    <div class="grupo-formulario">
-                        <label class="form-label" for="login-password">Contraseña</label>
-                        <div class="input-password-wrapper">
-                            <input type="password" id="login-password" class="form-input" placeholder="Tu contraseña"
-                                required autocomplete="current-password">
-                            <button type="button" id="toggle-login-password" class="btn-toggle-password"
-                                title="Mostrar contraseña">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div id="login-error" class="login-error"></div>
-                    <button type="submit" class="boton-primario login-btn-submit">
-                        <i class="fas fa-sign-in-alt"></i>
-                        Ingresar
-                    </button>
-                    <a href="#" id="link-recuperar" class="login-recuperar-link">¿Olvidaste tu contraseña?</a>
-                </form>
-
-                <!-- Panel recuperar contraseña (oculto por defecto) -->
-                <div id="panel-recuperar" class="panel-recuperar" style="display:none">
-                    <div class="login-header">
-                        <h1 class="login-titulo">Recuperar contraseña</h1>
-                        <p id="recuperar-subtitulo" class="login-subtitulo">Ingresá tu mail y te enviamos las
-                            instrucciones</p>
-                    </div>
-
-                    <!-- Paso 1: Email -->
-                    <div id="recuperar-paso1">
-                        <div class="grupo-formulario">
-                            <label class="form-label" for="recuperar-email">Correo electrónico</label>
-                            <input type="email" id="recuperar-email" class="form-input" placeholder="tu@mail.com"
-                                autocomplete="email">
-                        </div>
-                        <div id="recuperar-error" class="login-error"></div>
-                        <button type="button" id="btn-enviar-mail" class="boton-primario login-btn-submit">
-                            <i class="fas fa-paper-plane"></i>
-                            Enviar instrucciones
-                        </button>
-                    </div>
-
-                    <!-- Paso 2: Nueva contraseña (oculto hasta simular envío) -->
-                    <div id="recuperar-paso2" style="display:none">
-                        <div class="grupo-formulario">
-                            <label class="form-label" for="recuperar-nueva">Nueva contraseña</label>
-                            <input type="password" id="recuperar-nueva" class="form-input"
-                                placeholder="Nueva contraseña">
-                        </div>
-                        <div class="grupo-formulario">
-                            <label class="form-label" for="recuperar-confirmar">Confirmar contraseña</label>
-                            <input type="password" id="recuperar-confirmar" class="form-input"
-                                placeholder="Repetí la nueva contraseña">
-                        </div>
-                        <div id="recuperar-error2" class="login-error"></div>
-                        <button type="button" id="btn-confirmar-recuperar" class="boton-primario login-btn-submit">
-                            <i class="fas fa-key"></i>
-                            Cambiar contraseña
-                        </button>
-                    </div>
-
-                    <a href="#" id="link-volver-login" class="login-recuperar-link">← Volver al inicio de sesión</a>
-                </div>
-
-   <!--              <p class="login-demo-hint">
-                    <span><strong>admin</strong> / admin123</span>
-                    <span><strong>empleado</strong> / empleado123</span>
-                </p> -->
-            </div>
+    <div id="pantalla-carga" class="pantalla-carga" aria-hidden="true">
+        <div class="pantalla-carga-contenido">
+            <img src="img/logo-eleve-02.jpg" alt="ELEVÉ" class="pantalla-carga-logo">
         </div>
     </div>
 
     <header class="encabezado">
         <div class="contenido-encabezado">
+            <button type="button" id="btn-menu-hamburguesa" class="btn-menu-hamburguesa"
+                aria-label="Abrir menú de navegación" aria-expanded="false" aria-controls="menu-navegacion-mobile">
+                <i class="fas fa-bars" aria-hidden="true"></i>
+            </button>
             <div class="seccion-logo">
-                <img src="img/logo-eleve-02.jpg" alt="" width="200px">
+                <img src="img/logo-eleve-02.jpg" alt="ELEVÉ Barbería" width="200">
             </div>
             <div class="header-acciones">
                 <div id="info-usuario-header"></div>
-                <button id="btn-logout" class="boton-icono" title="Cerrar sesión">
+                <button id="btn-logout" class="boton-icono" title="Cerrar sesión" aria-label="Cerrar sesión">
                     <i class="fas fa-sign-out-alt"></i>
                 </button>
             </div>
         </div>
     </header>
 
+    <div id="menu-nav-overlay" class="menu-nav-overlay" hidden></div>
+
     <div class="contenedor-principal">
-        <aside class="barra-lateral">
-            <nav class="navegacion">
-                <button class="boton-navegacion activo" data-tab="agenda">
-                    <i class="fas fa-calendar"></i>
-                    Agenda
+        <aside class="barra-lateral" id="menu-navegacion-mobile">
+            <div class="menu-lateral-cabecera">
+                <div class="menu-lateral-brand">
+                    <img src="img/logo-eleve-02.jpg" alt="ELEVÉ Barbería" class="menu-lateral-logo">
+                </div>
+                <button type="button" id="btn-cerrar-menu-nav" class="boton-icono" aria-label="Cerrar menú">
+                    <i class="fas fa-times"></i>
                 </button>
-                <button class="boton-navegacion" data-tab="financiero">
-                    <i class="fas fa-chart-bar"></i>
-                    Dashboard
-                </button>
-                <button class="boton-navegacion" data-tab="clientes">
-                    <i class="fas fa-users"></i>
-                    Clientes
-                </button>
-                <!-- Agregando botones para Servicios y Empleados -->
-                <button class="boton-navegacion" data-tab="servicios">
-                    <i class="fas fa-cut"></i>
-                    Servicios
-                </button>
-                <button class="boton-navegacion" data-tab="empleados">
-                    <i class="fas fa-user-tie"></i>
-                    Empleados
-                </button>
-                <button class="boton-navegacion" data-tab="usuarios">
-                    <i class="fas fa-shield-alt"></i>
-                    Usuarios
-                </button>
+            </div>
+            <nav class="navegacion" aria-label="Navegación principal">
+                <div class="grupo-navegacion">
+                    <button class="boton-navegacion activo" data-tab="agenda">
+                        <svg class="icono-svg-calendario" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                            <path d="M3 9H21M17 13.0014L7 13M10.3333 17.0005L7 17M7 3V5M17 3V5M6.2 21H17.8C18.9201 21 19.4802 21 19.908 20.782C20.2843 20.5903 20.5903 20.2843 20.782 19.908C21 19.4802 21 18.9201 21 17.8V8.2C21 7.07989 21 6.51984 20.782 6.09202C20.5903 5.71569 20.2843 5.40973 19.908 5.21799C19.4802 5 18.9201 5 17.8 5H6.2C5.0799 5 4.51984 5 4.09202 5.21799C3.71569 5.40973 3.40973 5.71569 3.21799 6.09202C3 6.51984 3 7.07989 3 8.2V17.8C3 18.9201 3 19.4802 3.21799 19.908C3.40973 20.2843 3.71569 20.5903 4.09202 20.782C4.51984 21 5.07989 21 6.2 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                        </svg>
+                        Agenda
+                    </button>
+                    <button class="boton-navegacion" data-tab="financiero">
+                        <i class="fas fa-chart-bar"></i>
+                        Dashboard
+                    </button>
+                </div>
+
+                <div class="grupo-navegacion">
+                    <p class="grupo-navegacion-titulo">Gestión</p>
+                    <button class="boton-navegacion" data-tab="clientes">
+                        <i class="fas fa-users"></i>
+                        Clientes
+                    </button>
+                    <button class="boton-navegacion" data-tab="servicios">
+                        <i class="fas fa-cut"></i>
+                        Servicios
+                    </button>
+                    <button class="boton-navegacion" data-tab="empleados">
+                        <i class="fas fa-user-tie"></i>
+                        Empleados
+                    </button>
+                </div>
+
+                <div class="grupo-navegacion" id="grupo-navegacion-ventas">
+                    <p class="grupo-navegacion-titulo">Ventas</p>
+                    <button class="boton-navegacion" data-tab="caja">
+                        <i class="fas fa-cash-register"></i>
+                        Caja
+                    </button>
+                    <button class="boton-navegacion" data-tab="productos">
+                        <i class="fas fa-box"></i>
+                        Productos
+                    </button>
+                </div>
+
+                <div class="grupo-navegacion">
+                    <p class="grupo-navegacion-titulo">Configuración</p>
+                    <button class="boton-navegacion" data-tab="negocio">
+                        <i class="fas fa-store"></i>
+                        Negocio
+                    </button>
+                    <button class="boton-navegacion" data-tab="usuarios">
+                        <i class="fas fa-shield-alt"></i>
+                        Usuarios
+                    </button>
+                </div>
+
+                <div class="navegacion-separador-menu" role="separator"></div>
+
+                <div class="grupo-navegacion">
+                    <a class="boton-navegacion" id="link-ver-reservas" href="https://elevebarberia.surweb.com.ar"
+                        target="_blank" rel="noopener noreferrer">
+                        <i class="fas fa-external-link-alt"></i>
+                        Ver Reservas
+                    </a>
+                    <button type="button" class="boton-navegacion boton-navegacion-salir" id="btn-logout-nav">
+                        <i class="fas fa-sign-out-alt"></i>
+                        Cerrar sesión
+                    </button>
+                </div>
             </nav>
         </aside>
 
@@ -176,7 +156,9 @@
                 <div class="cuadricula-estadisticas">
                     <div class="tarjeta-estadistica">
                         <div class="icono-estadistica azul">
-                            <i class="fas fa-calendar"></i>
+                            <svg class="icono-svg-calendario" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                <path d="M3 9H21M17 13.0014L7 13M10.3333 17.0005L7 17M7 3V5M17 3V5M6.2 21H17.8C18.9201 21 19.4802 21 19.908 20.782C20.2843 20.5903 20.5903 20.2843 20.782 19.908C21 19.4802 21 18.9201 21 17.8V8.2C21 7.07989 21 6.51984 20.782 6.09202C20.5903 5.71569 20.2843 5.40973 19.908 5.21799C19.4802 5 18.9201 5 17.8 5H6.2C5.0799 5 4.51984 5 4.09202 5.21799C3.71569 5.40973 3.40973 5.71569 3.21799 6.09202C3 6.51984 3 7.07989 3 8.2V17.8C3 18.9201 3 19.4802 3.21799 19.908C3.40973 20.2843 3.71569 20.5903 4.09202 20.782C4.51984 21 5.07989 21 6.2 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                            </svg>
                         </div>
                         <div class="informacion-estadistica">
                             <p class="etiqueta-estadistica">Total Turnos</p>
@@ -256,6 +238,28 @@
                                             stroke-linejoin="round" />
                                     </svg>
                                 </button>
+
+                                <div class="selector-fecha-agenda">
+                                    <button type="button" class="boton-icono" id="btnElegirFechaAgenda" title="Elegir fecha específica">
+                                        <svg class="icono" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke-width="2" />
+                                            <line x1="16" y1="2" x2="16" y2="6" stroke-width="2" stroke-linecap="round" />
+                                            <line x1="8" y1="2" x2="8" y2="6" stroke-width="2" stroke-linecap="round" />
+                                            <line x1="3" y1="10" x2="21" y2="10" stroke-width="2" />
+                                            <line x1="8" y1="14" x2="8" y2="14" stroke-width="2.5" stroke-linecap="round" />
+                                            <line x1="12" y1="14" x2="12" y2="14" stroke-width="2.5" stroke-linecap="round" />
+                                            <line x1="16" y1="14" x2="16" y2="14" stroke-width="2.5" stroke-linecap="round" />
+                                        </svg>
+                                    </button>
+                                    <input type="date" id="inputFechaAgenda" class="input-fecha-agenda-oculto" aria-label="Elegir fecha específica" tabindex="-1">
+                                </div>
+
+                                <button type="button" class="boton-icono" id="btnRefrescarAgenda" title="Actualizar agenda">
+                                    <svg class="icono" id="iconoRefrescarAgenda" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path d="M4 4v5h5M20 20v-5h-5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                        <path d="M4.5 15a8 8 0 0014.9 2.5M19.5 9A8 8 0 004.6 6.5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                </button>
                             </div>
                         </div>
 
@@ -305,7 +309,7 @@
                 </div>
 
                 <div class="cuadricula-financiera">
-                    <div class="tarjeta-financiera ingresos-totales">
+                    <div class="tarjeta-financiera ingresos-totales" id="tarjeta-kpi-1">
                         <div class="encabezado-financiero">
                             <i class="fas fa-dollar-sign"></i>
                             <span>Ingresos Totales</span>
@@ -317,24 +321,24 @@
                             </div>
                         </div>
                     </div>
-                    <div class="tarjeta-financiera servicios">
+                    <div class="tarjeta-financiera servicios" id="tarjeta-kpi-2">
                         <div class="encabezado-financiero">
                             <i class="fas fa-calendar-check"></i>
-                            <span>Turnos Completados</span>
+                            <span>Ventas Totales</span>
                         </div>
                         <div class="contenido-financiero">
                             <p class="contador-financiero" id="kpi-total-appts">0</p>
-                            <p class="ingresos-financieros" id="kpi-avg-revenue-appt">$0 por turno</p>
+                            <p class="ingresos-financieros" id="kpi-avg-revenue-appt">$0 por venta</p>
                         </div>
                     </div>
-                    <div class="tarjeta-financiera productos">
+                    <div class="tarjeta-financiera productos" id="tarjeta-kpi-3">
                         <div class="encabezado-financiero">
                             <i class="fas fa-chart-line"></i>
-                            <span>Tasa de Ocupación</span>
+                            <span>Utilidad Neta</span>
                         </div>
                         <div class="contenido-financiero">
-                            <p class="contador-financiero" id="kpi-occupancy-rate">0%</p>
-                            <p class="ingresos-financieros" id="kpi-total-hours">0 horas</p>
+                            <p class="contador-financiero" id="kpi-occupancy-rate">$0</p>
+                            <p class="ingresos-financieros" id="kpi-total-hours">Comisiones: $0</p>
                         </div>
                     </div>
                 </div>
@@ -343,20 +347,20 @@
                     <div class="tarjeta-metrica">
                         <div class="encabezado-metrica">
                             <div class="icono-metrica">
-                                <i class="fas fa-user-plus"></i>
+                                <i class="fas fa-calendar-check"></i>
                             </div>
                         </div>
-                        <div class="valor-metrica" id="metric-nuevos-clientes">0</div>
-                        <div class="etiqueta-metrica">Clientes Nuevos</div>
+                        <div class="valor-metrica" id="metric-turnos-completados">0</div>
+                        <div class="etiqueta-metrica">Turnos Completados</div>
                     </div>
                     <div class="tarjeta-metrica">
                         <div class="encabezado-metrica">
                             <div class="icono-metrica">
-                                <i class="fas fa-heart"></i>
+                                <i class="fas fa-chart-pie"></i>
                             </div>
                         </div>
-                        <div class="valor-metrica" id="metric-fidelidad-kpi">0%</div>
-                        <div class="etiqueta-metrica">Tasa de Fidelidad</div>
+                        <div class="valor-metrica" id="metric-ocupacion-kpi">0%</div>
+                        <div class="etiqueta-metrica">Tasa de Ocupación</div>
                     </div>
                     <div class="tarjeta-metrica">
                         <div class="encabezado-metrica">
@@ -370,11 +374,11 @@
                     <div class="tarjeta-metrica">
                         <div class="encabezado-metrica">
                             <div class="icono-metrica">
-                                <i class="fas fa-user-clock"></i>
+                                <i class="fas fa-ban"></i>
                             </div>
                         </div>
-                        <div class="valor-metrica" id="metric-ausentes-kpi">0</div>
-                        <div class="etiqueta-metrica">Turnos Ausentes</div>
+                        <div class="valor-metrica" id="metric-turnos-cancelados">0</div>
+                        <div class="etiqueta-metrica">Turnos Cancelados</div>
                     </div>
                 </div>
 
@@ -382,9 +386,9 @@
                 <div class="cuadricula-kpi-3-col">
 
                     <div class="tarjeta-grafico">
-                        <div class="encabezado-grafico">
+                        <div class="encabezado-grafico" id="tarjeta-grafico-empleado-1">
                             <i class="fas fa-user-tie"></i>
-                            <h4>Servicios por Empleado</h4>
+                            <h4>Ingresos por Empleado</h4>
                         </div>
                         <div class="contenedor-grafico">
                             <div class="grafico-barras" id="grafico-servicios-empleado"></div>
@@ -393,44 +397,45 @@
 
                     <div class="tarjeta-grafico">
                         <div class="encabezado-grafico">
-                            <i class="fas fa-chart-pie"></i>
-                            <h4>Ocupación por Empleado</h4>
+                            <i class="fas fa-cut"></i>
+                            <h4>Servicios por Empleado</h4>
                         </div>
                         <div class="contenedor-grafico">
-                            <div class="grafico-ocupacion" id="grafico-ocupacion-empleado"></div>
+                            <div class="grafico-barras" id="grafico-servicios-por-empleado"></div>
                         </div>
                     </div>
 
                     <div class="tarjeta-grafico">
                         <div class="encabezado-grafico">
                             <i class="fas fa-clock"></i>
-                            <h4>Horas Pico (Turnos por Hora)</h4>
+                            <h4>Turnos por Hora</h4>
+                            <span class="tendencia-metrica neutral" id="hora-pico-badge" style="margin-left:auto;">Pico: --:--</span>
                         </div>
                         <div class="contenedor-grafico">
-                            <div class="grafico-linea-contenedor" id="grafico-turnos-hora-contenedor"></div>
+                            <div class="grafico-barras-contenedor" id="grafico-turnos-hora-contenedor"></div>
                         </div>
                     </div>
 
                     <div class="tarjeta-grafico">
                         <div class="encabezado-grafico">
                             <i class="fas fa-star"></i>
-                            <h4>Servicios Populares</h4>
+                            <h4>Servicios Más Vendidos</h4>
                         </div>
                         <div class="contenedor-grafico" id="dona-servicios-populares"></div>
                     </div>
 
-                    <div class="tarjeta-grafico">
+                    <div class="tarjeta-grafico" id="tarjeta-metodos-pago">
                         <div class="encabezado-grafico">
                             <i class="fas fa-users"></i>
-                            <h4>Fidelidad de Clientes</h4>
+                            <h4>Métodos de Pago</h4>
                         </div>
                         <div class="contenedor-grafico" id="dona-fidelidad-clientes"></div>
                     </div>
 
-                    <div class="tarjeta-grafico">
+                    <div class="tarjeta-grafico" id="tarjeta-tipo-venta">
                         <div class="encabezado-grafico">
                             <i class="fas fa-tasks"></i>
-                            <h4>Estado de Turnos</h4>
+                            <h4>Tipo de Venta</h4>
                         </div>
                         <div class="contenedor-grafico" id="dona-estado-turnos"></div>
                     </div>
@@ -494,8 +499,8 @@
 
                 <div class="tarjeta">
                     <div class="contenido-tarjeta">
-                        <input type="text" id="buscador-clientes" class="entrada-busqueda buscador-lista"
-                            placeholder="Buscar clientes...">
+                        <input type="search" id="buscador-clientes" name="filtro-clientes" class="entrada-busqueda buscador-lista"
+                            placeholder="Buscar clientes..." autocomplete="off">
                         <div id="lista-clientes" class="lista-elementos"></div>
                     </div>
                 </div>
@@ -556,9 +561,330 @@
 
                 <div class="tarjeta">
                     <div class="contenido-tarjeta">
-                        <input type="text" id="buscador-servicios" class="entrada-busqueda buscador-lista"
-                            placeholder="Buscar servicios...">
+                        <input type="search" id="buscador-servicios" name="filtro-servicios" class="entrada-busqueda buscador-lista"
+                            placeholder="Buscar servicios..." autocomplete="off">
                         <div id="lista-servicios" class="lista-elementos"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Módulo Caja (POS) -->
+            <div id="caja" class="contenido-pestana">
+                <div class="encabezado-pagina encabezado-caja">
+                    <div class="titulo-pagina">
+                        <h2>Caja</h2>
+                        <p class="subtitulo-caja">Carrito de ventas y cobros del día</p>
+                    </div>
+                    <div class="acciones-pagina acciones-caja">
+                        <button type="button" class="boton-secundario btn-caja-header" id="btn-historial-caja">
+                            <i class="fas fa-receipt"></i>
+                            <span>Historial</span>
+                        </button>
+                        <span id="estado-caja-badge" class="estado-caja-badge abierta">Caja lista</span>
+                    </div>
+                </div>
+
+                <div class="metricas-seccion metricas-caja">
+                    <div class="tarjeta-metrica">
+                        <div class="encabezado-metrica">
+                            <div class="icono-metrica"><i class="fas fa-dollar-sign"></i></div>
+                            <span class="tendencia-metrica positiva">Hoy</span>
+                        </div>
+                        <div class="valor-metrica valor-tabular" id="caja-total-dia">$0</div>
+                        <div class="etiqueta-metrica">Total vendido</div>
+                    </div>
+                    <div class="tarjeta-metrica">
+                        <div class="encabezado-metrica">
+                            <div class="icono-metrica"><i class="fas fa-receipt"></i></div>
+                        </div>
+                        <div class="valor-metrica valor-tabular" id="caja-cant-ventas">0</div>
+                        <div class="etiqueta-metrica">Ventas del día</div>
+                    </div>
+                    <div class="tarjeta-metrica metrica-carrito-mobile">
+                        <div class="encabezado-metrica">
+                            <div class="icono-metrica"><i class="fas fa-shopping-basket"></i></div>
+                        </div>
+                        <div class="valor-metrica valor-tabular" id="carrito-contador">0</div>
+                        <div class="etiqueta-metrica">Ítems en carrito</div>
+                    </div>
+                </div>
+
+                <div class="layout-caja">
+                    <section class="caja-catalogo" aria-label="Catálogo de productos">
+                        <div class="caja-catalogo-toolbar">
+                            <input type="search" id="buscador-caja" class="entrada-busqueda"
+                                placeholder="Buscar producto..." autocomplete="off">
+                            <div class="filtros-chips-scroll">
+                                <div class="filtros-chips" id="filtros-categoria-caja" role="group" aria-label="Filtrar por categoría"></div>
+                            </div>
+                        </div>
+                        <div class="grid-productos-caja" id="grid-productos-caja"></div>
+                    </section>
+
+                    <div class="caja-carrito-overlay" id="caja-carrito-overlay" hidden></div>
+
+                    <aside class="caja-carrito-panel" id="caja-carrito-panel" aria-label="Carrito de compra">
+                        <div class="carrito-sheet">
+                            <div class="carrito-panel-handle" aria-hidden="true"></div>
+                            <header class="carrito-header">
+                                <h3>Carrito <span class="carrito-header-count" id="carrito-header-count"></span></h3>
+                                <div class="carrito-header-actions">
+                                    <button type="button" class="carrito-btn-vaciar" id="btn-vaciar-carrito">Vaciar</button>
+                                    <button type="button" class="carrito-btn-cerrar" id="btn-cerrar-carrito-mobile" aria-label="Cerrar carrito">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </header>
+
+                            <div class="carrito-sheet-body">
+                                <div class="carrito-campo carrito-campo-cliente">
+                                    <label for="carrito-cliente">Cliente</label>
+                                    <input type="text" id="carrito-cliente" class="form-input"
+                                        placeholder="Opcional" autocomplete="off">
+                                </div>
+
+                                <div class="carrito-items" id="carrito-items"></div>
+
+                                <details class="ventas-dia-collapsible" id="ventas-dia-collapsible">
+                                    <summary>
+                                        <span class="ventas-dia-summary-texto">
+                                            <i class="fas fa-chevron-right ventas-dia-chevron" aria-hidden="true"></i>
+                                            Ventas de hoy
+                                        </span>
+                                        <span class="ventas-dia-badge" id="ventas-dia-count">0</span>
+                                    </summary>
+                                    <div class="ventas-dia-seccion">
+                                        <button type="button" class="carrito-btn-vaciar" id="btn-ver-ventas-dia">Actualizar</button>
+                                        <div id="ventas-dia-lista" class="ventas-dia-lista"></div>
+                                    </div>
+                                </details>
+                            </div>
+
+                            <footer class="carrito-sheet-footer">
+                                <div class="carrito-totales">
+                                    <div class="carrito-fila-total carrito-fila-total-final">
+                                        <span>Total</span>
+                                        <strong class="valor-tabular" id="carrito-total">$0</strong>
+                                    </div>
+                                    <span class="carrito-subtotal-oculto valor-tabular" id="carrito-subtotal" aria-hidden="true">$0</span>
+                                </div>
+                                <button type="button" class="boton-primario btn-cobrar-caja" id="btn-cobrar-caja" disabled>
+                                    Cobrar
+                                </button>
+                            </footer>
+                        </div>
+                    </aside>
+                </div>
+
+                <div class="caja-mobile-dock" id="caja-mobile-dock">
+                    <button type="button" class="caja-dock-ver-carrito" id="btn-toggle-carrito-mobile" aria-expanded="false">
+                        <i class="fas fa-shopping-bag"></i>
+                        <span>Ver carrito</span>
+                        <span class="caja-dock-badge" id="caja-dock-badge">0</span>
+                    </button>
+                    <div class="caja-dock-totales">
+                        <span class="caja-dock-total valor-tabular" id="caja-dock-total">$0</span>
+                        <span class="caja-dock-items" id="caja-dock-items">Sin ítems</span>
+                    </div>
+                    <button type="button" class="boton-primario caja-dock-cobrar" id="btn-cobrar-caja-mobile" disabled>
+                        Cobrar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Módulo Productos -->
+            <div id="productos" class="contenido-pestana">
+                <div class="encabezado-pagina">
+                    <div class="titulo-pagina">
+                        <h2>Gestión de Productos</h2>
+                        <p>Catálogo de productos para la caja</p>
+                    </div>
+                    <div class="acciones-pagina">
+                        <button class="boton-primario" id="btn-nuevo-producto">
+                            <i class="fas fa-plus"></i><span>Nuevo Producto</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="metricas-seccion">
+                    <div class="tarjeta-metrica">
+                        <div class="encabezado-metrica">
+                            <div class="icono-metrica"><i class="fas fa-box"></i></div>
+                        </div>
+                        <div class="valor-metrica" id="total-productos">0</div>
+                        <div class="etiqueta-metrica">Productos activos</div>
+                    </div>
+                    <div class="tarjeta-metrica">
+                        <div class="encabezado-metrica">
+                            <div class="icono-metrica"><i class="fas fa-exclamation-triangle"></i></div>
+                        </div>
+                        <div class="valor-metrica" id="productos-stock-bajo">0</div>
+                        <div class="etiqueta-metrica">Stock bajo (≤5)</div>
+                    </div>
+                    <div class="tarjeta-metrica">
+                        <div class="encabezado-metrica">
+                            <div class="icono-metrica"><i class="fas fa-tag"></i></div>
+                        </div>
+                        <div class="valor-metrica" id="precio-promedio-productos">$0</div>
+                        <div class="etiqueta-metrica">Precio promedio</div>
+                    </div>
+                </div>
+
+                <div class="tarjeta">
+                    <div class="contenido-tarjeta">
+                        <div class="toolbar-productos">
+                            <input type="search" id="buscador-productos" class="entrada-busqueda buscador-lista"
+                                placeholder="Buscar productos..." autocomplete="off">
+                            <select id="filtro-categoria-productos" class="form-select filtro-categoria-select">
+                                <option value="todas">Todas las categorías</option>
+                            </select>
+                        </div>
+                        <div id="lista-productos" class="lista-elementos"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Módulo Negocio -->
+            <div id="negocio" class="contenido-pestana">
+                <div class="encabezado-pagina">
+                    <div class="titulo-pagina">
+                        <h2>Configuración del Negocio</h2>
+                        <p>Datos del local, redes, horarios y variables globales</p>
+                    </div>
+                </div>
+
+                <div class="layout-negocio">
+                    <nav class="negocio-subnav-scroll">
+                        <nav class="negocio-subnav" aria-label="Secciones de configuración">
+                        <button type="button" class="activo" data-seccion-negocio="general">
+                            <i class="fas fa-building"></i> General
+                        </button>
+                        <button type="button" data-seccion-negocio="redes">
+                            <i class="fas fa-share-alt"></i> Redes
+                        </button>
+                        <button type="button" data-seccion-negocio="ubicacion">
+                            <i class="fas fa-map-marker-alt"></i> Ubicación
+                        </button>
+                        <button type="button" data-seccion-negocio="horarios">
+                            <i class="fas fa-clock"></i> Horarios
+                        </button>
+                        </nav>
+                    </nav>
+
+                    <div class="negocio-contenido">
+                        <div class="negocio-preview-lateral">
+                            <div class="tarjeta negocio-preview-card-wrap">
+                                <h4>Vista previa pública</h4>
+                                <div id="negocio-preview-card" class="negocio-preview-card"></div>
+                            </div>
+                            <div class="tarjeta negocio-maps-preview-wrap">
+                                <h4>Mapa</h4>
+                                <iframe id="negocio-maps-preview" class="negocio-maps-iframe" title="Ubicación"
+                                    loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+                            </div>
+                        </div>
+
+                        <div class="negocio-formularios">
+                            <div id="negocio-panel-general" class="negocio-seccion-panel activo tarjeta">
+                                <h3>Información general</h3>
+                                <form id="form-negocio-general">
+                                    <div class="negocio-logo-upload">
+                                        <img id="negocio-logo-preview" src="img/logo-eleve-02.jpg" alt="Logo">
+                                        <div>
+                                            <label for="negocio-logo-input" class="boton-secundario boton-subir-logo">
+                                                <i class="fas fa-upload"></i> Subir logo
+                                            </label>
+                                            <input type="file" id="negocio-logo-input" accept="image/*" hidden>
+                                            <p class="form-help-text">JPG o PNG. Se guarda solo en demo local.</p>
+                                        </div>
+                                    </div>
+                                    <div class="grupo-formulario">
+                                        <label for="negocio-nombre">Nombre del negocio</label>
+                                        <input type="text" id="negocio-nombre" class="form-input" required>
+                                    </div>
+                                    <div class="grupo-formulario">
+                                        <label for="negocio-reserva-imagen">Foto del formulario de reservas (URL)</label>
+                                        <input type="url" id="negocio-reserva-imagen" class="form-input"
+                                            placeholder="https://.../foto-reservas.jpg">
+                                        <small class="ayuda-formulario">Esta imagen se mostrará en el panel izquierdo de la página de Reservas.</small>
+                                    </div>
+                                    <div class="grupo-formulario">
+                                        <label for="negocio-reserva-imagen-input">Subir imagen para Reservas</label>
+                                        <input type="file" id="negocio-reserva-imagen-input" class="form-input" accept="image/png,image/jpeg,image/webp,image/gif">
+                                        <small class="ayuda-formulario">Se actualiza automáticamente en la página de Reservas.</small>
+                                    </div>
+                                    <button type="submit" class="boton-primario">Guardar</button>
+                                </form>
+                            </div>
+
+                            <div id="negocio-panel-redes" class="negocio-seccion-panel tarjeta">
+                                <h3>Contacto y redes</h3>
+                                <p class="form-help-text">Estos datos se reflejan automáticamente en la página pública de Reservas.</p>
+                                <form id="form-negocio-redes">
+                                    <div class="grupo-formulario">
+                                        <label for="negocio-telefono"><i class="fas fa-phone"></i> Teléfono</label>
+                                        <input type="tel" id="negocio-telefono" class="form-input">
+                                    </div>
+                                    <div class="grupo-formulario">
+                                        <label for="negocio-email"><i class="fas fa-envelope"></i> Email</label>
+                                        <input type="email" id="negocio-email" class="form-input">
+                                    </div>
+                                    <div class="grupo-formulario">
+                                        <label for="negocio-whatsapp"><i class="fab fa-whatsapp"></i> WhatsApp (número sin +)</label>
+                                        <input type="text" id="negocio-whatsapp" class="form-input" placeholder="5491112345678">
+                                    </div>
+                                    <div class="grupo-formulario">
+                                        <label for="negocio-instagram"><i class="fab fa-instagram"></i> Instagram URL</label>
+                                        <input type="url" id="negocio-instagram" class="form-input">
+                                    </div>
+                                    <div class="grupo-formulario">
+                                        <label for="negocio-facebook"><i class="fab fa-facebook"></i> Facebook URL</label>
+                                        <input type="url" id="negocio-facebook" class="form-input">
+                                    </div>
+                                    <button type="submit" class="boton-primario">Guardar</button>
+                                </form>
+                            </div>
+
+                            <div id="negocio-panel-ubicacion" class="negocio-seccion-panel tarjeta">
+                                <h3>Ubicación</h3>
+                                <form id="form-negocio-ubicacion">
+                                    <div class="grupo-formulario">
+                                        <label for="negocio-direccion">Dirección</label>
+                                        <input type="text" id="negocio-direccion" class="form-input">
+                                    </div>
+                                    <div class="grupo-formulario">
+                                        <label for="negocio-maps-link">Link de Google Maps</label>
+                                        <input type="url" id="negocio-maps-link" class="form-input">
+                                    </div>
+                                    <div class="grupo-formulario">
+                                        <label for="negocio-maps-embed">Iframe de Google Maps (opcional)</label>
+                                        <textarea id="negocio-maps-embed" class="form-input" rows="4"
+                                            placeholder="Pegá acá el src del iframe o el iframe completo de Google Maps"></textarea>
+                                    </div>
+                                    <p class="form-help-text">Con solo el link de Google Maps, el sistema genera automáticamente el iframe para la vista de Reservas.</p>
+                                    <button type="submit" class="boton-primario">Guardar</button>
+                                </form>
+                            </div>
+
+                            <div id="negocio-panel-horarios" class="negocio-seccion-panel tarjeta">
+                                <h3>Horarios de atención</h3>
+                                <div id="tabla-horarios-negocio" class="tabla-horarios-negocio"></div>
+                                <button type="button" class="boton-primario" id="btn-guardar-horarios">Guardar horarios</button>
+
+                                <hr class="negocio-separador">
+
+                                <h3>Días cerrados / feriados</h3>
+                                <div class="agregar-dia-cerrado-fila">
+                                    <input type="date" id="negocio-dia-cerrado-fecha" class="form-input">
+                                    <input type="text" id="negocio-dia-cerrado-motivo" class="form-input"
+                                        placeholder="Motivo (opcional)">
+                                    <button type="button" class="boton-secundario" id="btn-agregar-dia-cerrado">
+                                        <i class="fas fa-plus"></i> Agregar
+                                    </button>
+                                </div>
+                                <div id="lista-dias-cerrados" class="lista-dias-cerrados"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -632,8 +958,8 @@
                 <!-- Lista de empleados -->
                 <div class="tarjeta">
                     <div class="contenido-tarjeta">
-                        <input type="text" id="buscador-empleados" class="entrada-busqueda buscador-lista"
-                            placeholder="Buscar empleados...">
+                        <input type="search" id="buscador-empleados" name="filtro-empleados" class="entrada-busqueda buscador-lista"
+                            placeholder="Buscar empleados..." autocomplete="off">
                         <div id="lista-empleados" class="lista-elementos"></div>
                     </div>
                 </div>
@@ -696,8 +1022,8 @@
                 <!-- Lista de usuarios -->
                 <div class="tarjeta">
                     <div class="contenido-tarjeta">
-                        <input type="text" id="buscador-usuarios" class="entrada-busqueda buscador-lista"
-                            placeholder="Buscar usuarios...">
+                        <input type="search" id="buscador-usuarios" name="filtro-usuarios" class="entrada-busqueda buscador-lista"
+                            placeholder="Buscar usuarios..." autocomplete="off">
                         <div id="lista-usuarios" class="lista-elementos"></div>
                     </div>
                 </div>
@@ -778,7 +1104,7 @@
                             <label>Profesionales asignados</label>
                             <span id="contador-pros-servicio" class="pill-contador-pros vacio">Sin asignados</span>
                         </div>
-                        <p class="form-help-text">Esta relación se edita desde el módulo de empleados.</p>
+            
                         <div id="selector-profesionales-servicio" class="selector-profesionales">
                             <p class="sin-pros-mensaje"><i class="fas fa-spinner fa-spin"></i> Cargando...</p>
                         </div>
@@ -817,6 +1143,27 @@
                         <input type="text" id="empleado-especialidad" placeholder="Ej: Corte clásico, barba, fade">
                     </div>
                     <div class="grupo-formulario">
+                        <label for="empleado-comision">Comisión (%)</label>
+                        <input type="number" id="empleado-comision" min="0" max="100" step="0.01" value="0">
+                    </div>
+                    <div class="grupo-formulario formulario-empleado-full">
+                        <label for="empleado-avatar-file">Imagen / Avatar</label>
+                        <input type="hidden" id="empleado-avatar-url">
+                        <div class="avatar-uploader">
+                            <div class="avatar-preview-wrap" id="avatar-preview-wrap">
+                                <img id="empleado-avatar-preview" class="avatar-preview-img" alt="Vista previa de avatar" hidden>
+                                <i class="fas fa-user avatar-preview-placeholder" id="avatar-preview-placeholder"></i>
+                            </div>
+                            <div class="avatar-uploader-info">
+                                <label for="empleado-avatar-file" class="boton-secundario boton-subir-logo">
+                                    <i class="fas fa-image"></i> <span id="avatar-uploader-label-text">Seleccionar imagen</span>
+                                </label>
+                                <p class="form-help-text">JPG, PNG, WEBP o GIF.</p>
+                            </div>
+                            <input type="file" id="empleado-avatar-file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+                        </div>
+                    </div>
+                    <div class="grupo-formulario formulario-empleado-full">
                         <div class="label-pros-header">
                             <label>Servicios que realiza</label>
                             <span id="contador-servicios-empleado" class="pill-contador-pros vacio">0 seleccionados</span>
@@ -825,11 +1172,12 @@
                             <p class="sin-pros-mensaje"><i class="fas fa-spinner fa-spin"></i> Cargando...</p>
                         </div>
                     </div>
-                    <div class="grupo-formulario">
+                    <div class="grupo-formulario formulario-empleado-full">
                         <div class="label-horario-header">
                             <label>Horario laboral</label>
                             <span id="pill-horario-empleado" class="pill-contador-pros vacio">Sin configurar</span>
                         </div>
+                        <p class="form-help-text">Cada día permite definir un descanso dentro del horario del barbero.</p>
                         <div class="horario-semanal" id="horario-semanal-empleado"></div>
                     </div>
                 </form>
@@ -860,14 +1208,8 @@
                     </div>
 
                     <div class="grupo-formulario">
-                        <label for="usuario-username">Nombre de usuario (para login)</label>
-                        <input type="text" id="usuario-username" placeholder="Ej: jgarcia" required
-                            autocomplete="username">
-                    </div>
-
-                    <div class="grupo-formulario">
                         <label for="usuario-email">Email</label>
-                        <input type="email" id="usuario-email" placeholder="usuario@eleve.com">
+                        <input type="email" id="usuario-email" placeholder="usuario@eleve.com" required autocomplete="email">
                     </div>
 
                     <div class="grupo-formulario">
@@ -877,6 +1219,26 @@
                             <option value="admin">Administrador</option>
                             <option value="empleado">Empleado</option>
                         </select>
+                    </div>
+
+                    <div class="grupo-formulario" id="grupo-usuario-empleado">
+                        <label for="usuario-empleado-id">Empleado asociado</label>
+                        <select id="usuario-empleado-id">
+                            <option value="">Sin asignar</option>
+                        </select>
+                        <small class="ayuda-formulario">Usá esta relación para que las ventas y comisiones se imputen al empleado correcto.</small>
+                    </div>
+
+                    <div class="grupo-formulario" id="grupo-password-actual-usuario" style="display: none;">
+                        <label for="usuario-password-actual">Contraseña actual</label>
+                        <div class="input-password-wrapper">
+                            <input type="password" id="usuario-password-actual" placeholder="Ingresá la contraseña actual"
+                                autocomplete="current-password">
+                            <button type="button" id="toggle-password-actual-usuario" class="btn-toggle-password"
+                                title="Mostrar contraseña actual">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
                     </div>
 
                     <div class="grupo-formulario">
@@ -919,7 +1281,141 @@
         </div>
     </div>
 
-    <script src="./js/main.js" type="module"></script>
+    <!-- Modal Producto -->
+    <div id="modal-producto" class="modal">
+        <div class="contenido-modal">
+            <div class="encabezado-modal">
+                <h3 id="titulo-modal-producto">Nuevo Producto</h3>
+                <button type="button" class="cerrar-modal"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="cuerpo-modal">
+                <form id="form-producto">
+                    <input type="hidden" id="producto-id">
+                    <div class="grupo-formulario">
+                        <label for="producto-nombre">Nombre</label>
+                        <input type="text" id="producto-nombre" class="form-input" required placeholder="Ej: Pomada Mate">
+                    </div>
+                    <div class="grupo-formulario">
+                        <label for="producto-imagen-file">Imagen</label>
+                        <input type="hidden" id="producto-imagen-url">
+                        <div class="avatar-uploader">
+                            <div class="avatar-preview-wrap" id="producto-imagen-preview-wrap">
+                                <img id="producto-imagen-preview" class="avatar-preview-img" alt="Vista previa del producto" hidden>
+                                <i class="fas fa-box avatar-preview-placeholder" id="producto-imagen-preview-placeholder"></i>
+                            </div>
+                            <div class="avatar-uploader-info">
+                                <label for="producto-imagen-file" class="boton-secundario boton-subir-logo">
+                                    <i class="fas fa-image"></i> <span id="producto-imagen-uploader-label-text">Seleccionar imagen</span>
+                                </label>
+                                <p class="form-help-text">JPG, PNG, WEBP o GIF.</p>
+                            </div>
+                            <input type="file" id="producto-imagen-file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+                        </div>
+                    </div>
+                    <div class="grupo-formulario">
+                        <label for="producto-descripcion">Descripción</label>
+                        <textarea id="producto-descripcion" class="form-input" rows="2"></textarea>
+                    </div>
+                    <div class="grupo-formulario-grid">
+                        <div class="grupo-formulario">
+                            <label for="producto-precio">Precio ($)</label>
+                            <input type="number" id="producto-precio" class="form-input" min="0" step="100" required>
+                        </div>
+                        <div class="grupo-formulario">
+                            <label for="producto-stock">Stock</label>
+                            <input type="number" id="producto-stock" class="form-input" min="0" value="0">
+                        </div>
+                    </div>
+                    <div class="grupo-formulario">
+                        <label for="producto-categoria">Categoría</label>
+                        <select id="producto-categoria" class="form-select"></select>
+                        <small class="ayuda-formulario">Si no existe ninguna, creala desde este mismo selector.</small>
+                    </div>
+                    <div class="grupo-formulario" id="wrap-categoria-nueva" style="display:none">
+                        <label for="producto-categoria-nueva">Nueva categoría</label>
+                        <input type="text" id="producto-categoria-nueva" class="form-input">
+                    </div>
+                    <div class="grupo-formulario grupo-checkbox grupo-formulario-toggle">
+                        <span>Producto activo (visible en caja)</span>
+                        <label class="toggle-switch" title="Activar o desactivar el producto">
+                            <input type="checkbox" id="producto-activo" checked>
+                            <span class="toggle-track"></span>
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="pie-modal">
+                <button type="button" class="boton-secundario btn-cancelar-producto">Cancelar</button>
+                <button type="submit" form="form-producto" class="boton-primario">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+        <div id="modalHistorialCaja" class="historial-overlay" role="dialog" aria-modal="true" aria-labelledby="tituloHistorialCaja" hidden>
+            <div class="historial-panel">
+                <div class="historial-cabecera">
+                    <h3 id="tituloHistorialCaja">Historial de caja</h3>
+                    <button type="button" class="historial-cerrar" id="btnCerrarHistorialCaja" aria-label="Cerrar historial de caja">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="historial-filtros" id="historialCajaFiltros" role="group" aria-label="Filtrar ventas por estado">
+                    <button type="button" class="chip-filtro activo" data-estado="todos">Todos</button>
+                    <button type="button" class="chip-filtro" data-estado="registrada">Registradas</button>
+                    <button type="button" class="chip-filtro" data-estado="anulada">Anuladas</button>
+                </div>
+                <div class="historial-busqueda-fila">
+                    <div class="historial-input-icono">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35m1.85-5.15a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        <input type="search" id="historialCajaBuscar" class="historial-input" placeholder="Buscar cliente, empleado, items o método..." aria-label="Buscar en historial de caja">
+                    </div>
+                    <input type="date" id="historialCajaFecha" class="historial-fecha" aria-label="Filtrar historial de caja por fecha">
+                </div>
+                <div class="historial-cuerpo" id="historialCajaCuerpo">
+                    <p class="historial-cargando">Cargando...</p>
+                </div>
+            </div>
+        </div>
+
+    <!-- Modal Cobro Caja -->
+    <div id="modal-cobro-caja" class="modal">
+        <div class="contenido-modal modal-cobro">
+            <div class="encabezado-modal">
+                <h3>Confirmar cobro</h3>
+                <button type="button" class="cerrar-modal"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="cuerpo-modal">
+                <div class="cobro-resumen">
+                    <p class="cobro-total-label">Total a cobrar</p>
+                    <p class="cobro-total-monto" id="cobro-total-monto">$0</p>
+                    <p class="cobro-items-count"><span id="cobro-resumen-items">0</span> ítem(s)</p>
+                </div>
+                <div class="grupo-formulario">
+                    <label>Método de pago</label>
+                    <div class="metodos-pago-grid" id="metodos-pago-caja">
+                        <button type="button" class="btn-metodo-pago activo" data-metodo="efectivo">
+                            <i class="fas fa-money-bill-wave"></i> Efectivo
+                        </button>
+                        <button type="button" class="btn-metodo-pago" data-metodo="transferencia">
+                            <i class="fas fa-university"></i> Transferencia
+                        </button>
+                        <button type="button" class="btn-metodo-pago" data-metodo="tarjeta">
+                            <i class="fas fa-credit-card"></i> Tarjeta
+                        </button>
+                    </div>
+                </div>
+                <p class="form-help-text"><i class="fas fa-info-circle"></i> La venta se registra en el backend y queda disponible en el historial de caja.</p>
+            </div>
+            <div class="pie-modal">
+                <button type="button" class="boton-secundario btn-cancelar-cobro">Cancelar</button>
+                <button type="button" class="boton-primario" id="btn-confirmar-cobro">
+                    <i class="fas fa-check"></i> Confirmar venta
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="./js/main.js?v=2" type="module"></script>
 
     <!-- Modal Historial -->
     <div id="modalHistorial" class="historial-overlay" role="dialog" aria-modal="true" aria-labelledby="tituloHistorial" hidden>
@@ -930,13 +1426,19 @@
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px;height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
         </div>
+        <div class="historial-tabs" id="historialTabs" role="tablist">
+          <button class="historial-tab activo" data-tab="listado" type="button" role="tab">Listado</button>
+          <button class="historial-tab" data-tab="notificaciones" type="button" role="tab">
+            Notificaciones <span class="historial-tab-badge" id="historialNotifBadge" hidden>0</span>
+          </button>
+        </div>
         <div class="historial-filtros" id="historialFiltros" role="group" aria-label="Filtrar por estado">
           <button class="chip-filtro activo" data-estado="todos">Todos</button>
           <button class="chip-filtro" data-estado="completado">Completados</button>
           <button class="chip-filtro" data-estado="cancelado">Cancelados</button>
           <button class="chip-filtro" data-estado="anulado">Eliminados</button>
         </div>
-                <div class="historial-busqueda-fila">
+                <div class="historial-busqueda-fila" id="historialBusquedaFila">
                     <div class="historial-input-icono">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35m1.6-4.15a7 7 0 11-14 0 7 7 0 0114 0z"/>

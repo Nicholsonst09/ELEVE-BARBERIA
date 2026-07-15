@@ -1,0 +1,23 @@
+{
+  "name": "Elevé Barbería",
+  "short_name": "Elevé",
+  "description": "Reservá tu turno en Elevé Barbería.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#111111",
+  "theme_color": "#111111",
+  "icons": [
+    {
+      "src": "img/LOGO-ELEVE-PREVISUALIZACION.png",
+      "sizes": "1080x1080",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "img/LOGO-ELEVE-PREVISUALIZACION.png",
+      "sizes": "1080x1080",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

@@ -14,6 +14,13 @@ async function obtenerServicios(req, res) {
 
 //Funcion para buscar empleados por servicio
 async function buscarEmpleadosPorServicio(req, res) {
+    // Instrumentacion temporal para el "Failed to fetch" intermitente: si esto
+    // vuelve a pasar, buscar en los logs de Vercel el request con ese origin/
+    // servicio_id y ver si duration_ms es anormal. Ojo: si el fallo viene de
+    // un intermediario (cache/CORS) antes de llegar a Express, este log ni
+    // siquiera va a aparecer para ese request — eso en si mismo es un dato.
+    const inicio = Date.now();
+    const origin = req.headers.origin || '(sin origin)';
     try{
         const {servicio_id} = req.params;
 
@@ -22,6 +29,8 @@ async function buscarEmpleadosPorServicio(req, res) {
         }
 
         const empleados = await modelo.buscarEmpleadosPorServicio(servicio_id);
+        const duracionMs = Date.now() - inicio;
+        console.log(`[buscarEmpleadosPorServicio] servicio_id=${servicio_id} origin=${origin} duracion_ms=${duracionMs} total=${empleados.length}`);
 
         //Vallidar que no vengan vacíos los empleados
         if (empleados.length === 0) {
@@ -37,10 +46,11 @@ async function buscarEmpleadosPorServicio(req, res) {
             total: empleados.length
         });
     }catch(error){
-        console.error("Error en controlador.buscarProfesionalesPorServicio:", error);
-        res.status(500).json({ 
-            mensaje: "Error interno del servidor al buscar profesionales.", 
-            detalle: error.message 
+        const duracionMs = Date.now() - inicio;
+        console.error(`[buscarEmpleadosPorServicio] ERROR servicio_id=${req.params?.servicio_id} origin=${origin} duracion_ms=${duracionMs}:`, error);
+        res.status(500).json({
+            mensaje: "Error interno del servidor al buscar profesionales.",
+            detalle: error.message
         });
     }
 }
@@ -126,7 +136,26 @@ async function eliminarServicio(req, res) {
         res.status(204).send();
     } catch (error) {
         console.error(`Error en controlador.eliminarServicio (ID: ${req.params.id}):`, error);
-        res.status(500).json({ mensaje: 'Error al dar de baja servicio.', detalle: error.message });
+        res.status(500).json({ mensaje: 'Error al anular servicio.', detalle: error.message });
+    }
+}
+
+async function cambiarEstadoServicio(req, res) {
+    try {
+        const id = Number(req.params.id);
+        if (!Number.isInteger(id)) {
+            return res.status(400).json({ mensaje: 'ID inválido.' });
+        }
+
+        if (typeof req.body?.activo !== 'boolean') {
+            return res.status(400).json({ mensaje: "El campo 'activo' es requerido y debe ser booleano." });
+        }
+
+        const servicio = await modelo.cambiarEstadoServicio(id, req.body.activo ? 'activo' : 'inactivo');
+        res.status(200).json(servicio);
+    } catch (error) {
+        console.error(`Error en controlador.cambiarEstadoServicio (ID: ${req.params.id}):`, error);
+        res.status(500).json({ mensaje: 'Error al cambiar el estado del servicio.', detalle: error.message });
     }
 }
 
@@ -136,5 +165,6 @@ export default {
     obtenerServicioPorId,
     crearServicio,
     actualizarServicio,
-    eliminarServicio
+    eliminarServicio,
+    cambiarEstadoServicio
 };

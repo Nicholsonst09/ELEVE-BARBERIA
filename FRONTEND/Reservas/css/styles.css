@@ -206,12 +206,16 @@ img { display: block; max-width: 100%; }
   filter: grayscale(100%) contrast(1.05);
 }
 
-/* Columna del formulario */
+/* Columna del formulario. El scroll no va acá: el panel se queda quieto
+   (progreso + título del paso fijos) y solo el cuerpo del paso activo
+   (.paso__cuerpo) scrollea internamente cuando el contenido no entra. */
 .reserva-panel {
   flex: 1;
   min-height: 0;
   padding: 1.5rem;
-  overflow: visible;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   position: relative;
   transition: background 0.5s ease, color 0.5s ease;
 }
@@ -286,6 +290,16 @@ img { display: block; max-width: 100%; }
   color: #999;
   line-height: 1.55;
   margin-bottom: 1.5rem;
+}
+
+.confirmacion__email-aviso {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  color: #999;
+  margin-bottom: 1.25rem;
 }
 
 .confirmacion__detalle {
@@ -364,7 +378,24 @@ img { display: block; max-width: 100%; }
 
 .btn-nueva-reserva:hover { opacity: 0.8; }
 
-.reserva-panel::-webkit-scrollbar { display: none; }
+/* Cuerpo scrolleable de cada paso (todo lo que va después del título fijo).
+   Scrollbar mini y discreta: no es lo más lindo, pero deja claro que hay
+   más contenido para bajar (en vez de esconder el scroll por completo). */
+.paso__cuerpo {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border2) transparent;
+}
+.paso__cuerpo::-webkit-scrollbar { width: 5px; }
+.paso__cuerpo::-webkit-scrollbar-track { background: transparent; }
+.paso__cuerpo::-webkit-scrollbar-thumb {
+  background: var(--border2);
+  border-radius: 999px;
+}
+.paso__cuerpo::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 
 /* ---------------------------------------------------------------
    PROGRESO
@@ -374,6 +405,7 @@ img { display: block; max-width: 100%; }
   align-items: center;
   justify-content: center;
   margin-bottom: 2rem;
+  flex-shrink: 0;
 }
 
 .progreso__paso {
@@ -417,6 +449,8 @@ img { display: block; max-width: 100%; }
 .paso { display: none; flex-direction: column; }
 .paso--activo {
   display: flex;
+  flex: 1;
+  min-height: 0;
   animation: fd 0.28s ease forwards;
 }
 
@@ -433,6 +467,7 @@ img { display: block; max-width: 100%; }
   margin-bottom: 1.25rem;
   padding-bottom: 1rem;
   border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
 .paso__titulo {
@@ -490,6 +525,7 @@ img { display: block; max-width: 100%; }
 }
 
 .tarjeta {
+  position: relative; /* ancla del boton Reservar centrado en Y */
   background: var(--surface2);
   border: 1px solid var(--border);
   border-radius: var(--r);
@@ -543,6 +579,36 @@ img { display: block; max-width: 100%; }
   border-color: transparent;
 }
 
+/* Reserva espacio a la derecha para el boton centrado en Y (Reservar / Elegir) */
+.tarjeta--servicio,
+.tarjeta--barbero { padding-right: 6.2rem; }
+
+.btn-agendar-servicio {
+  position: absolute;
+  right: 0.85rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-family: inherit;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.5rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  transition: background var(--t), color var(--t), border-color var(--t);
+}
+
+.tarjeta:hover .btn-agendar-servicio {
+  background: var(--text);
+  color: #000;
+  border-color: var(--text);
+}
+
 .barbero-info { display: flex; align-items: center; gap: 0.55rem; }
 
 .barbero-avatar {
@@ -554,6 +620,19 @@ img { display: block; max-width: 100%; }
   font-size: 0.65rem;
   color: var(--xmuted);
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.barbero-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.barbero-avatar-fallback {
+  font-size: 0.65rem;
+  line-height: 1;
 }
 
 .barbero-detalles h3 {
@@ -572,11 +651,78 @@ img { display: block; max-width: 100%; }
   padding: 0.4rem 0.2rem;
 }
 
-.sin-horarios {
+.cargando-horarios {
   padding: 1.5rem 1rem;
   text-align: center;
   font-size: 0.8rem;
   color: var(--muted);
+}
+
+.tarjeta--vacia { opacity: 0.4; }
+.tarjeta--vacia:hover { background: var(--surface2); border-color: var(--border); }
+
+.tarjeta--seleccionada,
+.tarjeta--seleccionada:hover {
+  background: var(--text);
+  border-color: var(--text);
+  opacity: 1;
+}
+.tarjeta--seleccionada .tarjeta-fecha { color: #000; }
+
+.sin-horarios {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 2rem 1rem;
+  text-align: center;
+}
+
+.sin-horarios__icono {
+  font-size: 1.6rem;
+  color: var(--muted);
+}
+
+.sin-horarios__titulo {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+.btn-siguiente-fecha {
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.55rem 1.1rem;
+  border-radius: 999px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  transition: background var(--t), color var(--t), border-color var(--t);
+}
+.btn-siguiente-fecha:hover:not(:disabled) { background: var(--text); color: #000; border-color: var(--text); }
+.btn-siguiente-fecha:disabled { opacity: 0.5; cursor: default; }
+
+.horarios-seccion { margin-top: 1rem; }
+
+.horarios-subtitulo {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+  margin: 0 0 0.5rem;
+}
+
+.horarios-grupo + .horarios-grupo { margin-top: 0.75rem; }
+
+.horarios-grupo__titulo {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin: 0 0 0.4rem;
 }
 
 /* ---------------------------------------------------------------
@@ -639,6 +785,22 @@ img { display: block; max-width: 100%; }
   background: var(--surface2);
   color: var(--xmuted);
   cursor: not-allowed;
+}
+
+.spinner-btn {
+  display: inline-block;
+  width: 0.85em;
+  height: 0.85em;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-top-color: var(--muted);
+  border-radius: 50%;
+  animation: spin-btn 0.6s linear infinite;
+  vertical-align: middle;
+  margin-right: 0.4em;
+}
+
+@keyframes spin-btn {
+  to { transform: rotate(360deg); }
 }
 
 /* ---------------------------------------------------------------
@@ -882,6 +1044,11 @@ img { display: block; max-width: 100%; }
 .nav--abierto .nav__burger span:nth-child(1) { transform: translateY(6.5px) rotate(45deg); }
 .nav--abierto .nav__burger span:nth-child(2) { opacity: 0; transform: scaleX(0); }
 .nav--abierto .nav__burger span:nth-child(3) { transform: translateY(-6.5px) rotate(-45deg); }
+
+/* Evita el auto-zoom de iOS Safari al enfocar inputs (se dispara con font-size < 16px) */
+@media (max-width: 640px) {
+  .form-input { font-size: 16px; }
+}
 
 /* En pantallas pequeñas: ocultar links y mostrar hamburguesa */
 @media (max-width: 640px) {

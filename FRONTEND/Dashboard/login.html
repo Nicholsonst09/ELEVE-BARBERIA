@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <!-- Redirige de inmediato si ya hay una sesión guardada, antes de pintar el formulario -->
+    <script>
+        (function () {
+            try {
+                var raw = sessionStorage.getItem('eleve_session');
+                var sesion = raw ? JSON.parse(raw) : null;
+                if (sesion && sesion.accessToken) {
+                    window.location.replace('index.html');
+                }
+            } catch (e) {}
+        })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ELEVÉ - Iniciar Sesión</title>
+    <link rel="icon" type="image/png" href="img/LOGO-ELEVE-2.png" sizes="25x25">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+
+<body>
+    <div class="login-pagina">
+        <!-- Lado izquierdo: Imagen -->
+        <div class="login-imagen">
+            <div class="login-imagen-contenido">
+                <h2 class="login-imagen-titulo">ELEVÉ BARBERIA</h2>
+                <p class="login-imagen-subtitulo">Sistema de Gestión interno</p>
+            </div>
+        </div>
+
+        <!-- Lado derecho: Formulario -->
+        <div class="login-formulario">
+            <div class="login-card">
+                <div id="login-header-principal" class="login-header">
+                    <h1 class="login-titulo">Iniciar Sesión</h1>
+                    <p class="login-subtitulo">Ingresá tus credenciales para continuar</p>
+                </div>
+                <form id="form-login" class="login-form" autocomplete="off">
+                    <div class="grupo-formulario">
+                        <label class="form-label" for="login-usuario">Correo electrónico</label>
+                        <input type="email" id="login-usuario" class="form-input" placeholder="tu@mail.com"
+                            required autocomplete="email">
+                    </div>
+                    <div class="grupo-formulario">
+                        <label class="form-label" for="login-password">Contraseña</label>
+                        <div class="input-password-wrapper">
+                            <input type="password" id="login-password" class="form-input" placeholder="Tu contraseña"
+                                required autocomplete="current-password">
+                            <button type="button" id="toggle-login-password" class="btn-toggle-password"
+                                title="Mostrar contraseña">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="login-error" class="login-error"></div>
+                    <button type="submit" class="boton-primario login-btn-submit">
+                        <i class="fas fa-sign-in-alt"></i>
+                        Ingresar
+                    </button>
+                    <a href="#" id="link-recuperar" class="login-recuperar-link">¿Olvidaste tu contraseña?</a>
+                </form>
+
+                <!-- Panel recuperar contraseña (oculto por defecto) -->
+                <div id="panel-recuperar" class="panel-recuperar" style="display:none">
+                    <div class="login-header">
+                        <h1 class="login-titulo">Recuperar contraseña</h1>
+                        <p id="recuperar-subtitulo" class="login-subtitulo">Ingresá tu mail y te enviamos las
+                            instrucciones</p>
+                    </div>
+
+                    <!-- Paso 1: Email -->
+                    <div id="recuperar-paso1">
+                        <div class="grupo-formulario">
+                            <label class="form-label" for="recuperar-email">Correo electrónico</label>
+                            <input type="email" id="recuperar-email" class="form-input" placeholder="tu@mail.com"
+                                autocomplete="email">
+                        </div>
+                        <div id="recuperar-error" class="login-error"></div>
+                        <button type="button" id="btn-enviar-mail" class="boton-primario login-btn-submit">
+                            <i class="fas fa-paper-plane"></i>
+                            Enviar instrucciones
+                        </button>
+                    </div>
+
+                    <!-- Paso 2: Nueva contraseña (oculto hasta simular envío) -->
+                    <div id="recuperar-paso2" style="display:none">
+                        <div class="grupo-formulario">
+                            <label class="form-label" for="recuperar-nueva">Nueva contraseña</label>
+                            <div class="input-password-wrapper">
+                                <input type="password" id="recuperar-nueva" class="form-input"
+                                    placeholder="Nueva contraseña">
+                                <button type="button" id="toggle-recuperar-nueva" class="btn-toggle-password"
+                                    title="Mostrar contraseña">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="grupo-formulario">
+                            <label class="form-label" for="recuperar-confirmar">Confirmar contraseña</label>
+                            <div class="input-password-wrapper">
+                                <input type="password" id="recuperar-confirmar" class="form-input"
+                                    placeholder="Repetí la nueva contraseña">
+                                <button type="button" id="toggle-recuperar-confirmar" class="btn-toggle-password"
+                                    title="Mostrar contraseña">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="recuperar-error2" class="login-error"></div>
+                        <button type="button" id="btn-confirmar-recuperar" class="boton-primario login-btn-submit">
+                            <i class="fas fa-key"></i>
+                            Cambiar contraseña
+                        </button>
+                    </div>
+
+                    <a href="#" id="link-volver-login" class="login-recuperar-link">← Volver al inicio de sesión</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="./js/login.js?v=2" type="module"></script>
+</body>
+
+</html>

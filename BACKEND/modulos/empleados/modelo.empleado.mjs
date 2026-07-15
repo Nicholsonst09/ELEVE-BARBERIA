@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "../../db/supabaseClient.mjs";
+import { eliminarImagenStorage } from "../../config/imagen.mjs";
 
 // Selector base que incluye el join con estado_empleado
 const SELECT_EMPLEADO_BASE = `
@@ -8,6 +9,7 @@ const SELECT_EMPLEADO_BASE = `
     especialidades,
     horarios_disponibles,
     avatar_url,
+    comision_pct,
     estado_id,
     creado,
     modificado,
@@ -56,21 +58,48 @@ async function obtenerEstadoEmpleadoId(codigo = 'activo') {
     return data.id;
 }
 
-async function obtenerEstadoBajaEmpleadoId() {
-    const codigosPreferidos = ['inactivo', 'anulado'];
+async function cambiarEstadoEmpleado(id, codigo) {
+    try {
+        const estadoId = await obtenerEstadoEmpleadoId(codigo);
 
-    for (const codigo of codigosPreferidos) {
-        const { data, error } = await supabaseAdmin
-            .from('estado_empleado')
-            .select('id')
-            .eq('codigo', codigo)
-            .maybeSingle();
+        const { error } = await supabaseAdmin
+            .from('empleados')
+            .update({
+                estado_id: estadoId,
+                modificado: new Date().toISOString()
+            })
+            .eq('id', id);
 
         if (error) throw error;
-        if (data?.id) return data.id;
+        return await obtenerUnEmpleado(id);
+    } catch (error) {
+        console.error(`Error al cambiar estado del empleado con ID ${id}:`, error.message);
+        throw error;
     }
+}
 
-    throw new Error("No existe un estado de baja para empleados. Se esperaba 'inactivo' o 'anulado'.");
+// Un empleado se considera duplicado cuando otro (no anulado) tiene el
+// mismo nombre y el mismo email. Los anulados quedan afuera a propósito:
+// si diste de baja a alguien, tiene que poder volver a cargarse con los
+// mismos datos sin chocar contra "ya existe".
+async function buscarEmpleadoDuplicado({ nombre, email = null, excluirId = null }) {
+    const nombreNorm = String(nombre || '').trim();
+    if (!nombreNorm) return null;
+
+    let query = supabaseAdmin
+        .from('empleados')
+        .select('id, nombre, email, estado_empleado!estado_id(codigo)')
+        .ilike('nombre', nombreNorm);
+
+    query = email ? query.ilike('email', String(email).trim()) : query.is('email', null);
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    return (data || []).find((fila) =>
+        fila.estado_empleado?.codigo !== 'anulado' &&
+        (excluirId === null || Number(fila.id) !== Number(excluirId))
+    ) || null;
 }
 
 async function sincronizarServiciosEmpleado(empleadoId, servicioIds = []) {
@@ -108,7 +137,7 @@ async function obtenerEmpleados() {
         if (error) throw error;
 
         return (empleados || [])
-            .filter(empleado => !['inactivo', 'anulado'].includes(empleado.estado_empleado?.codigo))
+            .filter(empleado => empleado.estado_empleado?.codigo !== 'anulado')
             .map(mapearEmpleado);
     }catch(error) {
         console.error("Error al obtener empleados:", error.message);
@@ -138,6 +167,24 @@ async function obtenerUnEmpleado(id) {
     }
 }
 
+// Cuenta empleados que ocupan cupo del plan: activos + inactivos, sin
+// contar los anulados (dados de baja, ya no cuentan para el negocio).
+async function contarEmpleados() {
+    try {
+        const anuladoId = await obtenerEstadoEmpleadoId('anulado');
+        const { count, error } = await supabaseAdmin
+            .from('empleados')
+            .select('id', { count: 'exact', head: true })
+            .neq('estado_id', anuladoId);
+
+        if (error) throw error;
+        return Number(count || 0);
+    } catch (error) {
+        console.error('Error al contar empleados:', error.message);
+        throw error;
+    }
+}
+
 async function crearEmpleado(nuevoEmpleado) {
     try {
         const estadoActivoId = await obtenerEstadoEmpleadoId();
@@ -147,6 +194,7 @@ async function crearEmpleado(nuevoEmpleado) {
             especialidades: nuevoEmpleado.especialidades || null,
             horarios_disponibles: nuevoEmpleado.horarios_disponibles || null,
             avatar_url: nuevoEmpleado.avatar_url || null,
+            comision_pct: Number.isFinite(Number(nuevoEmpleado.comision_pct)) ? Number(nuevoEmpleado.comision_pct) : 0,
             estado_id: nuevoEmpleado.estado_id || estadoActivoId,
             modificado: new Date().toISOString()
         };
@@ -169,12 +217,15 @@ async function crearEmpleado(nuevoEmpleado) {
 
 async function actualizarEmpleado(id, datos) {
     try {
+        const actual = await obtenerUnEmpleado(id);
+
         const payload = {
             nombre: datos.nombre,
             email: datos.email || null,
             especialidades: datos.especialidades || null,
             horarios_disponibles: datos.horarios_disponibles || null,
             avatar_url: datos.avatar_url || null,
+            comision_pct: Number.isFinite(Number(datos.comision_pct)) ? Number(datos.comision_pct) : 0,
             modificado: new Date().toISOString()
         };
 
@@ -187,6 +238,12 @@ async function actualizarEmpleado(id, datos) {
 
         if (error) throw error;
 
+        // El avatar viejo ya no tiene referencia en la BD una vez pisado por
+        // el nuevo: se borra del storage para no acumular fotos huérfanas.
+        if (actual?.avatar_url && actual.avatar_url !== payload.avatar_url) {
+            await eliminarImagenStorage(actual.avatar_url);
+        }
+
         await sincronizarServiciosEmpleado(id, datos.servicio_ids || []);
         return await obtenerUnEmpleado(id);
     } catch (error) {
@@ -197,12 +254,12 @@ async function actualizarEmpleado(id, datos) {
 
 async function eliminarEmpleado(id) {
     try {
-        const estadoBajaId = await obtenerEstadoBajaEmpleadoId();
+        const estadoAnuladoId = await obtenerEstadoEmpleadoId('anulado');
 
         const { error } = await supabaseAdmin
             .from('empleados')
             .update({
-                estado_id: estadoBajaId,
+                estado_id: estadoAnuladoId,
                 modificado: new Date().toISOString()
             })
             .eq('id', id);
@@ -210,7 +267,7 @@ async function eliminarEmpleado(id) {
         if (error) throw error;
         return true;
     } catch (error) {
-        console.error(`Error al dar de baja empleado con ID ${id}:`, error.message);
+        console.error(`Error al anular empleado con ID ${id}:`, error.message);
         throw error;
     }
 }
@@ -218,7 +275,10 @@ async function eliminarEmpleado(id) {
 export default{
     obtenerEmpleados,
     obtenerUnEmpleado,
+    contarEmpleados,
     crearEmpleado,
     actualizarEmpleado,
-    eliminarEmpleado
+    eliminarEmpleado,
+    cambiarEstadoEmpleado,
+    buscarEmpleadoDuplicado
 }
