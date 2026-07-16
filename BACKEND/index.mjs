@@ -24,8 +24,7 @@ app.set('trust proxy', 1);
 // Los requests sin header Origin (curl, cron de recordatorios, server-to-server)
 // no los bloquea CORS: eso lo cubre la autenticación de cada endpoint.
 const origenesPermitidos = [
-	'https://elevebarberia.surweb.com.ar',
-	'https://admin.elevebarberia.surweb.com.ar',
+	'https://eleve-barberia-app.vercel.app',
 ];
 
 const esOrigenLocal = (origin) =>
