@@ -77,7 +77,7 @@ async function obtenerMetricasTurnosPorCliente() {
 
         const estado = turno.estado_turno?.codigo || null;
         const cuentaComoTurno = estado !== 'cancelado' && estado !== 'anulado';
-        const cuentaComoVisita = estado === 'realizado';
+        const cuentaComoVisita = estado === 'completado';
 
         if (cuentaComoTurno) {
             actual.total_turnos += 1;
@@ -158,30 +158,37 @@ async function obtenerUnCliente(id) {
 //Funcion para buscar cliente existente o crearlo en su defecto
 // Busca primero por teléfono, luego por email. Si encuentra por cualquiera
 // de los dos, actualiza el campo faltante. Si no encuentra, crea uno nuevo.
-async function buscarOCrearCliente(nombre, telefono, email = null) {
+// Si no tiene teléfono ni email, retorna null.
+async function buscarOCrearCliente(nombre, telefono = null, email = null) {
     try {
+        // Si no tiene ni teléfono ni email, no crear cliente
+        if (!telefono && !email) {
+            return null;
+        }
+
         const estadoActivoId = await obtenerEstadoClienteId();
 
-        // 1. Buscar por teléfono
-        let { data: clientePorTel, error: errTel } = await supabaseAdmin
-            .from('clientes')
-            .select('id, email, estado_id')
-            .eq('telefono', telefono)
-            .single();
+        // 1. Buscar por teléfono (si existe)
+        if (telefono) {
+            let { data: clientePorTel, error: errTel } = await supabaseAdmin
+                .from('clientes')
+                .select('id, email, estado_id')
+                .eq('telefono', telefono)
+                .single();
 
-        if (errTel && errTel.code !== 'PGRST116') throw errTel;
+            if (errTel && errTel.code !== 'PGRST116') throw errTel;
 
-        if (clientePorTel) {
-            const actualizacion = {
-                estado_id: estadoActivoId,
-                modificado: new Date().toISOString()
-            };
-            if (email && !clientePorTel.email) actualizacion.email = email;
+            if (clientePorTel) {
+                const actualizacion = {
+                    nombre,
+                    estado_id: estadoActivoId,
+                    modificado: new Date().toISOString()
+                };
+                if (email && !clientePorTel.email) actualizacion.email = email;
 
-            if (Object.keys(actualizacion).length > 0) {
                 await supabaseAdmin.from('clientes').update(actualizacion).eq('id', clientePorTel.id);
+                return clientePorTel.id;
             }
-            return clientePorTel.id;
         }
 
         // 2. Si no encontró por teléfono y tiene email, buscar por email
@@ -196,14 +203,13 @@ async function buscarOCrearCliente(nombre, telefono, email = null) {
 
             if (clientePorEmail) {
                 const actualizacion = {
+                    nombre,
                     estado_id: estadoActivoId,
                     modificado: new Date().toISOString()
                 };
                 if (!clientePorEmail.telefono && telefono) actualizacion.telefono = telefono;
 
-                if (Object.keys(actualizacion).length > 0) {
-                    await supabaseAdmin.from('clientes').update(actualizacion).eq('id', clientePorEmail.id);
-                }
+                await supabaseAdmin.from('clientes').update(actualizacion).eq('id', clientePorEmail.id);
                 return clientePorEmail.id;
             }
         }

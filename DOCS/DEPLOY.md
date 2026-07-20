@@ -1,89 +1,68 @@
 # Deploy — Elevé Barbería
 
-## Contexto actual
+## Estado actual (en producción)
 
-El sistema está funcionando en este momento porque el frontend apunta a las rutas de un backend que fue subido previamente como parte de una **demo (demo-2)** del proyecto. Ese backend es temporal y no es el de este repositorio.
+El sistema ya está deployado y en vivo en dos partes independientes, dentro del mismo repositorio pero con carpeta raíz distinta cada una:
+
+| App | Carpeta raíz | Dominio |
+|---|---|---|
+| Backend (API) | `BACKEND/` | (Vercel, ver variable `API_BASE_URL` en el frontend) |
+| Reservas (público) | `FRONTEND/Reservas/` | `https://elevebarberia.surweb.com.ar` |
+| Dashboard (backoffice) | `FRONTEND/Dashboard/` | `https://admin.elevebarberia.surweb.com.ar` |
 
 ---
 
-## Qué hay que hacer
+## Variables de entorno (Backend)
 
-Hay que realizar el deploy completo del proyecto en **dos partes independientes**, ambas dentro de este mismo repositorio pero apuntando a carpetas raíz distintas:
-
-### 1. Deploy del Backend
-
-- Carpeta raíz: `BACKEND/`
-- Una vez deployado, se obtiene la URL del servidor de este proyecto.
-
-#### Variables de entorno (Backend)
-
-Vercel permite importar un archivo `.env` directamente desde la configuración del proyecto. Las variables necesarias son:
+Vercel permite importar el `.env` directamente desde la configuración del proyecto. Variables usadas hoy (ver `BACKEND/.env`):
 
 | Variable | Descripción |
 |---|---|
 | `SUPABASE_URL` | URL del proyecto en Supabase |
-| `BASE_SERVICE_ROLE_KEY` | Service role key de Supabase |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key de Supabase (solo servidor) |
+| `RESEND_API_KEY` | API key de Resend para el envío de mails |
+| `RESEND_FROM_EMAIL` | Remitente de los mails salientes |
+| `ADMIN_NOTIFICATION_EMAIL` | Mail interno que recibe copia de reservas/cancelaciones |
+| `EMAIL_NOTIFICATIONS_ENABLED` | `true`/`false` — apaga el envío de mails sin tocar código |
+| `EMAIL_LOGO_URL` | (opcional) URL del logo usado en el header de los mails; si no se define usa el logo del Dashboard por default |
+| `WHATSAPP_CONTACT_NUMBER` | Número usado en los links `wa.me` de los mails de turnos |
+| `SUPABASE_AUTH_REDIRECT_TO` | URL de redirect para el mail de recuperación de contraseña de Supabase Auth |
+| `REMINDERS_CRON_TOKEN` | Token para el endpoint de recordatorios por cron (actualmente desactivado, ver Pendientes) |
+| `PUERTO` | Puerto local (no usado en Vercel, que asigna el propio) |
 
-> Sin estas variables el backend no puede conectarse a la base de datos.
-
-### 2. Deploy del Frontend
-
-- Carpeta raíz: `FRONTEND/`
-- Una vez deployado el backend, hay que **actualizar todas las rutas del frontend** para que dejen de apuntar al backend de la demo y pasen a apuntar al backend de este proyecto.
-
----
-
-## Pasos resumidos
-
-1. Hacer deploy del `BACKEND/` desde `main` y copiar la URL generada.
-3. Cargar las variables de entorno en Vercel (importar el `.env` o cargarlas manualmente).
-4. Actualizar la URL del backend en `FRONTEND/Configuracion/config.js` → variable `API_BASE_URL`. **Es el único lugar que hay que cambiar**, todos los módulos del frontend la consumen desde ahí.
-5. Hacer deploy del `FRONTEND/` con la ruta ya actualizada.
+> Sin `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` el backend no puede conectarse a la base de datos.
 
 ---
 
-## Pendientes antes del deploy final
+## Configuración del frontend (API_BASE_URL)
 
-Estas funcionalidades deben estar completas antes de hacer el deploy definitivo:
+**No existe un único archivo de configuración compartido.** Cada app tiene su propia constante `API_BASE_URL`, hay que actualizar ambas si cambia el backend:
 
-### ABM completo desde el backend y la base de datos
-- Completar los endpoints faltantes del backend para cada módulo (clientes, empleados, servicios, turnos).
-- Crear las tablas necesarias en Supabase si aún no existen.
+- `FRONTEND/Dashboard/js/config.js`
+- `FRONTEND/Reservas/js/config.js`
 
-### Inicio de sesión con designación de rol
-- Implementar el login con asignación de rol al usuario.
-- Según el rol asignado, mostrar u ocultar los módulos correspondientes en el Dashboard.
-
-### Integración de Resend para mails automáticos
-- Adaptar el servicio de Resend para el envío de mails de confirmación de reserva.
-- Se deben enviar **dos correos** por cada reserva confirmada:
-  - Uno al **cliente** que reservó el turno.
-  - Uno al **barbero / negocio** para notificar la nueva reserva.
-
-### Nueva página de reservas
-- Se reemplazó la página de reservas anterior por una nueva versión en `FRONTEND/Reservas/`.
-- El nuevo diseño es más simple y resumido, manteniendo el mismo flujo de reserva pero con una interfaz más limpia.
-
-### Transferencia del proyecto Supabase
-- El proyecto de Supabase está actualmente vinculado a una cuenta personal de desarrollo.
-- Hay que transferirlo (o recrearlo) bajo una cuenta de Gmail propia del proyecto antes del deploy final.
-- Esto implica actualizar las variables de entorno `SUPABASE_URL` y `BASE_SERVICE_ROLE_KEY` con los nuevos valores del proyecto transferido.
+(Existió un `FRONTEND/Configuracion/config.js` pensado como fuente única, pero nunca se conectó — se eliminó por no estar en uso real.)
 
 ---
 
-## Notas
+## CORS
 
-- Los dos deploys se hacen desde el **mismo repositorio**, solo cambia la carpeta raíz configurada en cada deploy.
-- No deployar hasta tener los pendientes de arriba resueltos y todo mergeado a `main`.
+El backend restringe CORS a una whitelist (`BACKEND/index.mjs`): los dos dominios de producción de arriba + cualquier `localhost`/`127.0.0.1` en cualquier puerto para desarrollo local. Si se agrega un dominio nuevo (ej. `www.`, staging), hay que sumarlo ahí.
 
-## Correcciones de rutas para Vercel (Frontend)
+---
 
-Al deployar el frontend en Vercel con Root Directory `FRONTEND`, los assets
-(CSS, JS, imágenes) se resolvían desde la raíz del dominio en vez de desde
-su subcarpeta. Se corrigió agregando `<base href="...">` en cada HTML:
+## Rutas de Vercel (Frontend)
+
+Al deployar el frontend en Vercel con Root Directory `FRONTEND`, los assets (CSS, JS, imágenes) se resolvían desde la raíz del dominio en vez de desde su subcarpeta. Se corrigió agregando `<base href="...">` en cada HTML:
 
 - `Dashboard/index.html` → `<base href="/Dashboard/">`
 - `Reservas/index.html` → `<base href="/Reservas/">`
 
-También se corrigieron rutas de imágenes locales que usaban referencias
-relativas incorrectas (`../PaginaWeb/...`).
+---
+
+## Pendientes conocidos
+
+- **Recordatorios por cron**: el endpoint `GET /api/v1/turnos/notificaciones/recordatorios` está desactivado a propósito (`controlador.turno.mjs`, `procesarRecordatoriosTurnos`). La lógica ya existe pero está comentada — reactivar cuando se quiera mandar el recordatorio de "falta 1 hora" y configurar el Cron Job en Vercel.
+- **KPIs del Dashboard (pestaña "Dashboard"/finanzas)**: hoy muestra datos de ejemplo hardcodeados (`FRONTEND/Dashboard/js/finanzas.js`), no hay endpoint de indicadores reales todavía. Ver `DOCS/plan-nuevas-funcionalidades.md`.
+- **Logs de auditoría**: no implementado — no queda registro de quién hizo qué cambio en el sistema.
+- **Sin tests automatizados** y **sin rate limiting** en rutas públicas (`/api/v1/reservas`, `/api/v1/auth/recover`).

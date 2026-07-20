@@ -40,10 +40,7 @@ const TRANSICIONES_VALIDAS = {
 };
 
 const ETIQUETAS_ESTADO = {
-  pendiente:  'Reservado',
-  confirmado: 'Reservado',
   reservado:  'Reservado',
-  realizado:  'Completado',
   completado: 'Completado',
   cancelado:  'Cancelado',
   anulado:    'Anulado',
@@ -93,10 +90,7 @@ function obtenerEstiloTurno(horaInicio, horaFin, alturaSlot = 150) {
 
 function obtenerEtiquetaEstado(estado) {
   const etiquetas = {
-    confirmado: "Reservado",
-    pendiente: "Reservado",
     reservado: "Reservado",
-    realizado: "Completado",
     completado: "Completado",
     cancelado: "Cancelado",
     anulado:   "Anulado",
@@ -154,15 +148,25 @@ function renderizarNavegacion() {
     </button>
   `;
 
-  estado.profesionales.forEach((prof) => {
-    const color = prof.color || '#525252';
+  const sesion = obtenerSesion();
+  // Un usuario rol empleado SIN empleado asociado (ej: recepcionista) no tiene
+  // una agenda propia que filtrar: ve todas las pestañas, igual que un admin.
+  const esEmpleado = sesion?.rol === 'empleado' && !!sesion.empleadoId;
+  // Los empleados dados de baja (inactivos) no se muestran como pestañas de la agenda
+  const profesionalesActivos = estado.profesionales.filter((prof) => prof.activo !== false);
+  const profesionalesVisibles = esEmpleado
+    ? profesionalesActivos.filter((prof) => String(prof.id) === String(sesion.empleadoId))
+    : profesionalesActivos;
+
+  profesionalesVisibles.forEach((prof) => {
     const primerNombre = prof.nombre.split(' ')[0];
+    const avatarTab = prof.avatar_url
+      ? `<img src="${prof.avatar_url}" alt="${prof.nombre}" class="avatar-prof-tab">`
+      : '<span class="avatar-prof-tab avatar-prof-tab-fallback" aria-hidden="true"><i class="fas fa-cut"></i></span>';
 
     html += `
       <button class="pestana-navegacion ${String(estado.profesionalSeleccionado) === String(prof.id) ? "activo" : ""}" data-id="${prof.id}">
-        <svg class="icono" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px;flex-shrink:0;">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 1 0-4.243 4.243 3 3 0 0 0 4.243-4.243zm0-5.758a3 3 0 1 0-4.243-4.243 3 3 0 0 0 4.243 4.243z"/>
-        </svg>
+        ${avatarTab}
         <span class="nombre-prof-tab">${primerNombre}</span>
       </button>
     `;
@@ -203,6 +207,9 @@ function renderizarEncabezado() {
   const btnHoy = document.getElementById("btnHoy");
   btnDiaAnterior.disabled = !puedeDiaAnterior(estado.fechaActual);
   btnHoy.disabled = esHoy(estado.fechaActual);
+
+  const inputFechaAgenda = document.getElementById("inputFechaAgenda");
+  if (inputFechaAgenda) inputFechaAgenda.value = formatearFechaParaAPI(estado.fechaActual);
 }
 
 // Nueva función para detectar superposiciones de turnos
@@ -325,15 +332,20 @@ function renderizarGrilla() {
     tarjeta.innerHTML = `
       <div class="info-cliente-servicio">
         <div class="cliente-turno">${turno.nombre_cliente}</div>
-        <div class="servicio-turno">${turno.nombre_servicio} (${duracion} min)</div> 
+        <div class="servicio-turno">${turno.nombre_servicio} (${duracion} min)</div>
+        <div class="estado-turno-badge">
+          <span class="leyenda-dot" style="background:${colorEstado};"></span>
+          ${ETIQUETAS_ESTADO[turno.estado] || 'Reservado'}
+        </div>
       </div>
 
       <div class="info-profesional-hora">
         ${turno.nombre_empleado ? `
           <div class="profesional-turno">
-            <svg class="icono" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 1 0-4.243 4.243 3 3 0 0 0 4.243-4.243zm0-5.758a3 3 0 1 0-4.243-4.243 3 3 0 0 0 4.243 4.243z"/>
-            </svg>
+            ${(profesional?.avatar_url || turno.avatar_empleado)
+              ? `<img src="${profesional?.avatar_url || turno.avatar_empleado}" alt="Avatar ${turno.nombre_empleado}" class="avatar-profesional-turno">`
+              : '<span class="avatar-profesional-fallback" aria-hidden="true"><i class="fas fa-cut"></i></span>'
+            }
             <span>${turno.totalColumnas > 3 ? turno.nombre_empleado.substring(0, 3) + '.' : turno.nombre_empleado.split(' ')[0]}</span>
           </div>
         ` : ""}
@@ -429,6 +441,14 @@ function renderizarGrilla() {
   });
 }
 
+// Un usuario con rol empleado solo puede agendarse a si mismo, asi que en los
+// formularios de turno solo debe ver los servicios que el mismo presta (no
+// el catalogo completo del negocio).
+function serviciosParaSesion(sesion) {
+  if (sesion?.rol !== 'empleado' || !sesion.empleadoId) return estado.servicios;
+  return estado.servicios.filter(s => (s.empleado_ids || []).map(String).includes(String(sesion.empleadoId)));
+}
+
 export function renderizarModal() {
   const modal = document.getElementById("modalSuperpuesto");
   const cuerpoModal = document.getElementById("cuerpoModal");
@@ -443,6 +463,7 @@ export function renderizarModal() {
 
   modal.classList.add("activo");
   const turno = estado.turnoSeleccionado;
+  const sesion = obtenerSesion();
   const emailClienteTurno = turno.email_cliente
     || estado.clientes.find(c => String(c.id) === String(turno.cliente_id))?.email
     || '';
@@ -451,31 +472,36 @@ export function renderizarModal() {
   if (estado.modoCreacion) {
     tituloModal.textContent = "Programar Nuevo Turno";
     const fechaPorDefecto = formatearFechaParaAPI(estado.fechaActual);
+    // Un empleado con ficha propia (barbero) solo puede agendarse a si mismo:
+    // el campo queda oculto en vez de mostrado-y-bloqueado. El <select> sigue
+    // en el DOM (oculto, no removido) porque cargarProfesionalesParaServicio
+    // y el submit siguen leyendo/escribiendo su valor con normalidad.
+    const ocultarProfesional = sesion?.rol === 'empleado' && !!sesion.empleadoId;
 
     cuerpoModal.innerHTML = `
-      <form id="formCreacion">
+      <form id="formCreacion" novalidate>
         <input type="hidden" id="horaInicioSeleccionada" required>
         
         <div class="grupo-formulario">
-          <label class="form-label" for="nombreCliente">Nombre del Cliente</label>
+          <label class="form-label" for="nombreCliente">Nombre del Cliente <span style="color:red;">*</span></label>
           <input type="text" id="nombreCliente" class="form-input" placeholder="Nombre del cliente" required>
-        </div>
-        
-        <div class="grupo-formulario">
-            <label class="form-label" for="telefono">Teléfono</label>
-            <input type="tel" id="telefono" class="form-input" placeholder="+1234567890" required>
         </div>
 
         <div class="grupo-formulario">
-            <label class="form-label" for="emailCliente">Email</label>
-            <input type="email" id="emailCliente" class="form-input" placeholder="cliente@email.com" required>
+            <label class="form-label" for="telefono">Teléfono <span style="color:#999; font-size:0.85em;">(Opcional)</span></label>
+            <input type="tel" id="telefono" class="form-input" placeholder="+1234567890">
+        </div>
+
+        <div class="grupo-formulario">
+            <label class="form-label" for="emailCliente">Email <span style="color:#999; font-size:0.85em;">(Opcional Recomendado)</span></label>
+            <input type="email" id="emailCliente" class="form-input" placeholder="cliente@email.com">
         </div>
 
         <div class="grupo-formulario">
           <label class="form-label" for="servicioId">Servicio</label>
           <select id="servicioId" class="form-select" required>
             <option value="">Seleccionar servicio...</option>
-            ${estado.servicios.map(s => `
+            ${serviciosParaSesion(sesion).map(s => `
                 <option value="${s.id}" data-precio="${s.precio || 0}" data-duracion="${s.duracion_min || 30}">
                   ${s.nombre}
                 </option>
@@ -483,7 +509,7 @@ export function renderizarModal() {
           </select>
         </div>
 
-        <div class="grupo-formulario">
+        <div class="grupo-formulario" ${ocultarProfesional ? 'hidden' : ''}>
           <label class="form-label" for="profesionalId">Profesional</label>
           <select id="profesionalId" class="form-select" required disabled>
             <option value="">Seleccionar profesional...</option>
@@ -491,14 +517,27 @@ export function renderizarModal() {
         </div>
 
         <div class="grupo-formulario">
-            <label class="form-label">Fecha</label>
+            <div class="fila-label-fecha">
+              <label class="form-label">Fecha</label>
+              <div class="selector-fecha-agenda">
+                <button type="button" class="boton-icono" id="btnElegirFechaTurno" title="Elegir fecha específica">
+                  <svg class="icono" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke-width="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" stroke-width="2" stroke-linecap="round" />
+                    <line x1="8" y1="2" x2="8" y2="6" stroke-width="2" stroke-linecap="round" />
+                    <line x1="3" y1="10" x2="21" y2="10" stroke-width="2" />
+                  </svg>
+                </button>
+                <input type="date" id="inputFechaPicker" class="input-fecha-agenda-oculto" aria-label="Elegir fecha específica" tabindex="-1">
+              </div>
+            </div>
             <input type="hidden" id="fecha">
             <div id="fechaContenedor" class="lista-fechas"></div>
         </div>
-        
+
         <div class="grupo-formulario">
             <label class="form-label">Horarios Disponibles</label>
-            <div id="horariosContenedor" class="lista-horarios">
+            <div id="horariosContenedor" class="panel-horarios">
               <p class="sin-horarios">Selecciona servicio, profesional y fecha.</p>
             </div>
         </div>
@@ -524,7 +563,7 @@ export function renderizarModal() {
     if (turno.estado === 'completado') {
       tituloModal.textContent = "Corregir Cliente";
       cuerpoModal.innerHTML = `
-        <form id="formEdicionCliente">
+        <form id="formEdicionCliente" novalidate>
           <p style="color: var(--color-secundario); font-size: 0.85rem; margin-bottom: 1rem;">
             Este turno ya fue completado. Solo podés corregir los datos del cliente.
           </p>
@@ -552,30 +591,33 @@ export function renderizarModal() {
     // ───────────────────────────────────────────────────────────────────────
 
     tituloModal.textContent = "Modificar Turno";
+    // Mismo criterio que en "Nuevo Turno": si es un barbero, el campo
+    // Profesional queda oculto (el <select> sigue en el DOM, solo no visible).
+    const ocultarProfesional = sesion?.rol === 'empleado' && !!sesion.empleadoId;
 
     // En turnos no completados, también se pueden ajustar datos del cliente.
     cuerpoModal.innerHTML = `
-        <form id="formEdicion">
+        <form id="formEdicion" novalidate>
           <input type="hidden" id="horaInicioSeleccionada" required>
           
           <div class="grupo-formulario">
-            <label class="form-label" for="nombreCliente">Nombre del Cliente</label>
+            <label class="form-label" for="nombreCliente">Nombre del Cliente <span style="color:red;">*</span></label>
             <input type="text" id="nombreCliente" class="form-input" value="${turno.nombre_cliente || ''}" required>
           </div>
-          
+
           <div class="grupo-formulario">
-              <label class="form-label" for="telefono">Teléfono</label>
-              <input type="tel" id="telefono" class="form-input" value="${turno.telefono_cliente || ''}" required>
+              <label class="form-label" for="telefono">Teléfono <span style="color:#999; font-size:0.85em;">(Opcional)</span></label>
+              <input type="tel" id="telefono" class="form-input" value="${turno.telefono_cliente || ''}">
           </div>
           <div class="grupo-formulario">
-              <label class="form-label" for="emailCliente">Email</label>
-              <input type="email" id="emailCliente" class="form-input" value="${emailClienteTurno}" placeholder="cliente@email.com" required>
+              <label class="form-label" for="emailCliente">Email <span style="color:#999; font-size:0.85em;">(Opcional Recomendado)</span></label>
+              <input type="email" id="emailCliente" class="form-input" value="${emailClienteTurno}" placeholder="cliente@email.com">
           </div>
           <div class="grupo-formulario">
             <label class="form-label" for="servicioId">Servicio</label>
             <select id="servicioId" class="form-select" required>
               <option value="">Seleccionar servicio...</option>
-              ${estado.servicios.map(s => `
+              ${serviciosParaSesion(sesion).map(s => `
                   <option value="${s.id}" data-precio="${s.precio || 0}" data-duracion="${s.duracion_min || 30}">
                     ${s.nombre}
                   </option>
@@ -583,7 +625,7 @@ export function renderizarModal() {
             </select>
           </div>
 
-          <div class="grupo-formulario">
+          <div class="grupo-formulario" ${ocultarProfesional ? 'hidden' : ''}>
             <label class="form-label" for="profesionalId">Profesional</label>
             <select id="profesionalId" class="form-select" required disabled>
               <option value="">Seleccionar profesional...</option>
@@ -591,14 +633,27 @@ export function renderizarModal() {
           </div>
 
           <div class="grupo-formulario">
-              <label class="form-label">Fecha</label>
+              <div class="fila-label-fecha">
+                <label class="form-label">Fecha</label>
+                <div class="selector-fecha-agenda">
+                  <button type="button" class="boton-icono" id="btnElegirFechaTurno" title="Elegir fecha específica">
+                    <svg class="icono" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke-width="2" />
+                      <line x1="16" y1="2" x2="16" y2="6" stroke-width="2" stroke-linecap="round" />
+                      <line x1="8" y1="2" x2="8" y2="6" stroke-width="2" stroke-linecap="round" />
+                      <line x1="3" y1="10" x2="21" y2="10" stroke-width="2" />
+                    </svg>
+                  </button>
+                  <input type="date" id="inputFechaPicker" class="input-fecha-agenda-oculto" aria-label="Elegir fecha específica" tabindex="-1">
+                </div>
+              </div>
               <input type="hidden" id="fecha">
               <div id="fechaContenedor" class="lista-fechas"></div>
           </div>
           
           <div class="grupo-formulario">
               <label class="form-label">Horarios Disponibles</label>
-              <div id="horariosContenedor" class="lista-horarios">
+              <div id="horariosContenedor" class="panel-horarios">
                 <p class="sin-horarios">Cargando...</p>
               </div>
           </div>
@@ -629,7 +684,7 @@ export function renderizarModal() {
 
   // --- MODO 4: REGISTRAR PAGO ---
   else if (estado.modoRegistrarPago) {
-    tituloModal.textContent = "Registrar Pago";
+    tituloModal.textContent = "Completar turno";
     const servicioDatos = estado.servicios.find(s => s.nombre === turno.nombre_servicio);
     const precioDatos = Number(turno.precio) || Number(servicioDatos?.precio) || 0;
     const metodoActual = turno.metodoPago || '';
@@ -650,7 +705,7 @@ export function renderizarModal() {
       </div>
       <div class="pie-modal">
         <button class="boton-secundario" id="btnCancelarPago">Cancelar</button>
-        <button class="boton-primario" id="btnConfirmarPago">Confirmar</button>
+        <button class="boton-primario" id="btnConfirmarCompletar">Completar</button>
       </div>
     `;
     setupModalPagoListeners(turno);
@@ -659,7 +714,15 @@ export function renderizarModal() {
   // --- MODO 3: VER DETALLES (Default) ---
   else {
     tituloModal.textContent = "Detalles del Turno";
-    const esAdmin = obtenerSesion()?.rol === 'admin';
+    const esAdmin = sesion?.rol === 'admin';
+    // Un empleado con ficha propia (barbero) ve el detalle de cualquier turno
+    // (para saber qué hay en la agenda), pero solo puede accionar sobre los
+    // turnos que son suyos. Un usuario rol empleado SIN ficha asociada (ej:
+    // recepcionista) no tiene turnos "propios" que distinguir, así que
+    // gestiona todo igual que un admin. El backend valida esto mismo aunque
+    // se intente saltear el frontend.
+    const puedeGestionarTurno = esAdmin
+      || (sesion?.rol === 'empleado' && (!sesion.empleadoId || String(turno.empleado_id) === String(sesion.empleadoId)));
     const profesional = { nombre: turno.nombre_empleado };
     const servicio = { nombre: turno.nombre_servicio };
     const cliente = { nombre: turno.nombre_cliente, telefono: turno.telefono_cliente };
@@ -699,9 +762,14 @@ export function renderizarModal() {
             <svg class="icono" style="width:16px; height:16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
             <span>${formatCurrency(precioDatos)}</span>
           </div>
-          <div class="detalles-turno-item">
+          <div class="detalles-turno-item" id="filaPagoDetalle">
             <svg class="icono" style="width:16px; height:16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
             <span>${turno.metodoPago ? etiquetaMetodoPago(turno.metodoPago) : 'Sin pago registrado'}</span>
+            ${puedeGestionarTurno && esEstadoReservado(turno.estado) ? `
+              <button type="button" class="btn-copiar-tel" id="btnEditarPagoInline" aria-label="Registrar o editar pago" title="Registrar/editar pago">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:13px;height:13px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+              </button>
+            ` : ''}
           </div>
         </div>
         ${turno.observaciones ? `
@@ -712,16 +780,12 @@ export function renderizarModal() {
         ` : ''}
       </div>
       <div class="pie-modal pie-modal--detalles">
-        ${esEstadoReservado(turno.estado) ? `
-          <div class="pie-modal__fila">
-            <button type="button" class="boton-primario" id="btnRegistrarPago">Registrar Pago</button>
-            <button type="button" class="boton-secundario" id="btnCompletarTurno">Completar Turno</button>
-          </div>
+        ${!puedeGestionarTurno ? '' : esEstadoReservado(turno.estado) ? `
+          <button type="button" class="boton-primario pie-modal__btn-full" id="btnCompletarTurno">Completar turno</button>
           <button type="button" class="boton-secundario pie-modal__btn-full" id="btnModificar">Modificar turno</button>
           <div class="pie-modal__zona-peligro" role="group" aria-label="Acciones de cancelación">
             <button type="button" class="btn-ghost-peligro btn-ghost-cancelar" id="btnCancelarEstado"
                     title="El cliente avisó que no puede asistir">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:13px;height:13px;flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
               Cancelar turno
             </button>
           </div>
@@ -733,7 +797,7 @@ export function renderizarModal() {
       </div>
     `;
 
-    const btnCopiarTel = cuerpoModal.querySelector('.btn-copiar-tel');
+    const btnCopiarTel = cuerpoModal.querySelector('.btn-copiar-tel[data-tel]');
     if (btnCopiarTel) {
       btnCopiarTel.addEventListener('click', () => {
         navigator.clipboard.writeText(btnCopiarTel.dataset.tel).then(() => {
@@ -741,6 +805,52 @@ export function renderizarModal() {
         });
       });
     }
+
+    // Registrar/editar el pago sin salir del detalle ni tener que completar
+    // el turno de una: útil para dejar asentado un pago adelantado. Se
+    // guarda apenas se elige una opción (sin botón de confirmar aparte,
+    // que era fácil pasar por alto y cerrar la card sin haber guardado).
+    document.getElementById('btnEditarPagoInline')?.addEventListener('click', () => {
+      const fila = document.getElementById('filaPagoDetalle');
+      const metodoActual = turno.metodoPago || '';
+      fila.innerHTML = `
+        <svg class="icono" style="width:16px; height:16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <select id="selectPagoInline" class="historial-estado-combo">
+          <option value="" ${!metodoActual ? 'selected' : ''} disabled>Seleccionar...</option>
+          <option value="efectivo" ${metodoActual === 'efectivo' ? 'selected' : ''}>Efectivo</option>
+          <option value="transferencia" ${metodoActual === 'transferencia' ? 'selected' : ''}>Transferencia</option>
+          <option value="tarjeta" ${metodoActual === 'tarjeta' ? 'selected' : ''}>Tarjeta</option>
+        </select>
+        <button type="button" class="btn-copiar-tel" id="btnCancelarPagoInline" aria-label="Cancelar" title="Cancelar">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      `;
+
+      document.getElementById('btnCancelarPagoInline').addEventListener('click', () => {
+        renderizarModal();
+      });
+
+      document.getElementById('selectPagoInline').addEventListener('change', async (e) => {
+        const metodo = e.target.value;
+        if (!metodo) return;
+        const select = e.target;
+        select.disabled = true;
+        try {
+          const resultado = await registrarPagoTurno(turno.id, metodo, turno.precio);
+          if (resultado) {
+            estado.turnoSeleccionado = { ...turno, metodoPago: metodo };
+            showNotification('Pago registrado correctamente.', 'success');
+            renderizarModal();
+          } else {
+            select.disabled = false;
+            showNotification('No se pudo registrar el pago.', 'error');
+          }
+        } catch (error) {
+          select.disabled = false;
+          showNotification('Error al registrar el pago.', 'error');
+        }
+      });
+    });
 
     // Payload base reutilizable para todos los cambios de estado
     const payloadBase = {
@@ -753,46 +863,19 @@ export function renderizarModal() {
       hora_fin: turno.hora_fin ? turno.hora_fin.substring(0, 5) : turno.hora_fin,
     };
 
-    if (esEstadoReservado(turno.estado)) {
+    // Sin permiso de gestion, ninguno de estos botones se renderizo en el
+    // HTML de arriba; sin este guard, getElementById devolveria null y
+    // .addEventListener tiraria una excepcion que rompe el modal entero.
+    if (puedeGestionarTurno && esEstadoReservado(turno.estado)) {
       document.getElementById("btnModificar").addEventListener("click", () => {
         estado.modoEdicion = true;
         renderizarModal();
       });
 
-      document.getElementById("btnRegistrarPago").addEventListener("click", () => {
+      const btnCompletarTurno = document.getElementById("btnCompletarTurno");
+      if (btnCompletarTurno) btnCompletarTurno.addEventListener("click", () => {
         estado.modoRegistrarPago = true;
         renderizarModal();
-      });
-
-      const btnCompletarTurno = document.getElementById("btnCompletarTurno");
-      if (btnCompletarTurno) btnCompletarTurno.addEventListener("click", async () => {
-        const btn = btnCompletarTurno;
-        if (!turno.metodoPago || turno.metodoPago === 'sin_pago') {
-          showNotification('Registrá el pago antes de completar el turno.', 'error');
-          return;
-        }
-        const confirmado = await confirmarAccion(
-          `¿Marcás el turno de ${turno.nombre_cliente} como completado?`,
-          '¿Completar turno?',
-          'Completar'
-        );
-        if (!confirmado) return;
-        const restaurar = setBtnLoading(btn, 'Guardando...');
-        try {
-          const resultado = await createOrUpdateTurno({ ...payloadBase, estado: 'completado' });
-          restaurar();
-          if (resultado) {
-            estado.turnoSeleccionado = { ...turno, estado: 'completado' };
-            showNotification('Turno completado correctamente.', 'success');
-            recargarTurnosYAgenda();
-            _recargarDashboardStats();
-          } else {
-            showNotification('No se pudo completar el turno.', 'error');
-          }
-        } catch (error) {
-          restaurar();
-          showNotification('Error al completar el turno.', 'error');
-        }
       });
 
       document.getElementById("btnCancelarEstado").addEventListener("click", async () => {
@@ -800,7 +883,7 @@ export function renderizarModal() {
           `¿Cancelás el turno de ${turno.nombre_cliente}?`,
           'Cancelar turno',
           'Sí, cancelar',
-          'Motivo sugerido: el cliente canceló o no puede asistir.'
+          'el cliente canceló o no puede asistir.'
         );
         if (!confirmado) return;
         const btn = document.getElementById("btnCancelarEstado");
@@ -878,7 +961,10 @@ function setupModalPagoListeners(turno) {
     renderizarModal();
   });
 
-  document.getElementById('btnConfirmarPago').addEventListener('click', async () => {
+  // Registrar el pago y marcar el turno como completado es, en la práctica,
+  // siempre la misma acción para el barbero: se unifican en un solo paso
+  // para no obligar a un ida y vuelta extra por el modal.
+  document.getElementById('btnConfirmarCompletar').addEventListener('click', async () => {
     const select = document.getElementById('selectMetodoPago');
     if (!select.value) {
       showNotification('Seleccioná un método de pago.', 'error');
@@ -888,23 +974,47 @@ function setupModalPagoListeners(turno) {
       showNotification('Seleccioná un método válido para registrar el cobro.', 'error');
       return;
     }
-    const btn = document.getElementById('btnConfirmarPago');
-    const restaurar = setBtnLoading(btn, 'Guardando...');
+    const confirmado = await confirmarAccion(
+      `¿Marcás el turno de ${turno.nombre_cliente} como completado?`,
+      '¿Completar turno?',
+      'Completar'
+    );
+    if (!confirmado) return;
+
+    const btn = document.getElementById('btnConfirmarCompletar');
+    const restaurar = setBtnLoading(btn, 'Completando...');
     try {
-      const resultado = await registrarPagoTurno(turno.id, select.value, turno.precio);
+      const resultadoPago = await registrarPagoTurno(turno.id, select.value, turno.precio);
+      if (!resultadoPago) {
+        restaurar();
+        showNotification(estado.error || 'No se pudo guardar el pago.', 'error');
+        return;
+      }
+
+      const payloadBase = {
+        ...turno,
+        id: turno.id,
+        cliente_id: turno.cliente_id,
+        empleado_id: turno.empleado_id,
+        servicio_id: turno.servicio_id,
+        hora_inicio: turno.hora ? turno.hora.substring(0, 5) : turno.hora_inicio,
+        hora_fin: turno.hora_fin ? turno.hora_fin.substring(0, 5) : turno.hora_fin,
+      };
+      const resultadoEstado = await createOrUpdateTurno({ ...payloadBase, estado: 'completado' });
       restaurar();
-      if (resultado) {
-        estado.turnoSeleccionado = { ...turno, metodoPago: select.value };
+      if (resultadoEstado) {
+        estado.turnoSeleccionado = { ...turno, metodoPago: select.value, estado: 'completado' };
         estado.modoRegistrarPago = false;
-        showNotification('Pago registrado correctamente.', 'success');
+        showNotification('Turno completado correctamente.', 'success');
+        renderizarModal();
         recargarTurnosYAgenda();
         _recargarDashboardStats();
       } else {
-        showNotification(estado.error || 'No se pudo guardar el pago.', 'error');
+        showNotification('Pago registrado, pero no se pudo completar el turno.', 'error');
       }
     } catch (error) {
       restaurar();
-      showNotification(error?.message || estado.error || 'Error al guardar el pago.', 'error');
+      showNotification(error?.message || estado.error || 'Error al completar el turno.', 'error');
     }
   });
 }
@@ -914,26 +1024,24 @@ function setupModalPagoListeners(turno) {
 // ===============================================
 
 /**
- * Genera un array de fechas "YYYY-MM-DD" para mostrar como cards.
- * Incluye hoy + los próximos 6 días hábiles (sin domingos).
- * Si se pasa fechaExtra (ej: turno de ayer) y es anterior a hoy, se agrega al inicio.
+ * Genera un array de exactamente 7 fechas "YYYY-MM-DD" para mostrar como cards,
+ * ancladas en fechaBase (por defecto, hoy). La fecha base siempre se incluye
+ * (aunque el negocio esté cerrado ese día, o sea una fecha pasada), y el
+ * resto se completa hacia adelante salteando los días que el negocio tiene
+ * cerrados según su horario semanal real (estado.diasCerradosSemana). Para
+ * ver una fecha fuera de esta ventana se usa el ícono de calendario, que
+ * reancla la ventana a la fecha elegida.
  */
-function generarFechasCards(fechaExtra = null) {
-  const fechas = [];
-  const hoy = new Date();
-  const hoyStr = formatearFechaParaAPI(hoy);
+function generarFechasCards(fechaBase = null) {
+  const inicio = fechaBase ? new Date(`${fechaBase}T00:00:00`) : new Date();
+  const fechas = [formatearFechaParaAPI(inicio)];
+  const diasCerrados = estado.diasCerradosSemana || new Set([0]);
 
-  if (fechaExtra && fechaExtra < hoyStr) {
-    fechas.push(fechaExtra);
-  }
-
-  let count = 0;
-  for (let i = 0; count < 7; i++) {
-    const d = new Date(hoy);
-    d.setDate(hoy.getDate() + i);
-    if (d.getDay() === 0) continue; // sin domingos
+  for (let i = 1; fechas.length < 7; i++) {
+    const d = new Date(inicio);
+    d.setDate(inicio.getDate() + i);
+    if (diasCerrados.has(d.getDay())) continue;
     fechas.push(formatearFechaParaAPI(d));
-    count++;
   }
 
   return fechas;
@@ -982,6 +1090,83 @@ function renderizarCardsFecha(contenedor, fechas, inputHidden, onSelect, fechaSe
   });
 }
 
+/**
+ * Renderiza los botones de horario agrupados en Mañana / Tarde / Noche.
+ * @param {HTMLElement} contenedor
+ * @param {Array<{inicio: string}>} horarios
+ * @param {HTMLInputElement} inputHoraSelec - Input hidden que guarda la hora elegida
+ */
+function renderizarHorariosAgrupados(contenedor, horarios, inputHoraSelec) {
+  const grupos = [
+    { titulo: 'Mañana', horarios: [] },
+    { titulo: 'Tarde', horarios: [] },
+    { titulo: 'Noche', horarios: [] },
+  ];
+  horarios.forEach(h => {
+    const [hh] = h.inicio.split(':').map(Number);
+    if (hh < 12) grupos[0].horarios.push(h);
+    else if (hh < 19) grupos[1].horarios.push(h);
+    else grupos[2].horarios.push(h);
+  });
+
+  contenedor.innerHTML = grupos.filter(g => g.horarios.length).map(grupo => `
+    <div class="horarios-grupo">
+      <h4 class="horarios-grupo__titulo">${grupo.titulo}</h4>
+      <div class="lista-horarios">
+        ${grupo.horarios.map(h => `<button type="button" class="boton-horario${h.pasado ? ' pasado' : ''}" data-hora="${h.inicio}">${h.inicio}</button>`).join('')}
+      </div>
+    </div>
+  `).join('');
+
+  contenedor.querySelectorAll('.boton-horario').forEach(btn => {
+    btn.addEventListener('click', () => {
+      contenedor.querySelectorAll('.boton-horario').forEach(b => b.classList.remove('seleccionado'));
+      btn.classList.add('seleccionado');
+      inputHoraSelec.value = btn.dataset.hora;
+    });
+  });
+}
+
+// Carga los profesionales que dictan un servicio y repuebla el <select>.
+async function cargarProfesionalesParaServicio(servicioId, selectProfesional, contHorarios, inputHoraSelec) {
+  // Resetea profesional y horarios
+  selectProfesional.innerHTML = '<option value="">Cargando...</option>';
+  contHorarios.innerHTML = '<p class="sin-horarios">Selecciona profesional y fecha.</p>';
+  inputHoraSelec.value = "";
+
+  if (!servicioId) {
+    selectProfesional.innerHTML = '<option value="">Seleccionar profesional...</option>';
+    selectProfesional.disabled = true;
+    return;
+  }
+
+  // Un usuario con rol empleado solo puede agendarse a si mismo: no tiene
+  // sentido mostrarle la lista de colegas, se lo fija directamente.
+  const sesion = obtenerSesion();
+  if (sesion?.rol === 'empleado' && sesion.empleadoId) {
+    selectProfesional.innerHTML = `<option value="${sesion.empleadoId}">${sesion.nombre || 'Vos'}</option>`;
+    selectProfesional.value = String(sesion.empleadoId);
+    selectProfesional.disabled = true;
+    // Dispara "change" a mano: el <select> no lo emite al setear .value por
+    // codigo, y de ese evento depende la carga de horarios disponibles.
+    selectProfesional.dispatchEvent(new Event('change'));
+    return;
+  }
+
+  const profesionales = await fetchProfesionalesPorServicio(servicioId);
+
+  if (profesionales.length > 0) {
+    selectProfesional.innerHTML = '<option value="">Seleccionar profesional...</option>';
+    profesionales.forEach(p => {
+      selectProfesional.innerHTML += `<option value="${p.id}">${p.nombre}</option>`;
+    });
+    selectProfesional.disabled = false;
+  } else {
+    selectProfesional.innerHTML = '<option value="">No hay profesionales para este servicio</option>';
+    selectProfesional.disabled = true;
+  }
+}
+
 // ===============================================
 // NUEVA FUNCIÓN: Listeners para el Modal de Creación
 // ===============================================
@@ -997,31 +1182,8 @@ function setupModalCreacionListeners() {
   // --- Lógica de carga encadenada ---
 
   // 1. Al cambiar Servicio
-  selectServicio.addEventListener("change", async () => {
-    const servicioId = selectServicio.value;
-    // Resetea profesional y horarios
-    selectProfesional.innerHTML = '<option value="">Cargando...</option>';
-    contHorarios.innerHTML = '<p class="sin-horarios">Selecciona profesional y fecha.</p>';
-    inputHoraSelec.value = "";
-
-    if (!servicioId) {
-      selectProfesional.innerHTML = '<option value="">Seleccionar profesional...</option>';
-      selectProfesional.disabled = true;
-      return;
-    }
-
-    const profesionales = await fetchProfesionalesPorServicio(servicioId);
-
-    if (profesionales.length > 0) {
-      selectProfesional.innerHTML = '<option value="">Seleccionar profesional...</option>';
-      profesionales.forEach(p => {
-        selectProfesional.innerHTML += `<option value="${p.id}">${p.nombre}</option>`;
-      });
-      selectProfesional.disabled = false;
-    } else {
-      selectProfesional.innerHTML = '<option value="">No hay profesionales para este servicio</option>';
-      selectProfesional.disabled = true;
-    }
+  selectServicio.addEventListener("change", () => {
+    cargarProfesionalesParaServicio(selectServicio.value, selectProfesional, contHorarios, inputHoraSelec);
   });
 
   // 2. Al cambiar Profesional o Fecha (cargan horarios)
@@ -1042,80 +1204,107 @@ function setupModalCreacionListeners() {
     // La API espera YYYY-MM-DD, que es el formato del input type="date"
     let horarios = await fetchHorariosDisponibles(profesionalId, servicioId, fecha, 'admin');
 
-    // Filtrar slots pasados si la fecha seleccionada es hoy
-    const _ahora = new Date();
-    const _hoyStr = `${_ahora.getFullYear()}-${String(_ahora.getMonth()+1).padStart(2,'0')}-${String(_ahora.getDate()).padStart(2,'0')}`;
-    if (fecha === _hoyStr) {
-      const _ahoraHHMM = `${String(_ahora.getHours()).padStart(2,'0')}:${String(_ahora.getMinutes()).padStart(2,'0')}`;
-      horarios = horarios.filter(h => h.inicio >= _ahoraHHMM);
-    }
-
     if (horarios.length === 0) {
       contHorarios.innerHTML = '<p class="sin-horarios">No hay horarios disponibles.</p>';
       return;
     }
 
-    // Renderiza los botones de horario
-    contHorarios.innerHTML = horarios.map(h =>
-      `<button type="button" class="boton-horario" data-hora="${h.inicio}">
-        ${h.inicio}
-     </button>`
-    ).join('');
-
-    // Asigna listeners a los nuevos botones de horario
-    contHorarios.querySelectorAll('.boton-horario').forEach(btn => {
-      btn.addEventListener('click', () => {
-        // Quita 'seleccionado' de todos
-        contHorarios.querySelectorAll('.boton-horario').forEach(b => b.classList.remove('seleccionado'));
-        // Agrega 'seleccionado' al clickeado
-        btn.classList.add('seleccionado');
-        // Guarda el valor en el input hidden
-        inputHoraSelec.value = btn.dataset.hora;
-      });
-    });
+    // Renderiza los botones de horario agrupados en Mañana / Tarde / Noche
+    renderizarHorariosAgrupados(contHorarios, horarios, inputHoraSelec);
   };
 
   selectProfesional.addEventListener("change", cargarHorariosDisponibles);
 
-  // Inicializar cards de fecha (hoy + próximos 6 días hábiles)
-  const fechaPorDefecto = formatearFechaParaAPI(estado.fechaActual);
-  renderizarCardsFecha(contFechas, generarFechasCards(), inputFecha, cargarHorariosDisponibles, fechaPorDefecto);
+  // Inicializar cards de fecha (7 días hábiles anclados en la fecha actual de
+  // la agenda). Para elegir una fecha fuera de esa ventana (ej: un turno
+  // atrasado si el negocio habilitó PERMITIR_REGISTRO_TURNOS_ATRASADOS, o una
+  // fecha más lejana) está el ícono de calendario, que reancla la ventana.
+  const btnElegirFecha = document.getElementById("btnElegirFechaTurno");
+  const inputFechaPicker = document.getElementById("inputFechaPicker");
 
+  if (btnElegirFecha && inputFechaPicker) {
+    if (estado.permitirTurnosAtrasados) {
+      const haceUnaSemana = new Date();
+      haceUnaSemana.setDate(haceUnaSemana.getDate() - 7);
+      inputFechaPicker.min = formatearFechaParaAPI(haceUnaSemana);
+    } else {
+      inputFechaPicker.min = formatearFechaParaAPI(new Date());
+    }
+    btnElegirFecha.addEventListener("click", () => {
+      if (typeof inputFechaPicker.showPicker === "function") {
+        inputFechaPicker.showPicker();
+      } else {
+        inputFechaPicker.focus();
+        inputFechaPicker.click();
+      }
+    });
+    inputFechaPicker.addEventListener("change", () => {
+      if (!inputFechaPicker.value) return;
+      renderizarCardsFecha(contFechas, generarFechasCards(inputFechaPicker.value), inputFecha, cargarHorariosDisponibles, inputFechaPicker.value);
+      cargarHorariosDisponibles();
+    });
+  }
+
+  // La ventana de cards siempre arranca hoy y preseleccionada en hoy — no en
+  // estado.fechaActual (el día que se esté mirando en la agenda), para que
+  // "Programar Turno" nunca arranque parado en un día distinto por las
+  // dudas. Para cargar un turno atrasado (hasta 7 días, si el negocio lo
+  // permite) está el ícono de calendario de arriba, que reancla la ventana
+  // a la fecha elegida.
+  const fechaPorDefecto = formatearFechaParaAPI(new Date());
+  renderizarCardsFecha(contFechas, generarFechasCards(fechaPorDefecto), inputFecha, cargarHorariosDisponibles, fechaPorDefecto);
 
   // --- Lógica de Envío (Submit) ---
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    const btnSubmit = form.querySelector('[type="submit"]');
-    const restaurar = setBtnLoading(btnSubmit, 'Guardando...');
-
-    const nombreCliente = document.getElementById("nombreCliente").value;
-    const telefono = document.getElementById("telefono").value;
-    const email = document.getElementById("emailCliente")?.value?.trim() || undefined;
-    const servicioId = selectServicio.value;
     const horaInicio = inputHoraSelec.value; // "HH:MM"
-    const fecha = inputFecha.value; // "YYYY-MM-DD"
 
     // --- Validaciones del Frontend ---
     if (!horaInicio) {
       showNotification("Debes seleccionar un horario disponible.", "error");
       return;
     }
-    // Validamos como tu backend
-    if (!nombreCliente || !telefono || !email) {
-      showNotification("El nombre, el teléfono y el email son obligatorios.", "error");
-      return;
+
+    // Horario "pasado" (carga atrasada): confirmar antes de programar, para
+    // evitar cargar un turno atrasado por error de selección.
+    const horarioSeleccionadoEl = contHorarios.querySelector('.boton-horario.seleccionado');
+    if (horarioSeleccionadoEl?.classList.contains('pasado')) {
+      const confirmado = await confirmarAccion(
+        '¿Estás seguro que querés programar un turno en un horario que ya pasó?',
+        'Horario pasado',
+        'Sí, programar'
+      );
+      if (!confirmado) return;
     }
 
-    // --- PASO 1: OBTENER O CREAR EL CLIENTE ---
-    const cliente_id = await buscarOCrearCliente(nombreCliente, telefono, email);
+    const btnSubmit = form.querySelector('[type="submit"]');
+    const restaurar = setBtnLoading(btnSubmit, 'Guardando...');
 
-    if (!cliente_id) {
+    const nombreCliente = document.getElementById("nombreCliente").value.trim();
+    const telefono = document.getElementById("telefono").value.trim();
+    const email = document.getElementById("emailCliente")?.value?.trim() || null;
+    const servicioId = selectServicio.value;
+    const fecha = inputFecha.value; // "YYYY-MM-DD"
+
+    // El nombre es obligatorio; teléfono y email son opcionales
+    if (!nombreCliente) {
+      showNotification("El nombre del cliente es obligatorio.", "error");
       restaurar();
-      showNotification("Error al procesar el cliente. Intenta de nuevo.", "error");
       return;
     }
-    // ¡Éxito! Ahora tenemos el cliente_id
+
+    // --- PASO 1: OBTENER O CREAR EL CLIENTE (si tiene teléfono o email) ---
+    let cliente_id = null;
+    if (telefono || email) {
+      try {
+        cliente_id = await buscarOCrearCliente(nombreCliente, telefono || null, email || null);
+      } catch (error) {
+        console.error('Error al buscar/crear cliente:', error);
+        // Continuar sin cliente_id
+      }
+    }
+    // Si no hay teléfono ni email, cliente_id se queda en null
 
     // --- PASO 2: CONSTRUIR Y ENVIAR EL TURNO ---
 
@@ -1133,7 +1322,10 @@ function setupModalCreacionListeners() {
     // 2. Construir el objeto turnoData (AHORA CORRECTO)
     // Esto coincide con lo que espera tu `controlador.turno.mjs` en `agregarTurno`
     const turnoData = {
-      cliente_id: cliente_id,
+      cliente_id: cliente_id || null,
+      nombre_cliente: nombreCliente,
+      telefono_cliente: telefono || null,
+      email_cliente: email || null,
       empleado_id: document.getElementById("profesionalId").value,
       servicio_id: servicioId,
       fecha: fecha,
@@ -1250,6 +1442,17 @@ function setupModalEdicionListeners(turno) {
       return;
     }
 
+    // Un usuario con rol empleado solo puede tener turnos asignados a si
+    // mismo: no tiene sentido mostrarle la lista de colegas.
+    const sesion = obtenerSesion();
+    if (sesion?.rol === 'empleado' && sesion.empleadoId) {
+      selectProfesional.innerHTML = `<option value="${sesion.empleadoId}">${sesion.nombre || 'Vos'}</option>`;
+      selectProfesional.value = String(sesion.empleadoId);
+      selectProfesional.disabled = true;
+      selectProfesional.dispatchEvent(new Event('change'));
+      return;
+    }
+
     const profesionales = await fetchProfesionalesPorServicio(servicioId);
 
     if (profesionales.length > 0) {
@@ -1315,21 +1518,8 @@ function setupModalEdicionListeners(turno) {
       return;
     }
 
-    // 2. Renderiza (con la lista modificada)
-    contHorarios.innerHTML = horarios.map(h =>
-      `<button type="button" class="boton-horario" data-hora="${h.inicio}">
-      ${h.inicio}
-     </button>`
-    ).join('');
-
-    // 3. Asigna listeners
-    contHorarios.querySelectorAll('.boton-horario').forEach(btn => {
-      btn.addEventListener('click', () => {
-        contHorarios.querySelectorAll('.boton-horario').forEach(b => b.classList.remove('seleccionado'));
-        btn.classList.add('seleccionado');
-        inputHoraSelec.value = btn.dataset.hora;
-      });
-    });
+    // 2. Renderiza (con la lista modificada), agrupado en Mañana / Tarde / Noche
+    renderizarHorariosAgrupados(contHorarios, horarios, inputHoraSelec);
   };
 
   // 1. Al cambiar Servicio
@@ -1342,6 +1532,36 @@ function setupModalEdicionListeners(turno) {
   // 2. Al cambiar Profesional
   selectProfesional.addEventListener("change", cargarHorariosDisponibles);
 
+  // Ícono de calendario: reancla la ventana de 7 días a la fecha elegida.
+  // No se puede mover un turno a una fecha pasada (regla del backend), salvo
+  // que sea la fecha original del turno (ya incluida siempre en la ventana).
+  const contFechas = document.getElementById("fechaContenedor");
+  const btnElegirFecha = document.getElementById("btnElegirFechaTurno");
+  const inputFechaPicker = document.getElementById("inputFechaPicker");
+
+  if (btnElegirFecha && inputFechaPicker) {
+    if (estado.permitirTurnosAtrasados) {
+      const haceUnaSemana = new Date();
+      haceUnaSemana.setDate(haceUnaSemana.getDate() - 7);
+      inputFechaPicker.min = formatearFechaParaAPI(haceUnaSemana);
+    } else {
+      inputFechaPicker.min = formatearFechaParaAPI(new Date());
+    }
+    btnElegirFecha.addEventListener("click", () => {
+      if (typeof inputFechaPicker.showPicker === "function") {
+        inputFechaPicker.showPicker();
+      } else {
+        inputFechaPicker.focus();
+        inputFechaPicker.click();
+      }
+    });
+    inputFechaPicker.addEventListener("change", () => {
+      if (!inputFechaPicker.value) return;
+      renderizarCardsFecha(contFechas, generarFechasCards(inputFechaPicker.value), inputFecha, cargarHorariosDisponibles, inputFechaPicker.value);
+      cargarHorariosDisponibles();
+    });
+  }
+
   // --- Lógica de INICIALIZACIÓN (Cargar datos del turno) ---
   const inicializarFormulario = async () => {
     // 1. Poner datos simples
@@ -1350,7 +1570,6 @@ function setupModalEdicionListeners(turno) {
 
     // Inicializar cards de fecha con la fecha original del turno preseleccionada
     // (incluye la fecha del turno aunque sea de ayer)
-    const contFechas = document.getElementById("fechaContenedor");
     renderizarCardsFecha(contFechas, generarFechasCards(turno.fecha), inputFecha, cargarHorariosDisponibles, turno.fecha);
 
     // 2. Poner servicio y cargar profesionales
@@ -1382,17 +1601,28 @@ function setupModalEdicionListeners(turno) {
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    const btnSubmit = form.querySelector('[type="submit"]');
-    const restaurar = setBtnLoading(btnSubmit, 'Guardando...');
-
     const horaInicio = inputHoraSelec.value; // "HH:MM"
     const fecha = inputFecha.value;
 
     if (!horaInicio) {
       showNotification("Debes seleccionar un horario disponible.", "error");
-      restaurar();
       return;
     }
+
+    // Horario "pasado" (carga atrasada): confirmar antes de mover el turno,
+    // por si adelantarlo a ese horario fue sin querer.
+    const horarioSeleccionadoEl = contHorarios.querySelector('.boton-horario.seleccionado');
+    if (horarioSeleccionadoEl?.classList.contains('pasado')) {
+      const confirmado = await confirmarAccion(
+        '¿Estás seguro que querés mover el turno a un horario que ya pasó?',
+        'Horario pasado',
+        'Sí, mover'
+      );
+      if (!confirmado) return;
+    }
+
+    const btnSubmit = form.querySelector('[type="submit"]');
+    const restaurar = setBtnLoading(btnSubmit, 'Guardando...');
 
     // --- Validar transición de estado (máquina de estados) ---
     const nuevoEstado = document.getElementById("estado").value;
@@ -1414,19 +1644,21 @@ function setupModalEdicionListeners(turno) {
     const telefonoCliente = inputTelefono?.value?.trim();
     const emailCliente = inputEmailCliente?.value?.trim();
 
-    if (!nombreCliente || !telefonoCliente || !emailCliente) {
+    if (!nombreCliente) {
       restaurar();
-      showNotification("Nombre, teléfono y email son obligatorios.", "error");
+      showNotification("El nombre del cliente es obligatorio.", "error");
       return;
     }
 
-    // 1. Obtener o crear cliente con los datos editados
-    const cliente_id = await buscarOCrearCliente(nombreCliente, telefonoCliente, emailCliente);
-
-    if (!cliente_id) {
-      restaurar();
-      showNotification("Error al re-validar la información del cliente.", "error");
-      return;
+    // 1. Obtener o crear cliente con los datos editados (solo si tiene teléfono o email)
+    let cliente_id = turno.cliente_id;
+    if (telefonoCliente || emailCliente) {
+      try {
+        cliente_id = await buscarOCrearCliente(nombreCliente, telefonoCliente || null, emailCliente || null);
+      } catch (error) {
+        console.error('Error al buscar/crear cliente:', error);
+        // Continuar con el cliente_id actual
+      }
     }
 
 
@@ -1567,6 +1799,44 @@ export function setupAgendaEventListeners(recargarDashboardStats) {
     recargarTurnosYAgenda();
     _recargarDashboardStats(); // <-- Usa la variable guardada
   });
+
+  // --- Elegir una fecha específica desde un calendario ---
+  const inputFechaAgenda = document.getElementById("inputFechaAgenda");
+  const btnElegirFechaAgenda = document.getElementById("btnElegirFechaAgenda");
+  if (btnElegirFechaAgenda && inputFechaAgenda) {
+    btnElegirFechaAgenda.addEventListener("click", () => {
+      if (typeof inputFechaAgenda.showPicker === "function") {
+        inputFechaAgenda.showPicker();
+      } else {
+        inputFechaAgenda.focus();
+        inputFechaAgenda.click();
+      }
+    });
+
+    inputFechaAgenda.addEventListener("change", () => {
+      if (!inputFechaAgenda.value) return;
+      estado.fechaActual = new Date(`${inputFechaAgenda.value}T00:00:00`);
+      recargarTurnosYAgenda();
+      _recargarDashboardStats();
+    });
+  }
+
+  // --- Refrescar solo la agenda (sin recargar toda la página) ---
+  const btnRefrescarAgenda = document.getElementById("btnRefrescarAgenda");
+  if (btnRefrescarAgenda) {
+    btnRefrescarAgenda.addEventListener("click", async () => {
+      if (btnRefrescarAgenda.disabled) return;
+      const icono = document.getElementById("iconoRefrescarAgenda");
+      btnRefrescarAgenda.disabled = true;
+      if (icono) icono.classList.add("girando");
+      try {
+        await recargarTurnosYAgenda();
+      } finally {
+        btnRefrescarAgenda.disabled = false;
+        if (icono) icono.classList.remove("girando");
+      }
+    });
+  }
 
   document.getElementById("btnCerrarModal").addEventListener("click", () => {
     estado.turnoSeleccionado = null;

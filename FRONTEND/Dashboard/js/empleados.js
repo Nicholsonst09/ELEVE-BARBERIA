@@ -1,9 +1,18 @@
 import { estado } from "./estado.js"
-import { showNotification, confirmarAccion, setBtnLoading } from "./utilidades.js"
-import { fetchProfesionales, fetchServicios, createOrUpdateEmpleado, deleteEmpleado, fetchHistorial } from "./api.js"
+import { showNotification, confirmarAccion, setBtnLoading, showPopupNotification, capturarValoresFormulario, restaurarValoresFormulario } from "./utilidades.js"
+import { fetchProfesionales, fetchServicios, createOrUpdateEmpleado, deleteEmpleado, cambiarEstadoEmpleado, fetchTurnosReservadosEmpleado, fetchHistorial, fetchNegocioConfig, uploadEmpleadoAvatar } from "./api.js"
 
 let empleadosFiltrados = []
 let historialTurnos = []
+let horariosNegocioPorDia = null
+let avatarPreviewObjectUrl = null
+
+// Borrador por empleado (clave = id, o 'nuevo') para no perder lo tipeado si el
+// modal se cierra sin guardar. El horario semanal y los servicios asignados se
+// scrapean del DOM (no hay un archivo File que se pueda persistir para el avatar
+// recién seleccionado: el navegador no permite restaurarlo en el <input type=file>).
+const CAMPOS_EMPLEADO = ['empleado-nombre', 'empleado-email', 'empleado-especialidad', 'empleado-comision', 'empleado-avatar-url']
+const _borradoresEmpleado = {}
 
 const DIAS = [
   { key: 'lunes', label: 'Lunes', finSemana: false },
@@ -15,14 +24,26 @@ const DIAS = [
   { key: 'domingo', label: 'Domingo', finSemana: true },
 ]
 
-const HORARIO_DEFAULT = {
-  lunes: { activo: true, desde: '09:00', hasta: '18:00' },
-  martes: { activo: true, desde: '09:00', hasta: '18:00' },
-  miercoles: { activo: true, desde: '09:00', hasta: '18:00' },
-  jueves: { activo: true, desde: '09:00', hasta: '18:00' },
-  viernes: { activo: true, desde: '09:00', hasta: '18:00' },
-  sabado: { activo: true, desde: '09:00', hasta: '14:00' },
-  domingo: { activo: false, desde: '09:00', hasta: '14:00' },
+const DIA_A_NUMERO = {
+  domingo: 0,
+  lunes: 1,
+  martes: 2,
+  miercoles: 3,
+  jueves: 4,
+  viernes: 5,
+  sabado: 6,
+}
+
+// Preset del horario laboral de un empleado nuevo: arranca igual al horario
+// del negocio para cada día (el admin lo ajusta después desde ahí), en vez
+// de un horario fijo que no tiene relación con cuándo abre el local.
+function construirHorarioDesdeNegocio(horariosNegocio) {
+  const horario = {}
+  for (const dia of DIAS) {
+    const negocioDia = horariosNegocio[dia.key] || { activo: false, desde: '09:00', hasta: '18:00' }
+    horario[dia.key] = { activo: negocioDia.activo, desde: negocioDia.desde, hasta: negocioDia.hasta }
+  }
+  return horario
 }
 
 const COLORES_AVATAR = ["#1a1a1a", "#2f6d4e", "#a34b20", "#2c4ea3", "#6b2fa0", "#b5461a", "#1e6a7c", "#7a3030"]
@@ -38,6 +59,35 @@ function obtenerIniciales(nombre) {
     .join('')
     .toUpperCase()
     .substring(0, 2)
+}
+
+function limpiarObjectUrlPreview() {
+  if (avatarPreviewObjectUrl) {
+    URL.revokeObjectURL(avatarPreviewObjectUrl)
+    avatarPreviewObjectUrl = null
+  }
+}
+
+function mostrarPreviewAvatar(src, esTemporal = false) {
+  const preview = document.getElementById('empleado-avatar-preview')
+  const placeholder = document.getElementById('avatar-preview-placeholder')
+  const labelText = document.getElementById('avatar-uploader-label-text')
+  if (!preview) return
+
+  if (!src) {
+    limpiarObjectUrlPreview()
+    preview.removeAttribute('src')
+    preview.hidden = true
+    if (placeholder) placeholder.hidden = false
+    if (labelText) labelText.textContent = 'Seleccionar imagen'
+    return
+  }
+
+  if (!esTemporal) limpiarObjectUrlPreview()
+  preview.src = src
+  preview.hidden = false
+  if (placeholder) placeholder.hidden = true
+  if (labelText) labelText.textContent = 'Cambiar imagen'
 }
 
 export async function inicializarEmpleados() {
@@ -97,18 +147,84 @@ function setupEmpleadosEventListeners() {
 
   const btnCancelarModal = document.querySelector('#modal-empleado .btn-cancelar-empleado')
   if (btnCancelarModal) {
-    btnCancelarModal.addEventListener('click', cerrarModalEmpleado)
+    btnCancelarModal.addEventListener('click', cancelarModalEmpleado)
   }
 
   const formEmpleado = document.getElementById('form-empleado')
   if (formEmpleado) {
     formEmpleado.addEventListener('submit', guardarEmpleado)
   }
+
+  const inputAvatarFile = document.getElementById('empleado-avatar-file')
+  const avatarPreview = document.getElementById('empleado-avatar-preview')
+  if (inputAvatarFile) {
+    inputAvatarFile.addEventListener('change', () => {
+      const archivo = inputAvatarFile.files?.[0]
+      if (!archivo) {
+        mostrarPreviewAvatar('')
+        return
+      }
+
+      limpiarObjectUrlPreview()
+      const urlLocal = URL.createObjectURL(archivo)
+      avatarPreviewObjectUrl = urlLocal
+      mostrarPreviewAvatar(urlLocal, true)
+    })
+  }
+
+  if (avatarPreview) {
+    avatarPreview.addEventListener('error', () => {
+      mostrarPreviewAvatar('')
+    })
+  }
 }
 
 function formatearResumenHorario(horario) {
   if (!horario) return []
   return DIAS.filter(d => horario[d.key]?.activo)
+}
+
+function horaAMinutos(hora) {
+  if (typeof hora !== 'string') return NaN
+  const [h, m] = hora.split(':').map(Number)
+  if (Number.isNaN(h) || Number.isNaN(m)) return NaN
+  return h * 60 + m
+}
+
+function normalizarHorariosNegocio(horarios = []) {
+  const porDia = {}
+  for (const dia of DIAS) {
+    porDia[dia.key] = { activo: false, desde: '00:00', hasta: '00:00' }
+  }
+
+  ;(horarios || []).forEach((h) => {
+    const diaKey = DIAS.find(d => DIA_A_NUMERO[d.key] === Number(h?.dia))?.key
+    if (!diaKey) return
+    porDia[diaKey] = {
+      activo: h?.activo !== false,
+      desde: h?.apertura || '09:00',
+      hasta: h?.cierre || '21:00',
+    }
+  })
+
+  return porDia
+}
+
+async function cargarHorariosNegocioPorDia() {
+  if (horariosNegocioPorDia) return horariosNegocioPorDia
+
+  try {
+    const remoto = await fetchNegocioConfig()
+    if (remoto?.horarios?.length) {
+      horariosNegocioPorDia = normalizarHorariosNegocio(remoto.horarios)
+      return horariosNegocioPorDia
+    }
+  } catch (error) {
+    console.warn('No se pudieron cargar horarios del negocio desde API:', error)
+  }
+
+  horariosNegocioPorDia = normalizarHorariosNegocio([])
+  return horariosNegocioPorDia
 }
 
 function buildServiciosHTML(empleado) {
@@ -130,38 +246,34 @@ function renderizarEmpleados() {
   }
 
   listaEmpleados.innerHTML = empleadosFiltrados.map(empleado => {
-    const iniciales = obtenerIniciales(empleado.nombre)
     const estadoActivo = empleado.activo !== false
     const claseEstado = estadoActivo ? 'activo' : 'inactivo'
-    const diasActivos = formatearResumenHorario(empleado.horarios_disponibles)
-
-    let horarioHTML = ''
-    if (diasActivos.length > 0) {
-      const badges = diasActivos.map(d =>
-        `<span class="badge-dia-activo ${d.finSemana ? 'fin-semana' : ''}">${d.label.substring(0, 3)}</span>`
-      ).join('')
-      const primero = empleado.horarios_disponibles[diasActivos[0].key]
-      horarioHTML = `<div class="resumen-horario-empleado">${badges}<span class="texto-horas-resumen">${primero.desde}–${primero.hasta}</span></div>`
-    }
+    const especialidad = empleado.especialidades?.trim() || 'Sin especialidad'
 
     return `
       <div class="elemento-lista">
-        <div class="avatar-empleado">${iniciales}</div>
+        <div class="avatar-empleado">
+          ${empleado.avatar_url
+            ? `<img src="${empleado.avatar_url}" alt="Avatar de ${empleado.nombre}" class="avatar-empleado-img">`
+            : '<i class="fas fa-cut" aria-hidden="true"></i>'
+          }
+        </div>
         <div class="info-elemento">
           <div class="nombre-con-estado">
             <h4>${empleado.nombre}</h4>
             <span class="indicador-estado ${claseEstado}" title="${estadoActivo ? 'Activo' : 'Inactivo'}"></span>
           </div>
-          <p class="especialidades-empleado-card">${empleado.especialidades || 'Sin especialidades cargadas'}</p>
-          ${empleado.email ? `<small class="email-empleado-card">${empleado.email}</small>` : '<small class="email-empleado-card">Sin email</small>'}
-          ${horarioHTML}
-          <div class="pros-asignados-lista">${buildServiciosHTML(empleado)}</div>
+          <p class="especialidades-empleado-card">${especialidad}</p>
         </div>
         <div class="acciones-elemento">
+          <label class="toggle-switch" title="${estadoActivo ? 'Desactivar' : 'Activar'} empleado">
+            <input type="checkbox" class="toggle-estado-empleado" data-empleado-id="${empleado.id}" ${estadoActivo ? 'checked' : ''}>
+            <span class="toggle-track"></span>
+          </label>
           <button class="boton-icono editar" data-empleado-id="${empleado.id}" title="Editar">
-            <i class="fas fa-pencil-alt"></i>
+            <i class="fas fa-edit"></i>
           </button>
-          <button class="boton-icono eliminar" data-empleado-id="${empleado.id}" title="Dar de baja">
+          <button class="boton-icono eliminar" data-empleado-id="${empleado.id}" title="Anular">
             <i class="fas fa-trash-alt"></i>
           </button>
         </div>
@@ -180,6 +292,37 @@ function renderizarEmpleados() {
       }
     })
   })
+
+  listaEmpleados.querySelectorAll('.toggle-estado-empleado').forEach(toggle => {
+    toggle.addEventListener('change', async () => {
+      const empleadoId = parseInt(toggle.dataset.empleadoId)
+      const activar = toggle.checked
+
+      const ok = await confirmarAccion(
+        activar
+          ? '¿Estás seguro? El empleado volverá a estar disponible para asignarse a turnos.'
+          : '¿Estás seguro? El empleado dejará de estar disponible para nuevos turnos.',
+        activar ? 'Activar empleado' : 'Desactivar empleado',
+        activar ? 'Sí, activar' : 'Sí, desactivar'
+      )
+      if (!ok) {
+        toggle.checked = !activar
+        return
+      }
+
+      let cancelarTurnosIds = []
+      if (!activar) {
+        const resultado = await confirmarTurnosReservadosEmpleado(empleadoId)
+        if (resultado === null) {
+          toggle.checked = !activar
+          return
+        }
+        cancelarTurnosIds = resultado
+      }
+
+      cambiarEstadoEmpleadoUI(empleadoId, activar, cancelarTurnosIds)
+    })
+  })
 }
 
 function actualizarPillHorario() {
@@ -195,26 +338,64 @@ function actualizarPillHorario() {
   }
 }
 
+function aplicarRestriccionesDescanso(fila) {
+  const desdeDia = fila.querySelector('.sel-desde')?.value || '09:00'
+  const hastaDia = fila.querySelector('.sel-hasta')?.value || '18:00'
+  const descansoDesde = fila.querySelector('.sel-descanso-desde')
+  const descansoHasta = fila.querySelector('.sel-descanso-hasta')
+
+  if (!descansoDesde || !descansoHasta) return
+
+  descansoDesde.min = desdeDia
+  descansoDesde.max = hastaDia
+  descansoHasta.min = desdeDia
+  descansoHasta.max = hastaDia
+
+  if (descansoDesde.value < desdeDia) descansoDesde.value = desdeDia
+  if (descansoHasta.value > hastaDia) descansoHasta.value = hastaDia
+  if (descansoHasta.value <= descansoDesde.value) descansoHasta.value = descansoDesde.value
+}
+
 function poblarHorarioEmpleado(horarioConfigurado = null) {
   const contenedor = document.getElementById('horario-semanal-empleado')
   if (!contenedor) return
 
-  const horario = horarioConfigurado || HORARIO_DEFAULT
+  const horariosNegocio = horariosNegocioPorDia || normalizarHorariosNegocio([])
+  const horario = horarioConfigurado || construirHorarioDesdeNegocio(horariosNegocio)
 
-  contenedor.innerHTML = DIAS.map(dia => {
+  contenedor.innerHTML = DIAS.filter(dia => (horariosNegocio[dia.key] || { activo: false }).activo).map(dia => {
     const cfg = horario[dia.key] || { activo: false, desde: '09:00', hasta: '18:00' }
+    const negocioDia = horariosNegocio[dia.key] || { activo: false, desde: '00:00', hasta: '00:00' }
+    const descansoCfg = cfg.descanso || { activo: false, desde: cfg.desde || '13:00', hasta: cfg.hasta || '14:00' }
+    const descansoHasta = descansoCfg.hasta && descansoCfg.hasta > descansoCfg.desde ? descansoCfg.hasta : descansoCfg.desde
+
     return `
-      <div class="dia-fila ${cfg.activo ? 'dia-activo' : ''}" data-dia="${dia.key}">
+      <div class="dia-fila ${cfg.activo ? 'dia-activo' : ''} ${cfg.activo && descansoCfg.activo ? 'descanso-activo' : ''}" data-dia="${dia.key}" data-negocio-activo="${negocioDia.activo ? '1' : '0'}">
         <span class="dia-etiqueta">${dia.label}</span>
         <div class="rango-horas">
-          <input type="time" class="input-hora sel-desde" value="${cfg.desde}">
-          <span class="sep-horas">→</span>
-          <input type="time" class="input-hora sel-hasta" value="${cfg.hasta}">
+          <span class="etiqueta-rango">Laboral</span>
+          <div class="rango-horas-valores">
+            <input type="time" class="input-hora sel-desde" value="${cfg.desde}" min="${negocioDia.desde}" max="${negocioDia.hasta}">
+            <span class="sep-horas">→</span>
+            <input type="time" class="input-hora sel-hasta" value="${cfg.hasta}" min="${negocioDia.desde}" max="${negocioDia.hasta}">
+          </div>
+        </div>
+        <div class="bloque-descanso">
+          <label class="descanso-check">
+            <input type="checkbox" class="toggle-descanso" ${cfg.activo && descansoCfg.activo ? 'checked' : ''}>
+            <span>Descanso</span>
+          </label>
+          <div class="rango-descanso">
+            <input type="time" class="input-hora sel-descanso-desde" value="${descansoCfg.desde || cfg.desde}" min="${cfg.desde}" max="${cfg.hasta}">
+            <span class="sep-horas">→</span>
+            <input type="time" class="input-hora sel-descanso-hasta" value="${descansoHasta}" min="${cfg.desde}" max="${cfg.hasta}">
+          </div>
         </div>
         <label class="toggle-switch" title="${cfg.activo ? 'Desactivar' : 'Activar'} día">
           <input type="checkbox" class="toggle-dia" data-dia="${dia.key}" ${cfg.activo ? 'checked' : ''}>
           <span class="toggle-track"></span>
         </label>
+        <small class="meta-horario-negocio">Negocio: ${negocioDia.activo ? `${negocioDia.desde}–${negocioDia.hasta}` : 'Cerrado'}</small>
       </div>`
   }).join('')
 
@@ -222,9 +403,36 @@ function poblarHorarioEmpleado(horarioConfigurado = null) {
     toggle.addEventListener('change', () => {
       const fila = toggle.closest('.dia-fila')
       fila.classList.toggle('dia-activo', toggle.checked)
+      if (!toggle.checked) {
+        const descansoToggle = fila.querySelector('.toggle-descanso')
+        if (descansoToggle) descansoToggle.checked = false
+        fila.classList.remove('descanso-activo')
+      }
       actualizarPillHorario()
     })
   })
+
+  contenedor.querySelectorAll('.toggle-descanso').forEach(toggleDescanso => {
+    toggleDescanso.addEventListener('change', () => {
+      const fila = toggleDescanso.closest('.dia-fila')
+      const diaActivo = fila.classList.contains('dia-activo')
+      if (!diaActivo && toggleDescanso.checked) {
+        toggleDescanso.checked = false
+        showNotification('Primero activá el día para configurar descanso.', 'warning')
+      }
+      fila.classList.toggle('descanso-activo', diaActivo && toggleDescanso.checked)
+      aplicarRestriccionesDescanso(fila)
+    })
+  })
+
+  contenedor.querySelectorAll('.sel-desde, .sel-hasta').forEach(inputHora => {
+    inputHora.addEventListener('change', () => {
+      const fila = inputHora.closest('.dia-fila')
+      aplicarRestriccionesDescanso(fila)
+    })
+  })
+
+  contenedor.querySelectorAll('.dia-fila').forEach(fila => aplicarRestriccionesDescanso(fila))
 
   actualizarPillHorario()
 }
@@ -236,9 +444,66 @@ function obtenerHorarioActual() {
     const activo = fila.classList.contains('dia-activo')
     const desde = fila.querySelector('.sel-desde')?.value || '09:00'
     const hasta = fila.querySelector('.sel-hasta')?.value || '18:00'
-    horario[key] = { activo, desde, hasta }
+    const descansoActivo = activo && !!fila.querySelector('.toggle-descanso')?.checked
+    const descansoDesde = fila.querySelector('.sel-descanso-desde')?.value || desde
+    const descansoHasta = fila.querySelector('.sel-descanso-hasta')?.value || descansoDesde
+    horario[key] = {
+      activo,
+      desde,
+      hasta,
+      descanso: {
+        activo: descansoActivo,
+        desde: descansoDesde,
+        hasta: descansoHasta,
+      },
+    }
   })
   return horario
+}
+
+function validarHorariosContraNegocio(horariosEmpleado, horariosNegocio = {}) {
+  for (const dia of DIAS) {
+    const cfg = horariosEmpleado?.[dia.key]
+    if (!cfg?.activo) continue
+
+    const negocioDia = horariosNegocio[dia.key] || { activo: false, desde: '00:00', hasta: '00:00' }
+    if (!negocioDia.activo) {
+      return `${dia.label}: el negocio está cerrado.`
+    }
+
+    const empDesde = horaAMinutos(cfg.desde)
+    const empHasta = horaAMinutos(cfg.hasta)
+    const negDesde = horaAMinutos(negocioDia.desde)
+    const negHasta = horaAMinutos(negocioDia.hasta)
+
+    if ([empDesde, empHasta, negDesde, negHasta].some(Number.isNaN)) {
+      return `${dia.label}: hay horarios inválidos.`
+    }
+
+    if (empDesde >= empHasta) {
+      return `${dia.label}: la hora de inicio del barbero debe ser menor que la hora de fin.`
+    }
+
+    if (empDesde < negDesde || empHasta > negHasta) {
+      return `${dia.label}: el horario del barbero debe estar dentro del horario del negocio (${negocioDia.desde}–${negocioDia.hasta}).`
+    }
+
+    if (cfg.descanso?.activo) {
+      const descDesde = horaAMinutos(cfg.descanso.desde)
+      const descHasta = horaAMinutos(cfg.descanso.hasta)
+      if ([descDesde, descHasta].some(Number.isNaN)) {
+        return `${dia.label}: el descanso tiene una hora inválida.`
+      }
+      if (descDesde >= descHasta) {
+        return `${dia.label}: la hora de inicio del descanso debe ser menor que la hora de fin.`
+      }
+      if (descDesde < empDesde || descHasta > empHasta) {
+        return `${dia.label}: el descanso debe estar dentro del horario laboral del barbero (${cfg.desde}–${cfg.hasta}).`
+      }
+    }
+  }
+
+  return null
 }
 
 function actualizarContadorServiciosEmpleado() {
@@ -298,6 +563,9 @@ export async function abrirModalEmpleado(empleadoId = null) {
   const form = document.getElementById("form-empleado")
 
   let empleado = null
+  const avatarFileInput = document.getElementById('empleado-avatar-file')
+  const avatarUrlInput = document.getElementById('empleado-avatar-url')
+
   if (empleadoId) {
     empleado = estado.profesionales.find((e) => e.id === empleadoId)
     if (!empleado) return
@@ -307,19 +575,56 @@ export async function abrirModalEmpleado(empleadoId = null) {
     document.getElementById("empleado-nombre").value = empleado.nombre
     document.getElementById("empleado-email").value = empleado.email || ""
     document.getElementById("empleado-especialidad").value = empleado.especialidades || ""
+    if (avatarUrlInput) avatarUrlInput.value = empleado.avatar_url || ""
+    document.getElementById("empleado-comision").value = Number(empleado.comision_pct ?? 0)
+
+    mostrarPreviewAvatar(empleado.avatar_url || '')
   } else {
     titulo.textContent = "Nuevo Empleado"
     form.reset()
     document.getElementById("empleado-id").value = ""
+    document.getElementById("empleado-comision").value = 0
+    if (avatarUrlInput) avatarUrlInput.value = ''
+    mostrarPreviewAvatar('')
   }
 
-  await poblarSelectorServicios(empleado)
-  poblarHorarioEmpleado(empleado?.horarios_disponibles || null)
+  if (avatarFileInput) avatarFileInput.value = ''
+
+  horariosNegocioPorDia = await cargarHorariosNegocioPorDia()
+
+  const borrador = _borradoresEmpleado[String(empleadoId || 'nuevo')]
+  if (borrador) {
+    restaurarValoresFormulario(borrador.campos)
+    if (avatarUrlInput?.value) mostrarPreviewAvatar(avatarUrlInput.value)
+  }
+
+  await poblarSelectorServicios(borrador ? { servicio_ids: borrador.servicioIds } : empleado)
+  poblarHorarioEmpleado(borrador ? borrador.horario : (empleado?.horarios_disponibles || null))
   modal.classList.add("activo")
   document.body.style.overflow = "hidden"
 }
 
 export function cerrarModalEmpleado() {
+  const idActual = document.getElementById("empleado-id")?.value || 'nuevo'
+  // Scrapea el horario y los servicios ANTES de vaciar sus contenedores.
+  _borradoresEmpleado[idActual] = {
+    campos: capturarValoresFormulario(CAMPOS_EMPLEADO),
+    horario: obtenerHorarioActual(),
+    servicioIds: obtenerServiciosSeleccionados(),
+  }
+  _ocultarModalEmpleado()
+}
+
+// "Cancelar" es una acción explícita de descarte: a diferencia de la X, borra
+// cualquier borrador pendiente para este formulario.
+function cancelarModalEmpleado() {
+  const idActual = document.getElementById("empleado-id")?.value || 'nuevo'
+  delete _borradoresEmpleado[idActual]
+  _ocultarModalEmpleado()
+}
+
+// Oculta el modal sin capturar borrador (se usa tras guardar con éxito).
+function _ocultarModalEmpleado() {
   const modal = document.getElementById("modal-empleado")
   modal.classList.remove("activo")
   document.body.style.overflow = ""
@@ -327,58 +632,162 @@ export function cerrarModalEmpleado() {
   if (contenedorHorario) contenedorHorario.innerHTML = ''
   const contenedorServicios = document.getElementById('selector-servicios-empleado')
   if (contenedorServicios) contenedorServicios.innerHTML = ''
+
+  const avatarFileInput = document.getElementById('empleado-avatar-file')
+  const avatarUrlInput = document.getElementById('empleado-avatar-url')
+  if (avatarFileInput) avatarFileInput.value = ''
+  if (avatarUrlInput) avatarUrlInput.value = ''
+  mostrarPreviewAvatar('')
 }
 
 export async function guardarEmpleado(e) {
   e.preventDefault()
 
+  const empleadoId = document.getElementById("empleado-id").value || null
+  const nombreIngresado = document.getElementById("empleado-nombre").value.trim()
+  const duplicado = estado.profesionales.find(
+    (emp) => emp.nombre.trim().toLowerCase() === nombreIngresado.toLowerCase() && String(emp.id) !== String(empleadoId)
+  )
+  if (duplicado) {
+    showNotification(`Ya existe un empleado llamado "${nombreIngresado}". Agregá el apellido u otra referencia para diferenciarlo.`, 'error')
+    return
+  }
+
+  const emailIngresado = document.getElementById("empleado-email").value.trim()
+  if (emailIngresado) {
+    const emailDuplicado = estado.profesionales.find(
+      (emp) => (emp.email || '').trim().toLowerCase() === emailIngresado.toLowerCase() && String(emp.id) !== String(empleadoId)
+    )
+    if (emailDuplicado) {
+      showNotification(`Ya existe un empleado con el email "${emailIngresado}"`, 'error')
+      return
+    }
+  }
+
   const btn = e.target.closest('form')?.querySelector('[type="submit"]') ||
                document.querySelector('#modal-empleado [type="submit"]')
   const restaurar = setBtnLoading(btn)
+
+  const horariosEmpleado = obtenerHorarioActual()
+  const horariosNegocio = await cargarHorariosNegocioPorDia()
+  const errorHorario = validarHorariosContraNegocio(horariosEmpleado, horariosNegocio)
+  if (errorHorario) {
+    restaurar()
+    await showPopupNotification(errorHorario, 'Horario fuera del rango del negocio', 'Entendido')
+    return
+  }
+
+  const avatarFileInput = document.getElementById('empleado-avatar-file')
+  const avatarUrlInput = document.getElementById('empleado-avatar-url')
+  const avatarFile = avatarFileInput?.files?.[0] || null
+  let avatarUrl = avatarUrlInput?.value?.trim() || ''
+
+  if (avatarFile) {
+    const subida = await uploadEmpleadoAvatar(avatarFile, document.getElementById("empleado-id").value || null)
+    if (!subida?.publicUrl) {
+      restaurar()
+      const detalle = subida?.error ? ` ${subida.error}` : ''
+      showNotification(`No se pudo subir la imagen de avatar.${detalle}`, 'error')
+      return
+    }
+    avatarUrl = subida.publicUrl
+    if (avatarUrlInput) avatarUrlInput.value = avatarUrl
+  }
 
   const empleadoData = {
     id: document.getElementById("empleado-id").value || null,
     nombre: document.getElementById("empleado-nombre").value.trim(),
     email: document.getElementById("empleado-email").value.trim(),
     especialidades: document.getElementById("empleado-especialidad").value.trim(),
-    horarios_disponibles: obtenerHorarioActual(),
+    avatar_url: avatarUrl || null,
+    comision_pct: Number(document.getElementById("empleado-comision").value || 0),
+    horarios_disponibles: horariosEmpleado,
     servicio_ids: obtenerServiciosSeleccionados(),
   }
 
   const resultado = await createOrUpdateEmpleado(empleadoData)
   restaurar()
   if (resultado) {
+    delete _borradoresEmpleado[empleadoData.id || 'nuevo']
     showNotification(
       empleadoData.id ? "Empleado actualizado correctamente" : "Empleado creado correctamente",
       "success",
     )
-    cerrarModalEmpleado()
+    _ocultarModalEmpleado()
     await cargarEmpleados()
     estado.servicios = await fetchServicios()
     renderizarEmpleados()
     renderizarMetricasEmpleados()
   } else {
-    showNotification("Error al guardar empleado", "error")
+    showNotification(estado.error || "Error al guardar empleado", "error")
   }
+}
+
+function formatearFechaCorta(fecha) {
+  const [y, m, d] = fecha.split('-')
+  return `${d}/${m}/${y}`
+}
+
+// Antes de anular/desactivar un empleado, chequea si tiene turnos reservados
+// a futuro y le da al admin la opción de cancelarlos junto con la operación,
+// o de abortar todo (mismo patrón que "Negocio" al cerrar un horario).
+// Devuelve la lista de ids a cancelar (vacía si no hay turnos), o null si el
+// admin canceló la operación.
+async function confirmarTurnosReservadosEmpleado(empleadoId) {
+  const turnos = await fetchTurnosReservadosEmpleado(empleadoId)
+  if (!turnos || turnos.length === 0) return []
+
+  const MAX_LISTADOS = 8
+  const listado = turnos
+    .slice(0, MAX_LISTADOS)
+    .map((t) => `${formatearFechaCorta(t.fecha)} ${t.hora_inicio} — ${t.cliente} (${t.servicio})`)
+    .join('\n')
+  const extra = turnos.length > MAX_LISTADOS ? `\n...y ${turnos.length - MAX_LISTADOS} más` : ''
+
+  const confirmado = await confirmarAccion(
+    `${listado}${extra}`,
+    `${turnos.length} turno${turnos.length === 1 ? '' : 's'} reservado${turnos.length === 1 ? '' : 's'} a nombre de este empleado`,
+    'Cancelar turnos y continuar',
+    'Se le va a enviar un email de cancelación a cada cliente afectado.'
+  )
+
+  return confirmado ? turnos.map((t) => t.id) : null
 }
 
 export async function eliminarEmpleadoConfirm(empleadoId) {
   const ok = await confirmarAccion(
-    '¿Estás seguro? El empleado se dará de baja, dejará de recibir nuevos turnos y el historial se conservará.',
-    'Dar de baja empleado',
-    'Sí, dar de baja'
+    '¿Estás seguro? El empleado se va a eliminar y deja de aparecer en el sistema.',
+    'Eliminar empleado',
+    'Sí, eliminar'
   )
   if (!ok) return
 
-  const resultado = await deleteEmpleado(empleadoId)
+  const cancelarTurnosIds = await confirmarTurnosReservadosEmpleado(empleadoId)
+  if (cancelarTurnosIds === null) return // el admin canceló la operación
+
+  const resultado = await deleteEmpleado(empleadoId, cancelarTurnosIds)
   if (resultado) {
-    showNotification("Empleado dado de baja correctamente", "success")
+    showNotification("Empleado anulado correctamente", "success")
     await cargarEmpleados()
     estado.servicios = await fetchServicios()
     renderizarEmpleados()
     renderizarMetricasEmpleados()
   } else {
-    showNotification("Error al dar de baja el empleado", "error")
+    showNotification("Error al anular el empleado", "error")
+  }
+}
+
+async function cambiarEstadoEmpleadoUI(empleadoId, activo, cancelarTurnosIds = []) {
+  const resultado = await cambiarEstadoEmpleado(empleadoId, activo, cancelarTurnosIds)
+  if (resultado) {
+    showNotification(`Empleado ${activo ? 'activado' : 'desactivado'} correctamente`, "success")
+    await cargarEmpleados()
+    estado.servicios = await fetchServicios()
+    renderizarEmpleados()
+    renderizarMetricasEmpleados()
+  } else {
+    showNotification(`Error al ${activo ? 'activar' : 'desactivar'} el empleado`, "error")
+    renderizarEmpleados()
   }
 }
 

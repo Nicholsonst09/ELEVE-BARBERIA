@@ -26,6 +26,57 @@ export function initializeDate() {
 }
 
 /**
+ * Cierra el menú lateral mobile (hamburguesa).
+ */
+export function cerrarMenuMobile() {
+  document.body.classList.remove('menu-nav-abierto')
+  const overlay = document.getElementById('menu-nav-overlay')
+  if (overlay) overlay.hidden = true
+  const btn = document.getElementById('btn-menu-hamburguesa')
+  if (btn) {
+    btn.setAttribute('aria-expanded', 'false')
+    const icon = btn.querySelector('i')
+    if (icon) icon.className = 'fas fa-bars'
+  }
+}
+
+function abrirMenuMobile() {
+  document.body.classList.add('menu-nav-abierto')
+  const overlay = document.getElementById('menu-nav-overlay')
+  if (overlay) overlay.hidden = false
+  const btn = document.getElementById('btn-menu-hamburguesa')
+  if (btn) {
+    btn.setAttribute('aria-expanded', 'true')
+    const icon = btn.querySelector('i')
+    if (icon) icon.className = 'fas fa-times'
+  }
+}
+
+function toggleMenuMobile() {
+  if (document.body.classList.contains('menu-nav-abierto')) cerrarMenuMobile()
+  else abrirMenuMobile()
+}
+
+/**
+ * Inicializa el menú hamburguesa en pantallas chicas.
+ */
+export function inicializarMenuMobile() {
+  const btn = document.getElementById('btn-menu-hamburguesa')
+  const overlay = document.getElementById('menu-nav-overlay')
+  const btnCerrar = document.getElementById('btn-cerrar-menu-nav')
+
+  btn?.addEventListener('click', toggleMenuMobile)
+  overlay?.addEventListener('click', cerrarMenuMobile)
+  btnCerrar?.addEventListener('click', cerrarMenuMobile)
+
+  document.querySelectorAll('.boton-navegacion').forEach((navBtn) => {
+    navBtn.addEventListener('click', () => {
+      if (window.matchMedia('(max-width: 768px)').matches) cerrarMenuMobile()
+    })
+  })
+}
+
+/**
  * Cambia entre las pestañas principales (Agenda, Finanzas).
  * @param {string} tabId - El ID de la pestaña a mostrar.
  */
@@ -46,6 +97,8 @@ export function switchTab(tabId) {
   if (typeof window.scrollTo === 'function') {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
+
+  cerrarMenuMobile();
 }
 
 /**
@@ -54,10 +107,10 @@ export function switchTab(tabId) {
 export function updateStats() {
   const turnos = estado.turnos || [];
   const total = turnos.filter(t => !['cancelado', 'anulado'].includes(t.estado)).length;
-  const reservados = turnos.filter(t => ['pendiente', 'confirmado', 'reservado'].includes(t.estado)).length;
-  const completados = turnos.filter(t => ['realizado', 'completado'].includes(t.estado)).length;
+  const reservados = turnos.filter(t => t.estado === 'reservado').length;
+  const completados = turnos.filter(t => t.estado === 'completado').length;
   const ingresos    = turnos
-    .filter(t => ['realizado', 'completado'].includes(t.estado))
+    .filter(t => t.estado === 'completado')
     .reduce((sum, t) => sum + (Number(t.precio) || 0), 0);
   document.getElementById("total-appointments").textContent = total;
   document.getElementById("reserved-appointments").textContent = reservados;

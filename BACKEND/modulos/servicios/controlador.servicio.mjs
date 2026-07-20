@@ -37,10 +37,10 @@ async function buscarEmpleadosPorServicio(req, res) {
             total: empleados.length
         });
     }catch(error){
-        console.error("Error en controlador.buscarProfesionalesPorServicio:", error);
-        res.status(500).json({ 
-            mensaje: "Error interno del servidor al buscar profesionales.", 
-            detalle: error.message 
+        console.error("Error en controlador.buscarEmpleadosPorServicio:", error);
+        res.status(500).json({
+            mensaje: "Error interno del servidor al buscar profesionales.",
+            detalle: error.message
         });
     }
 }
@@ -126,7 +126,26 @@ async function eliminarServicio(req, res) {
         res.status(204).send();
     } catch (error) {
         console.error(`Error en controlador.eliminarServicio (ID: ${req.params.id}):`, error);
-        res.status(500).json({ mensaje: 'Error al dar de baja servicio.', detalle: error.message });
+        res.status(500).json({ mensaje: 'Error al anular servicio.', detalle: error.message });
+    }
+}
+
+async function cambiarEstadoServicio(req, res) {
+    try {
+        const id = Number(req.params.id);
+        if (!Number.isInteger(id)) {
+            return res.status(400).json({ mensaje: 'ID inválido.' });
+        }
+
+        if (typeof req.body?.activo !== 'boolean') {
+            return res.status(400).json({ mensaje: "El campo 'activo' es requerido y debe ser booleano." });
+        }
+
+        const servicio = await modelo.cambiarEstadoServicio(id, req.body.activo ? 'activo' : 'inactivo');
+        res.status(200).json(servicio);
+    } catch (error) {
+        console.error(`Error en controlador.cambiarEstadoServicio (ID: ${req.params.id}):`, error);
+        res.status(500).json({ mensaje: 'Error al cambiar el estado del servicio.', detalle: error.message });
     }
 }
 
@@ -136,5 +155,6 @@ export default {
     obtenerServicioPorId,
     crearServicio,
     actualizarServicio,
-    eliminarServicio
+    eliminarServicio,
+    cambiarEstadoServicio
 };

@@ -55,21 +55,24 @@ async function obtenerEstadoServicioId(codigo = 'activo') {
     return data.id;
 }
 
-async function obtenerEstadoBajaServicioId() {
-    const codigosPreferidos = ['inactivo', 'anulado'];
+async function cambiarEstadoServicio(id, codigo) {
+    try {
+        const estadoId = await obtenerEstadoServicioId(codigo);
 
-    for (const codigo of codigosPreferidos) {
-        const { data, error } = await supabaseAdmin
-            .from('estado_servicio')
-            .select('id')
-            .eq('codigo', codigo)
-            .maybeSingle();
+        const { error } = await supabaseAdmin
+            .from('servicios')
+            .update({
+                estado_id: estadoId,
+                modificado: new Date().toISOString()
+            })
+            .eq('id', id);
 
         if (error) throw error;
-        if (data?.id) return data.id;
+        return await obtenerServicioPorId(id);
+    } catch (error) {
+        console.error(`Error al cambiar estado del servicio con ID ${id}:`, error.message);
+        throw error;
     }
-
-    throw new Error("No existe un estado de baja para servicios. Se esperaba 'inactivo' o 'anulado'.");
 }
 
 async function sincronizarEmpleadosServicio(servicioId, empleadoIds = []) {
@@ -107,7 +110,7 @@ async function obtenerServicios() {
         if (error) throw error;
 
         return (servicios || [])
-            .filter(s => !['inactivo', 'anulado'].includes(s.estado_servicio?.codigo))
+            .filter(s => s.estado_servicio?.codigo !== 'anulado')
             .map(mapearServicio);
     } catch (error) {
         console.error("Error al obtener servicios:", error.message);
@@ -126,6 +129,7 @@ async function buscarEmpleadosPorServicio(servicio_id){
                     id,
                     nombre,
                     especialidades,
+                    avatar_url,
                     horarios_disponibles,
                     estado_id,
                     estado_empleado!estado_id(codigo)
@@ -142,6 +146,7 @@ async function buscarEmpleadosPorServicio(servicio_id){
                 id: e.empleados.id,
                 nombre: e.empleados.nombre,
                 especialidades: e.empleados.especialidades,
+                avatar_url: e.empleados.avatar_url || null,
                 horarios_disponibles: e.empleados.horarios_disponibles
             }));
 
@@ -228,12 +233,12 @@ async function actualizarServicio(id, datos) {
 
 async function eliminarServicio(id) {
     try {
-        const estadoBajaId = await obtenerEstadoBajaServicioId();
+        const estadoAnuladoId = await obtenerEstadoServicioId('anulado');
 
         const { error } = await supabaseAdmin
             .from('servicios')
             .update({
-                estado_id: estadoBajaId,
+                estado_id: estadoAnuladoId,
                 modificado: new Date().toISOString()
             })
             .eq('id', id);
@@ -241,7 +246,7 @@ async function eliminarServicio(id) {
         if (error) throw error;
         return true;
     } catch (error) {
-        console.error(`Error al dar de baja servicio con ID ${id}:`, error.message);
+        console.error(`Error al anular servicio con ID ${id}:`, error.message);
         throw error;
     }
 }
@@ -252,5 +257,6 @@ export default {
     obtenerServicioPorId,
     crearServicio,
     actualizarServicio,
-    eliminarServicio
+    eliminarServicio,
+    cambiarEstadoServicio
 };

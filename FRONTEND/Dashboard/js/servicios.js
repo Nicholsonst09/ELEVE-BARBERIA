@@ -1,8 +1,13 @@
 import { estado } from "./estado.js"
-import { showNotification, formatCurrency, confirmarAccion, setBtnLoading } from "./utilidades.js"
-import { fetchServicios, fetchProfesionales, createOrUpdateServicio, deleteServicio } from "./api.js"
+import { showNotification, formatCurrency, confirmarAccion, setBtnLoading, capturarValoresFormulario, restaurarValoresFormulario } from "./utilidades.js"
+import { fetchServicios, fetchProfesionales, createOrUpdateServicio, deleteServicio, cambiarEstadoServicio } from "./api.js"
 
 let serviciosFiltrados = []
+
+// Borrador por servicio (clave = id, o 'nuevo') para no perder lo tipeado si el
+// modal se cierra sin guardar.
+const CAMPOS_SERVICIO = ['servicio-nombre', 'servicio-descripcion', 'servicio-precio', 'servicio-duracion']
+const _borradoresServicio = {}
 
 const COLORES_AVATAR = ["#1a1a1a", "#2f6d4e", "#a34b20", "#2c4ea3", "#6b2fa0", "#b5461a", "#1e6a7c", "#7a3030"]
 
@@ -74,7 +79,7 @@ function setupServiciosEventListeners() {
 
   const btnCancelarModal = document.querySelector('#modal-servicio .btn-cancelar-servicio')
   if (btnCancelarModal) {
-    btnCancelarModal.addEventListener('click', cerrarModalServicio)
+    btnCancelarModal.addEventListener('click', cancelarModalServicio)
   }
 
   const formServicio = document.getElementById('form-servicio')
@@ -105,7 +110,9 @@ function renderizarServicios() {
     return
   }
 
-  listaServicios.innerHTML = serviciosFiltrados.map(servicio => `
+  listaServicios.innerHTML = serviciosFiltrados.map(servicio => {
+    const estadoActivo = servicio.activo !== false
+    return `
     <div class="elemento-lista" data-id="${servicio.id}">
       <div class="info-elemento">
         <h4>${servicio.nombre}</h4>
@@ -113,19 +120,21 @@ function renderizarServicios() {
           <span class="meta-servicio-desktop">Duración: ${servicio.duracion_min} min | Precio: ${formatCurrency(servicio.precio)}</span>
           <span class="meta-servicio-mobile">${servicio.duracion_min}min | ${formatearPrecioCompacto(servicio.precio)}</span>
         </p>
-        ${servicio.descripcion ? `<small class="descripcion-servicio-card">${servicio.descripcion}</small>` : ''}
-        <div class="pros-asignados-lista">${buildProsHTML(servicio)}</div>
       </div>
       <div class="acciones-elemento">
+        <label class="toggle-switch" title="${estadoActivo ? 'Desactivar' : 'Activar'} servicio">
+          <input type="checkbox" class="toggle-estado-servicio" data-servicio-id="${servicio.id}" ${estadoActivo ? 'checked' : ''}>
+          <span class="toggle-track"></span>
+        </label>
         <button class="boton-icono editar" data-servicio-id="${servicio.id}" title="Editar">
-          <i class="fas fa-pencil-alt"></i>
+          <i class="fas fa-edit"></i>
         </button>
-        <button class="boton-icono eliminar" data-servicio-id="${servicio.id}" title="Dar de baja">
+        <button class="boton-icono eliminar" data-servicio-id="${servicio.id}" title="Anular">
           <i class="fas fa-trash-alt"></i>
         </button>
       </div>
     </div>
-  `).join('')
+  `}).join('')
 
   listaServicios.querySelectorAll('.boton-icono').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -136,6 +145,27 @@ function renderizarServicios() {
       } else if (btn.classList.contains('eliminar')) {
         eliminarServicioConfirm(servicioId)
       }
+    })
+  })
+
+  listaServicios.querySelectorAll('.toggle-estado-servicio').forEach(toggle => {
+    toggle.addEventListener('change', async () => {
+      const servicioId = parseInt(toggle.dataset.servicioId)
+      const activar = toggle.checked
+
+      const ok = await confirmarAccion(
+        activar
+          ? '¿Estás seguro? El servicio volverá a ofrecerse en nuevas reservas.'
+          : '¿Estás seguro? El servicio dejará de ofrecerse en nuevas reservas.',
+        activar ? 'Activar servicio' : 'Desactivar servicio',
+        activar ? 'Sí, activar' : 'Sí, desactivar'
+      )
+      if (!ok) {
+        toggle.checked = !activar
+        return
+      }
+
+      cambiarEstadoServicioUI(servicioId, activar)
     })
   })
 }
@@ -204,16 +234,32 @@ export async function abrirModalServicio(servicioId = null) {
   }
 
   poblarSelectorProfesionales(servicio)
+  restaurarValoresFormulario(_borradoresServicio[String(servicioId || 'nuevo')])
   modal.classList.add("activo")
   document.body.style.overflow = "hidden"
 }
 
 export function cerrarModalServicio() {
+  const idActual = document.getElementById("servicio-id")?.value || 'nuevo'
+  _borradoresServicio[idActual] = capturarValoresFormulario(CAMPOS_SERVICIO)
+  _ocultarModalServicio()
+}
+
+// Oculta el modal sin capturar borrador (se usa tras guardar con éxito).
+function _ocultarModalServicio() {
   const modal = document.getElementById("modal-servicio")
   modal.classList.remove("activo")
   document.body.style.overflow = ""
   const contenedor = document.getElementById("selector-profesionales-servicio")
   if (contenedor) contenedor.innerHTML = ''
+}
+
+// "Cancelar" es una acción explícita de descarte: a diferencia de la X, borra
+// cualquier borrador pendiente para este formulario.
+function cancelarModalServicio() {
+  const idActual = document.getElementById("servicio-id")?.value || 'nuevo'
+  delete _borradoresServicio[idActual]
+  _ocultarModalServicio()
 }
 
 export async function guardarServicio(e) {
@@ -235,11 +281,12 @@ export async function guardarServicio(e) {
   const resultado = await createOrUpdateServicio(servicioData)
   restaurar()
   if (resultado) {
+    delete _borradoresServicio[servicioData.id || 'nuevo']
     showNotification(
       servicioData.id ? "Servicio actualizado correctamente" : "Servicio creado correctamente",
       "success",
     )
-    cerrarModalServicio()
+    _ocultarModalServicio()
     await cargarServicios()
     await cargarProfesionalesActivos()
     renderizarServicios()
@@ -251,20 +298,33 @@ export async function guardarServicio(e) {
 
 export async function eliminarServicioConfirm(servicioId) {
   const ok = await confirmarAccion(
-    '¿Estás seguro? El servicio se dará de baja, dejará de ofrecerse en nuevas reservas y el historial se conservará.',
-    'Dar de baja servicio',
-    'Sí, dar de baja'
+    '¿Estás seguro? El servicio se va a eliminar: deja de ofrecerse en nuevas reservas y no se puede reactivar desde acá. El historial se conserva.',
+    'Eliminar servicio',
+    'Sí, eliminar'
   )
   if (!ok) return
 
   const resultado = await deleteServicio(servicioId)
   if (resultado) {
-    showNotification("Servicio dado de baja correctamente", "success")
+    showNotification("Servicio eliminar correctamente", "success")
     await cargarServicios()
     renderizarServicios()
     actualizarMetricasServicios()
   } else {
-    showNotification("Error al dar de baja el servicio", "error")
+    showNotification("Error al eliminar el servicio", "error")
+  }
+}
+
+async function cambiarEstadoServicioUI(servicioId, activo) {
+  const resultado = await cambiarEstadoServicio(servicioId, activo)
+  if (resultado) {
+    showNotification(`Servicio ${activo ? 'activado' : 'desactivado'} correctamente`, "success")
+    await cargarServicios()
+    renderizarServicios()
+    actualizarMetricasServicios()
+  } else {
+    showNotification(`Error al ${activo ? 'activar' : 'desactivar'} el servicio`, "error")
+    renderizarServicios()
   }
 }
 

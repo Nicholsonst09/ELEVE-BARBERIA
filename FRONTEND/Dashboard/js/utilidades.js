@@ -15,6 +15,35 @@ export function formatCurrency(amount) {
 }
 
 /**
+ * Lee los valores actuales de un set de campos por id (para guardarlos como borrador).
+ * @param {string[]} ids - IDs de los inputs/selects/textareas a capturar.
+ * @returns {Object} - Mapa id -> valor (o booleano para checkboxes).
+ */
+export function capturarValoresFormulario(ids) {
+  const valores = {}
+  ids.forEach((id) => {
+    const el = document.getElementById(id)
+    if (!el) return
+    valores[id] = el.type === 'checkbox' ? el.checked : el.value
+  })
+  return valores
+}
+
+/**
+ * Aplica un mapa id -> valor (generado por capturarValoresFormulario) a los campos del DOM.
+ * @param {Object|null} valores - Mapa id -> valor.
+ */
+export function restaurarValoresFormulario(valores) {
+  if (!valores) return
+  Object.entries(valores).forEach(([id, val]) => {
+    const el = document.getElementById(id)
+    if (!el) return
+    if (el.type === 'checkbox') el.checked = val
+    else el.value = val
+  })
+}
+
+/**
  * Genera ranuras de tiempo (ej. "08:00", "08:30") para el modal legacy.
  * @returns {string[]} - Array de strings de tiempo.
  */
@@ -133,7 +162,7 @@ export function esFechaPasada(fecha) {
  * @returns {boolean}
  */
 export function puedeDiaAnterior(fechaActual) {
-  // Permite retroceder hasta ayer (margen de 24h para marcar turnos confirmados como realizados)
+  // Permite retroceder hasta ayer para mantener consistencia visual en la agenda.
   const ayer = new Date();
   ayer.setDate(ayer.getDate() - 1);
   ayer.setHours(0, 0, 0, 0);
@@ -174,7 +203,8 @@ export function confirmarAccion(
   mensaje,
   titulo    = '¿Confirmar acción?',
   textoBtnOk = 'Confirmar',
-  subtexto  = ''
+  subtexto  = '',
+  textoBtnCancel = 'Cancelar'
 ) {
   return new Promise((resolve) => {
     const modal     = document.getElementById('modal-confirmar')
@@ -188,6 +218,7 @@ export function confirmarAccion(
     if (!modal) { resolve(window.confirm(mensaje)); return }
 
     tituloEl.textContent  = titulo
+    btnCancel.textContent = textoBtnCancel
     mensajeEl.textContent = mensaje
     btnOk.textContent     = textoBtnOk
 
@@ -214,20 +245,70 @@ export function confirmarAccion(
       btnOk.removeEventListener('click', onOk)
       btnCancel.removeEventListener('click', onCancel)
       if (btnCerrar) btnCerrar.removeEventListener('click', onCancel)
-      modal.removeEventListener('click', onFondo)
       document.removeEventListener('keydown', onKey)
       resolve(resultado)
     }
 
     function onOk()     { cerrar(true) }
     function onCancel() { cerrar(false) }
-    function onFondo(e) { if (e.target === modal) cerrar(false) }
     function onKey(e)   { if (e.key === 'Escape') cerrar(false) }
 
     btnOk.addEventListener('click',     onOk)
     btnCancel.addEventListener('click', onCancel)
     if (btnCerrar) btnCerrar.addEventListener('click', onCancel)
-    modal.addEventListener('click',     onFondo)
+    document.addEventListener('keydown', onKey)
+  })
+}
+
+export function showPopupNotification(
+  mensaje,
+  titulo = 'Aviso',
+  textoBtnOk = 'Entendido'
+) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('modal-confirmar')
+    const tituloEl = document.getElementById('confirmar-titulo')
+    const mensajeEl = document.getElementById('confirmar-mensaje')
+    const btnOk = document.getElementById('confirmar-ok')
+    const btnCancel = document.getElementById('confirmar-cancelar')
+    const btnCerrar = document.getElementById('confirmar-cerrar')
+    const subtextoEl = document.getElementById('confirmar-subtexto')
+
+    if (!modal || !tituloEl || !mensajeEl || !btnOk || !btnCancel) {
+      window.alert(mensaje)
+      resolve(true)
+      return
+    }
+
+    const cancelDisplay = btnCancel.style.display
+    const closeDisplay = btnCerrar ? btnCerrar.style.display : ''
+    const subtextoDisplay = subtextoEl ? subtextoEl.style.display : ''
+
+    tituloEl.textContent = titulo
+    mensajeEl.textContent = mensaje
+    btnOk.textContent = textoBtnOk
+    btnCancel.style.display = 'none'
+    if (btnCerrar) btnCerrar.style.display = 'none'
+    if (subtextoEl) subtextoEl.style.display = 'none'
+
+    modal.classList.add('activo')
+    document.body.style.overflow = 'hidden'
+
+    function cerrar() {
+      modal.classList.remove('activo')
+      document.body.style.overflow = ''
+      btnCancel.style.display = cancelDisplay
+      if (btnCerrar) btnCerrar.style.display = closeDisplay
+      if (subtextoEl) subtextoEl.style.display = subtextoDisplay
+      btnOk.removeEventListener('click', onOk)
+      document.removeEventListener('keydown', onKey)
+      resolve(true)
+    }
+
+    function onOk() { cerrar() }
+    function onKey(e) { if (e.key === 'Escape') cerrar() }
+
+    btnOk.addEventListener('click', onOk)
     document.addEventListener('keydown', onKey)
   })
 }

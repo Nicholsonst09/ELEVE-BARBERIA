@@ -1,4 +1,6 @@
 import modelo from './modelo.reserva.mjs';
+import notificacionesTurno from '../turnos/notificaciones.turno.mjs';
+import { obtenerFechaDeHoy, obtenerMinutosDesdeMedianoche } from '../../config/fechaHoraNegocio.mjs';
 
 // GET /api/v1/reservas/servicios
 async function obtenerServicios(req, res) {
@@ -93,19 +95,18 @@ async function crearReserva(req, res) {
         }
 
         // Validar que la fecha no sea pasada
-        const hoy = new Date().toISOString().split('T')[0];
+        const hoy = obtenerFechaDeHoy();
         if (fecha < hoy) {
             return res.status(400).json({ mensaje: "No se pueden crear reservas para fechas anteriores a hoy." });
         }
 
-        // Validar anticipación mínima de 30 min (siempre origen web)
+        // Validar que no sea un horario que ya pasó
         if (fecha === hoy) {
-            const ahora = new Date();
             const [hh, mm] = hora_inicio.split(':').map(Number);
             const minutosSlot  = hh * 60 + mm;
-            const minutosAhora = ahora.getHours() * 60 + ahora.getMinutes();
-            if (minutosSlot - minutosAhora < 30) {
-                return res.status(400).json({ mensaje: "La reserva debe realizarse con al menos 30 minutos de anticipación." });
+            const minutosAhora = obtenerMinutosDesdeMedianoche();
+            if (minutosSlot < minutosAhora) {
+                return res.status(400).json({ mensaje: "No se puede crear una reserva para un horario que ya pasó." });
             }
         }
 
@@ -119,6 +120,14 @@ async function crearReserva(req, res) {
             hora_inicio,
             observaciones
         });
+
+        if (turno?.id) {
+            try {
+                await notificacionesTurno.enviarConfirmacionReserva(turno.id);
+            } catch (error) {
+                console.error('[notificaciones] Error enviando confirmación de reserva web:', error?.message || error);
+            }
+        }
 
         res.status(201).json({
             mensaje: "Reserva creada con éxito.",

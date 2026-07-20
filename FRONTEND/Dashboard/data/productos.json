@@ -1,0 +1,74 @@
+[
+  {
+    "id": 1,
+    "nombre": "Pomada Mate",
+    "descripcion": "Fijación media, acabado natural",
+    "precio": 8500,
+    "categoria": "Styling",
+    "stock": 24,
+    "activo": true
+  },
+  {
+    "id": 2,
+    "nombre": "Cera en Polvo",
+    "descripcion": "Volumen y textura, acabado mate",
+    "precio": 9200,
+    "categoria": "Styling",
+    "stock": 18,
+    "activo": true
+  },
+  {
+    "id": 3,
+    "nombre": "Aceite para Barba",
+    "descripcion": "Hidratación y brillo suave",
+    "precio": 7800,
+    "categoria": "Barba",
+    "stock": 15,
+    "activo": true
+  },
+  {
+    "id": 4,
+    "nombre": "Bálsamo Barba",
+    "descripcion": "Acondicionador y modelado",
+    "precio": 6900,
+    "categoria": "Barba",
+    "stock": 12,
+    "activo": true
+  },
+  {
+    "id": 5,
+    "nombre": "Shampoo Anticaspa",
+    "descripcion": "Uso diario, 250ml",
+    "precio": 5500,
+    "categoria": "Cuidado",
+    "stock": 30,
+    "activo": true
+  },
+  {
+    "id": 6,
+    "nombre": "After Shave",
+    "descripcion": "Calma e hidrata la piel",
+    "precio": 6200,
+    "categoria": "Cuidado",
+    "stock": 20,
+    "activo": true
+  },
+  {
+    "id": 7,
+    "nombre": "Peine de Madera",
+    "descripcion": "Antiestático, barba y bigote",
+    "precio": 4500,
+    "categoria": "Accesorios",
+    "stock": 8,
+    "activo": true
+  },
+  {
+    "id": 8,
+    "nombre": "Navaja de Afeitar",
+    "descripcion": "Acero inoxidable con estuche",
+    "precio": 12000,
+    "categoria": "Accesorios",
+    "stock": 5,
+    "activo": true
+  }
+]
