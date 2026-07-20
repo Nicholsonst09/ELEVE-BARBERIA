@@ -2,23 +2,24 @@
 <html lang="es">
 
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="format-detection" content="telephone=no">
-  <title>Reservar Turno — Elevé Barbería</title>
-  <meta name="description" content="Reservá tu turno en Elevé Barbería." />
-  <link rel="icon" type="image/png" href="img/LOGO-ELEVE-2.png" sizes="25x25">
-  <!-- Icono al agregar la pagina a la pantalla de inicio (iPhone y Android) -->
-  <link rel="apple-touch-icon" href="img/LOGO-ELEVE-PREVISUALIZACION.png">
-  <link rel="manifest" href="manifest.webmanifest">
-  <meta name="theme-color" content="#111111">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
-  <link rel="stylesheet" href="./css/styles.css">
+  <base href=" /Reservas/">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="format-detection" content="telephone=no">
+    <title>Reservar Turno — Elevé Barbería</title>
+    <meta name="description" content="Reservá tu turno en Elevé Barbería." />
+    <link rel="icon" type="image/png" href="img/LOGO-ELEVE-2.png" sizes="25x25">
+    <!-- Icono al agregar la pagina a la pantalla de inicio (iPhone y Android) -->
+    <link rel="apple-touch-icon" href="img/LOGO-ELEVE-PREVISUALIZACION.png">
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#111111">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
+    <link rel="stylesheet" href="./css/styles.css">
 </head>
 
 <body>
- 
-  
+
+
   <!-- NAV -->
   <header class="header">
     <nav class="nav">
@@ -36,11 +37,13 @@
       <div class="nav__links">
         <a href="#reservar">Reservar</a>
         <a href="#contacto">Contacto</a>
-        <a id="nav-whatsapp-link" href="https://wa.me/542944806944" target="_blank" rel="noopener" class="nav__link-whatsapp">
+        <a id="nav-whatsapp-link" href="https://wa.me/542944806944" target="_blank" rel="noopener"
+          class="nav__link-whatsapp">
           WhatsApp
         </a>
       </div>
-      <button class="nav__burger" id="nav-burger" aria-label="Abrir menú" aria-expanded="false" aria-controls="nav-links">
+      <button class="nav__burger" id="nav-burger" aria-label="Abrir menú" aria-expanded="false"
+        aria-controls="nav-links">
         <span></span>
         <span></span>
         <span></span>
@@ -118,7 +121,8 @@
                 <div class="sin-horarios" id="sin-horarios" style="display:none;">
                   <i class="ti ti-calendar-off sin-horarios__icono"></i>
                   <p class="sin-horarios__titulo">No hay horarios disponibles para esta fecha</p>
-                  <button type="button" class="btn-siguiente-fecha" id="btn-siguiente-fecha-disponible">Ir a la próxima fecha disponible</button>
+                  <button type="button" class="btn-siguiente-fecha" id="btn-siguiente-fecha-disponible">Ir a la próxima
+                    fecha disponible</button>
                 </div>
               </div>
             </div>
@@ -143,7 +147,8 @@
               </div>
               <div class="form-grupo">
                 <label class="form-label" for="email">Email</label>
-                <input class="form-input" type="email" id="email" placeholder="tu@email.com" autocomplete="email" required>
+                <input class="form-input" type="email" id="email" placeholder="tu@email.com" autocomplete="email"
+                  required>
                 <span class="form-error" id="email-error"></span>
               </div>
               <button class="btn-confirmar" id="btn-continuar" disabled>Continuar</button>
@@ -162,8 +167,8 @@
                     id="resumen-nombre"></span></div>
                 <div class="resumen__fila"><span class="resumen__label">Teléfono</span><span class="resumen__valor"
                     id="resumen-telefono"></span></div>
-                <div class="resumen__fila resumen__fila--email" id="resumen-email-fila"><span class="resumen__label">Email</span><span class="resumen__valor"
-                    id="resumen-email"></span></div>
+                <div class="resumen__fila resumen__fila--email" id="resumen-email-fila"><span
+                    class="resumen__label">Email</span><span class="resumen__valor" id="resumen-email"></span></div>
                 <div class="resumen__sep"></div>
                 <div class="resumen__fila"><span class="resumen__label">Servicio</span><span class="resumen__valor"
                     id="resumen-servicio"></span></div>
@@ -187,12 +192,15 @@
           <!-- Pantalla de confirmación -->
           <div class="confirmacion-screen" id="confirmacion-screen" style="display:none">
             <div class="confirmacion__icono">
-              <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+              <svg viewBox="0 0 24 24">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
             </div>
             <h2 class="confirmacion__titulo">¡Turno confirmado!</h2>
             <p class="confirmacion__sub">Te esperamos. Recordá llegar<br>unos minutos antes.</p>
             <div class="confirmacion__detalle" id="confirmacion-detalle"></div>
-            <p class="confirmacion__email-aviso"><i class="ti ti-mail"></i> Te enviamos un mail con los detalles de tu reserva.</p>
+            <p class="confirmacion__email-aviso"><i class="ti ti-mail"></i> Te enviamos un mail con los detalles de tu
+              reserva.</p>
             <button class="btn-nueva-reserva" id="btn-nueva-reserva">Hacer otra reserva</button>
           </div>
 
@@ -211,7 +219,8 @@
               <div>
                 <strong>Dirección</strong>
                 <p id="contacto-direccion-texto">Av. Pueyrredón 182, Nueva Córdoba</p>
-                <a id="contacto-mapa-link" href="https://maps.google.com/?q=Elev%C3%A9+barber%C3%ADa,+Av.+Pueyrred%C3%B3n+182,+C%C3%B3rdoba"
+                <a id="contacto-mapa-link"
+                  href="https://maps.google.com/?q=Elev%C3%A9+barber%C3%ADa,+Av.+Pueyrred%C3%B3n+182,+C%C3%B3rdoba"
                   target="_blank" class="link-mapa">Ver en Google Maps →</a>
               </div>
             </div>
