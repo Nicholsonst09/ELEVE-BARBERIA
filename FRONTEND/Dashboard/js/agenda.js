@@ -332,7 +332,11 @@ function renderizarGrilla() {
     tarjeta.innerHTML = `
       <div class="info-cliente-servicio">
         <div class="cliente-turno">${turno.nombre_cliente}</div>
-        <div class="servicio-turno">${turno.nombre_servicio} (${duracion} min)</div> 
+        <div class="servicio-turno">${turno.nombre_servicio} (${duracion} min)</div>
+        <div class="estado-turno-badge">
+          <span class="leyenda-dot" style="background:${colorEstado};"></span>
+          ${ETIQUETAS_ESTADO[turno.estado] || 'Reservado'}
+        </div>
       </div>
 
       <div class="info-profesional-hora">
@@ -879,7 +883,7 @@ export function renderizarModal() {
           `¿Cancelás el turno de ${turno.nombre_cliente}?`,
           'Cancelar turno',
           'Sí, cancelar',
-          'Motivo sugerido: el cliente canceló o no puede asistir.'
+          'el cliente canceló o no puede asistir.'
         );
         if (!confirmado) return;
         const btn = document.getElementById("btnCancelarEstado");

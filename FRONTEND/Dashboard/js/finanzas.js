@@ -16,6 +16,15 @@ function claseTamanoValorDona(texto) {
     return '';
 }
 
+// Contenido del círculo "barra-avatar": la foto del empleado si tiene una
+// guardada, o sus iniciales como antes.
+function avatarBarraHtml(nombre, avatarUrl) {
+    if (avatarUrl) {
+        return `<img src="${avatarUrl}" alt="${nombre}" class="barra-avatar-img">`;
+    }
+    return (nombre || '').charAt(0).toUpperCase();
+}
+
 
 /**
  * Función principal que renderiza TODOS los componentes de la pestaña.
@@ -32,7 +41,7 @@ export function renderFinancialData(period) {
     renderizarGraficoTurnosPorHora_Barras(period);
     renderizarHoraPico(period);
     renderizarGraficoFidelidad(period);
-    renderizarGraficoEstadoTurnos(period);
+    renderizarGraficoIngresosPorEmpleadoDona(period);
 
     renderizarGraficoServiciosPopulares(period);
 }
@@ -50,20 +59,11 @@ function setEncabezadoFinanciero(idTarjeta, icono, label) {
 }
 
 /**
- * Puebla las 3 tarjetas superiores (Dark Mode).
- * Si el módulo de ventas está apagado, estas tarjetas no tienen datos de plata
- * para mostrar (dependen de caja_ventas/turnos completados con precio), así
- * que se reemplazan por indicadores basados solo en turnos.
+ * Puebla las 3 tarjetas superiores (Dark Mode) con indicadores basados en turnos.
  */
 function renderizarKpisPrincipales(period) {
     const fuente = obtenerFuenteFinanciera(period);
     const kpiData = fuente.kpis?.[period] || {
-        ingresosTotales: 0,
-        cambioIngresos: 0,
-        ventasTotales: 0,
-        ticketPromedio: 0,
-        utilidadNeta: 0,
-        comisionesTotales: 0,
         turnosRegistrados: 0,
         turnosReservados: 0,
         turnosCompletados: 0,
@@ -72,44 +72,23 @@ function renderizarKpisPrincipales(period) {
         horaPico: null,
     };
 
-    if (!estado.moduloVentasActivo) {
-        setEncabezadoFinanciero('tarjeta-kpi-1', 'fas fa-calendar-check', 'Turnos Totales');
-        document.getElementById('kpi-total-revenue').textContent = String(kpiData.turnosRegistrados ?? 0);
-        document.getElementById('kpi-revenue-change').innerHTML = `<span>Reservados: ${kpiData.turnosReservados ?? 0}</span>`;
+    setEncabezadoFinanciero('tarjeta-kpi-1', 'fas fa-calendar-check', 'Turnos Totales');
+    document.getElementById('kpi-total-revenue').textContent = String(kpiData.turnosRegistrados ?? 0);
+    document.getElementById('kpi-revenue-change').innerHTML = `<span>Reservados: ${kpiData.turnosReservados ?? 0}</span>`;
 
-        setEncabezadoFinanciero('tarjeta-kpi-2', 'fas fa-calendar-check', 'Turnos Completados');
-        document.getElementById('kpi-total-appts').textContent = Number(kpiData.turnosCompletados ?? 0);
-        document.getElementById('kpi-avg-revenue-appt').textContent = `Cancelados: ${Number(kpiData.turnosCancelados ?? 0)}`;
+    setEncabezadoFinanciero('tarjeta-kpi-2', 'fas fa-calendar-check', 'Turnos Completados');
+    document.getElementById('kpi-total-appts').textContent = Number(kpiData.turnosCompletados ?? 0);
+    document.getElementById('kpi-avg-revenue-appt').textContent = `Cancelados: ${Number(kpiData.turnosCancelados ?? 0)}`;
 
-        setEncabezadoFinanciero('tarjeta-kpi-3', 'fas fa-clock', 'Hora Pico');
-        document.getElementById('kpi-occupancy-rate').textContent = kpiData.horaPico || '--:--';
-        document.getElementById('kpi-total-hours').textContent = kpiData.servicioMasSolicitado
-            ? `Más solicitado: ${kpiData.servicioMasSolicitado}`
-            : 'Sin datos de servicios';
-        return;
-    }
-
-    setEncabezadoFinanciero('tarjeta-kpi-1', 'fas fa-dollar-sign', 'Ingresos Totales');
-    setEncabezadoFinanciero('tarjeta-kpi-2', 'fas fa-calendar-check', 'Ventas Totales');
-    setEncabezadoFinanciero('tarjeta-kpi-3', 'fas fa-chart-line', 'Utilidad Neta');
-
-    const ventasTotales = Number(kpiData.ventasTotales ?? kpiData.turnosTotales ?? 0);
-    const ticketPromedio = Number(kpiData.ticketPromedio ?? kpiData.ingresoPromedioPorTurno ?? 0);
-    const utilidadNeta = Number(kpiData.utilidadNeta ?? 0);
-    const comisionesTotales = Number(kpiData.comisionesTotales ?? 0);
-
-    // Claves actualizadas al español
-    document.getElementById('kpi-total-revenue').textContent = formatCurrency(kpiData.ingresosTotales);
-    document.getElementById('kpi-revenue-change').innerHTML = `<span>↗ ${kpiData.cambioIngresos}%</span>`;
-    document.getElementById('kpi-total-appts').textContent = ventasTotales;
-    document.getElementById('kpi-avg-revenue-appt').textContent = `${formatCurrency(ticketPromedio)} por venta`;
-    document.getElementById('kpi-occupancy-rate').textContent = formatCurrency(utilidadNeta);
-    document.getElementById('kpi-total-hours').textContent = `Comisiones: ${formatCurrency(comisionesTotales)}`;
+    setEncabezadoFinanciero('tarjeta-kpi-3', 'fas fa-clock', 'Hora Pico');
+    document.getElementById('kpi-occupancy-rate').textContent = kpiData.horaPico || '--:--';
+    document.getElementById('kpi-total-hours').textContent = kpiData.servicioMasSolicitado
+        ? `Más solicitado: ${kpiData.servicioMasSolicitado}`
+        : 'Sin datos de servicios';
 }
 
 /**
- * Puebla la fila de 4 tarjetas de métricas. La Tasa de Ocupación se muestra
- * siempre, con o sin módulo de ventas: no depende de datos de caja.
+ * Puebla la fila de 4 tarjetas de métricas, basadas en datos de turnos.
  */
 function renderizarMetricasClave(period) {
     const fuente = obtenerFuenteFinanciera(period);
@@ -137,9 +116,8 @@ function renderizarHoraPico(period) {
 }
 
 /**
- * Renderiza el gráfico de barras de "Ingresos por Empleado" (con módulo de
- * ventas activo) o "Ocupación por Empleado" (sin módulo de ventas: la
- * ocupación se calcula solo con datos de turnos/horarios).
+ * Renderiza el gráfico de barras de "Ocupación por Empleado" (se calcula
+ * solo con datos de turnos/horarios).
  */
 function renderizarGraficoServiciosEmpleado(period) {
     const container = document.getElementById('grafico-servicios-empleado');
@@ -147,71 +125,32 @@ function renderizarGraficoServiciosEmpleado(period) {
 
     const fuente = obtenerFuenteFinanciera(period);
 
-    if (!estado.moduloVentasActivo) {
-        const encabezadoOff = document.getElementById('tarjeta-grafico-empleado-1');
-        if (encabezadoOff) encabezadoOff.innerHTML = '<i class="fas fa-chart-pie"></i><h4>Ocupación por Empleado</h4>';
-
-        const empleadosData = fuente.ocupacionPorEmpleado?.[period] || [];
-        if (empleadosData.length === 0) {
-            container.innerHTML = '<p class="sin-horarios">Sin datos para este período.</p>';
-            return;
-        }
-
-        container.innerHTML = empleadosData.map((empleado, index) => {
-            const porcentaje = Number(empleado.cantidad ?? 0);
-            const iniciales = empleado.nombre.charAt(0).toUpperCase();
-            const rankClass = index < 3 ? `top-${index + 1}` : '';
-
-            return `
-              <div class="barra-item">
-                <div class="barra-avatar">
-                  ${iniciales}
-                  <span class="barra-ranking ${rankClass}">${index + 1}</span>
-                </div>
-                <div class="barra-info">
-                  <div class="barra-top-row">
-                    <span class="barra-etiqueta">${empleado.nombre}</span>
-                    <span class="barra-valor">${porcentaje}%</span>
-                  </div>
-                  <div class="barra-track">
-                    <div class="barra" style="width: ${Math.min(porcentaje, 100)}%"></div>
-                  </div>
-                </div>
-              </div>
-            `;
-        }).join('');
-        return;
-    }
-
     const encabezado = document.getElementById('tarjeta-grafico-empleado-1');
-    if (encabezado) encabezado.innerHTML = '<i class="fas fa-user-tie"></i><h4>Ingresos por Empleado</h4>';
+    if (encabezado) encabezado.innerHTML = '<i class="fas fa-chart-pie"></i><h4>Ocupación por Empleado</h4>';
 
-    const empleadosData = fuente.ingresosPorEmpleado?.[period] || fuente.serviciosPorEmpleado?.[period] || [];
+    const empleadosData = fuente.ocupacionPorEmpleado?.[period] || [];
     if (empleadosData.length === 0) {
         container.innerHTML = '<p class="sin-horarios">Sin datos para este período.</p>';
         return;
     }
-    const maxCount = Math.max(...empleadosData.map(e => Number(e.monto ?? e.cantidad ?? 0)));
 
     container.innerHTML = empleadosData.map((empleado, index) => {
-        const monto = Number(empleado.monto ?? empleado.cantidad ?? 0);
-        const porcentaje = maxCount > 0 ? (monto / maxCount) * 100 : 0;
-        const iniciales = empleado.nombre.charAt(0).toUpperCase();
+        const porcentaje = Number(empleado.cantidad ?? 0);
         const rankClass = index < 3 ? `top-${index + 1}` : '';
 
         return `
           <div class="barra-item">
             <div class="barra-avatar">
-              ${iniciales}
+              ${avatarBarraHtml(empleado.nombre, empleado.avatar_url)}
               <span class="barra-ranking ${rankClass}">${index + 1}</span>
             </div>
             <div class="barra-info">
               <div class="barra-top-row">
                 <span class="barra-etiqueta">${empleado.nombre}</span>
-                                <span class="barra-valor">${formatCurrency(monto)}</span>
+                <span class="barra-valor">${porcentaje}%</span>
               </div>
               <div class="barra-track">
-                <div class="barra" style="width: ${porcentaje}%"></div>
+                <div class="barra" style="width: ${Math.min(porcentaje, 100)}%"></div>
               </div>
             </div>
           </div>
@@ -237,13 +176,12 @@ function renderizarGraficoServiciosPorEmpleado(period) {
     container.innerHTML = empleadosData.map((empleado, index) => {
         const cantidad = Number(empleado.cantidad ?? 0);
         const porcentaje = maxCantidad > 0 ? (cantidad / maxCantidad) * 100 : 0;
-        const iniciales = empleado.nombre.charAt(0).toUpperCase();
         const rankClass = index < 3 ? `top-${index + 1}` : '';
 
         return `
           <div class="barra-item">
             <div class="barra-avatar">
-              ${iniciales}
+              ${avatarBarraHtml(empleado.nombre, empleado.avatar_url)}
               <span class="barra-ranking ${rankClass}">${index + 1}</span>
             </div>
             <div class="barra-info">
@@ -374,17 +312,9 @@ function renderizarGraficoServiciosPopulares(period) {
 }
 
 /**
- * Renderiza el gráfico de dona de Métodos de Pago. Sin módulo de ventas no
- * hay pagos de caja/turnos que mostrar, así que la tarjeta se oculta.
+ * Renderiza el gráfico de dona de Métodos de Pago (pagos de turnos).
  */
 function renderizarGraficoFidelidad(period) {
-    const tarjeta = document.getElementById('tarjeta-metodos-pago');
-    if (!estado.moduloVentasActivo) {
-        if (tarjeta) tarjeta.style.display = 'none';
-        return;
-    }
-    if (tarjeta) tarjeta.style.display = '';
-
     const container = document.getElementById('dona-fidelidad-clientes');
     if (!container) return;
     const fuente = obtenerFuenteFinanciera(period);
@@ -426,30 +356,25 @@ function renderizarGraficoFidelidad(period) {
 }
 
 /**
- * Renderiza el gráfico de dona de Tipo de Venta (servicios vs productos). Sin
- * módulo de ventas ese concepto no existe, así que la tarjeta se oculta.
+ * Renderiza la dona de participación de Ingresos por Empleado (turnos
+ * completados, con su comisión ya calculada en el backend).
  */
-function renderizarGraficoEstadoTurnos(period) {
-    const tarjeta = document.getElementById('tarjeta-tipo-venta');
-    if (!estado.moduloVentasActivo) {
-        if (tarjeta) tarjeta.style.display = 'none';
-        return;
-    }
-    if (tarjeta) tarjeta.style.display = '';
-
-    const container = document.getElementById('dona-estado-turnos');
+function renderizarGraficoIngresosPorEmpleadoDona(period) {
+    const container = document.getElementById('dona-ingresos-empleado');
     if (!container) return;
+
     const fuente = obtenerFuenteFinanciera(period);
-    const data = (fuente.tipoVentaDona && fuente.tipoVentaDona.length > 0)
-        ? fuente.tipoVentaDona
-        : [];
+    const encabezado = document.getElementById('encabezado-ingresos-empleado-dona');
+    if (encabezado) encabezado.innerHTML = '<i class="fas fa-user-tie"></i><h4>Ingresos por Empleado</h4>';
+
+    const data = fuente.ingresosPorEmpleadoDona || [];
     if (data.length === 0) {
         container.innerHTML = '<p class="sin-horarios">Sin datos para este período.</p>';
         return;
     }
     const total = data.reduce((sum, item) => sum + Number(item.cantidad || 0), 0);
 
-    const { svg, offsets } = createDonutSVG(data, total, 'estado');
+    const { svg, offsets } = createDonutSVG(data, total, 'ingresos-empleado');
 
     const leyenda = data.map((item) => `
         <div class="item-leyenda">
@@ -462,19 +387,19 @@ function renderizarGraficoEstadoTurnos(period) {
     `).join('');
 
     container.innerHTML = `
-        <div class="grafico-dona" id="dona-estado-svg">
+        <div class="grafico-dona" id="dona-ingresos-empleado-svg">
             ${svg}
             <div class="grafico-dona-centro">
                 <div class="grafico-dona-valor ${claseTamanoValorDona(formatCurrency(total))}">${formatCurrency(total)}</div>
-                <div class="grafico-dona-etiqueta">Ventas</div>
+                <div class="grafico-dona-etiqueta">Ingresos</div>
             </div>
         </div>
         <div class="leyenda-dona">
             ${leyenda}
         </div>
     `;
-    
-    applyDonutOffsets(offsets, 'estado');
+
+    applyDonutOffsets(offsets, 'ingresos-empleado');
 }
 
 

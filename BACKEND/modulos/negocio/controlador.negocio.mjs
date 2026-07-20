@@ -1,7 +1,6 @@
 import modelo from './modelo.negocio.mjs';
 import modeloTurno from '../turnos/modelo.turno.mjs';
 import notificacionesTurno from '../turnos/notificaciones.turno.mjs';
-import { esModuloVentasActivo } from '../../middleware/moduloVentas.mjs';
 import { permitirRegistroTurnosAtrasados } from '../../config/fechaHoraNegocio.mjs';
 import { supabaseAdmin } from '../../db/supabaseClient.mjs';
 import { randomUUID } from 'crypto';
@@ -32,12 +31,11 @@ async function prepararImagenParaSubida(buffer, mimeType) {
 async function obtenerConfigNegocio(req, res) {
     try {
         const config = await modelo.obtenerConfigNegocio();
-        // moduloVentas y permitirTurnosAtrasados vienen de env vars, no de la BD:
-        // el dashboard los usa para ocultar Caja/Productos y para ofrecer fechas
-        // pasadas al cargar un turno desde el panel, respectivamente.
+        // permitirTurnosAtrasados viene de una env var, no de la BD: el
+        // dashboard la usa para ofrecer fechas pasadas al cargar un turno
+        // desde el panel.
         res.status(200).json({
             ...config,
-            moduloVentas: esModuloVentasActivo(),
             permitirTurnosAtrasados: permitirRegistroTurnosAtrasados()
         });
     } catch (error) {

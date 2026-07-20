@@ -2,12 +2,12 @@
 
 Este script crea la base completa para levantar el proyecto en un negocio nuevo, con:
 - Estados de turno normalizados: reservado, completado, cancelado, anulado.
-- Caja simplificada: sin apertura/cierre, solo ventas por usuario autenticado.
+- Alcance acotado a gestión de turnos: no incluye caja/punto de venta ni catálogo de productos (fuera del alcance de la tesis).
 - Autenticacion con Supabase Auth: los usuarios del dashboard se vinculan via `auth_user_id` (sin username ni tokens de reset propios).
 - Configuracion del negocio gobernada desde BD (`negocio_config`): horarios por dia, dias no laborables y datos publicos (nombre, logo, redes, contacto, ubicacion). La politica de validacion al completar turnos es una variable de entorno del backend (`VALIDAR_HORARIO_AL_COMPLETAR_TURNO`).
 - Turnos con `cliente_id` opcional: el admin puede cargar turnos sin cliente.
-- Catalogo de productos con categorias e imagen.
-- Bucket de Storage `imagenes` para avatares de empleados, logo del negocio, imagen de reservas e imagenes de productos.
+- Turnos con `recordatorio_enviado`: marca si ya se le mando el email de recordatorio (2hs antes) a ese turno, para que el cron de recordatorios no lo duplique si se corre mas de una vez.
+- Bucket de Storage `imagenes` para avatares de empleados, logo del negocio e imagen de reservas.
 
 ## Script unico (pegar en SQL Editor)
 
@@ -215,6 +215,7 @@ CREATE TABLE IF NOT EXISTS public.turnos (
   estado_id integer NOT NULL REFERENCES public.estado_turno(id),
   observaciones text,
   precio numeric(12,2) NOT NULL CHECK (precio >= 0),
+  recordatorio_enviado boolean NOT NULL DEFAULT false,
   creado timestamptz NOT NULL DEFAULT now(),
   modificado timestamptz NOT NULL DEFAULT now(),
   CHECK (hora_fin > hora_inicio)
@@ -248,63 +249,6 @@ CREATE TABLE IF NOT EXISTS public.logs_auditoria (
 );
 
 -- ============================================================================
--- 4) Caja simplificada (sin sesiones)
--- ============================================================================
-CREATE TABLE IF NOT EXISTS public.caja_ventas (
-  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  usuario_id integer NOT NULL REFERENCES public.usuarios(id),
-  empleado_id integer REFERENCES public.empleados(id),
-  cliente_id integer REFERENCES public.clientes(id),
-  fecha_hora timestamptz NOT NULL DEFAULT now(),
-  metodo_pago_id integer NOT NULL REFERENCES public.metodos_pago(id),
-  subtotal numeric(12,2) NOT NULL CHECK (subtotal >= 0),
-  descuento numeric(12,2) NOT NULL DEFAULT 0 CHECK (descuento >= 0),
-  total numeric(12,2) NOT NULL CHECK (total >= 0),
-  estado varchar(16) NOT NULL DEFAULT 'registrada' CHECK (estado IN ('registrada', 'anulada')),
-  observaciones text,
-  creado timestamptz NOT NULL DEFAULT now(),
-  modificado timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS public.caja_ventas_items (
-  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  venta_id bigint NOT NULL REFERENCES public.caja_ventas(id) ON DELETE CASCADE,
-  tipo_item varchar(16) NOT NULL CHECK (tipo_item IN ('servicio', 'producto')),
-  referencia_id integer,
-  descripcion varchar(255) NOT NULL,
-  cantidad integer NOT NULL CHECK (cantidad > 0),
-  precio_unitario numeric(12,2) NOT NULL CHECK (precio_unitario >= 0),
-  subtotal numeric(12,2) NOT NULL CHECK (subtotal >= 0),
-  creado timestamptz NOT NULL DEFAULT now()
-);
-
--- ============================================================================
--- 4A) Catalogo de productos y categorias
--- ============================================================================
-CREATE TABLE IF NOT EXISTS public.categorias_productos (
-  id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  nombre varchar(120) NOT NULL UNIQUE,
-  descripcion text,
-  activo boolean NOT NULL DEFAULT true,
-  creado timestamptz NOT NULL DEFAULT now(),
-  modificado timestamptz NOT NULL DEFAULT now()
-);
-
--- imagen: URL publica dentro del bucket "imagenes" (productos/{id}/...).
-CREATE TABLE IF NOT EXISTS public.productos (
-  id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  nombre varchar(120) NOT NULL,
-  descripcion text,
-  precio numeric(12,2) NOT NULL CHECK (precio >= 0),
-  stock integer NOT NULL DEFAULT 0 CHECK (stock >= 0),
-  categoria_id integer REFERENCES public.categorias_productos(id) ON DELETE SET NULL,
-  imagen varchar(500),
-  activo boolean NOT NULL DEFAULT true,
-  creado timestamptz NOT NULL DEFAULT now(),
-  modificado timestamptz NOT NULL DEFAULT now()
-);
-
--- ============================================================================
 -- 5) Indices
 -- ============================================================================
 CREATE INDEX IF NOT EXISTS idx_turnos_fecha_empleado
@@ -319,6 +263,11 @@ CREATE INDEX IF NOT EXISTS idx_turnos_estado
 CREATE INDEX IF NOT EXISTS idx_turnos_fecha_hora
   ON public.turnos (fecha, hora_inicio);
 
+-- Usado por el cron de recordatorios: busca turnos reservados con
+-- recordatorio_enviado = false dentro de una ventana de horas.
+CREATE INDEX IF NOT EXISTS idx_turnos_recordatorio_pendiente
+  ON public.turnos (estado_id, recordatorio_enviado, fecha);
+
 CREATE UNIQUE INDEX IF NOT EXISTS uq_clientes_telefono_no_nulo
   ON public.clientes (telefono)
   WHERE telefono IS NOT NULL AND telefono <> '';
@@ -326,27 +275,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_clientes_telefono_no_nulo
 CREATE UNIQUE INDEX IF NOT EXISTS uq_clientes_email_no_nulo
   ON public.clientes (email)
   WHERE email IS NOT NULL AND email <> '';
-
-CREATE INDEX IF NOT EXISTS idx_caja_ventas_fecha_hora
-  ON public.caja_ventas (fecha_hora);
-
-CREATE INDEX IF NOT EXISTS idx_caja_ventas_usuario_fecha
-  ON public.caja_ventas (usuario_id, fecha_hora);
-
-CREATE INDEX IF NOT EXISTS idx_caja_ventas_empleado_fecha
-  ON public.caja_ventas (empleado_id, fecha_hora);
-
-CREATE INDEX IF NOT EXISTS idx_caja_ventas_estado
-  ON public.caja_ventas (estado);
-
-CREATE INDEX IF NOT EXISTS idx_categorias_productos_activo
-  ON public.categorias_productos (activo);
-
-CREATE INDEX IF NOT EXISTS idx_productos_categoria
-  ON public.productos (categoria_id);
-
-CREATE INDEX IF NOT EXISTS idx_productos_activo
-  ON public.productos (activo);
 
 CREATE INDEX IF NOT EXISTS idx_pagos_turno
   ON public.pagos (turno_id);
@@ -365,14 +293,6 @@ VALUES
   ('Tarjeta', true)
 ON CONFLICT (nombre) DO UPDATE
 SET activo = EXCLUDED.activo;
-
-INSERT INTO public.categorias_productos (nombre, descripcion, activo)
-VALUES
-  ('Styling', 'Productos de peinado y fijacion', true),
-  ('Barba', 'Productos para cuidado y modelado de barba', true),
-  ('Cuidado', 'Shampoos, tratamientos y afines', true),
-  ('Accesorios', 'Peines, navajas y complementos', true)
-ON CONFLICT (nombre) DO NOTHING;
 
 -- ============================================================================
 -- 7) Triggers modificado
@@ -437,33 +357,15 @@ BEFORE UPDATE ON public.turnos
 FOR EACH ROW
 EXECUTE FUNCTION public.set_modificado_timestamp();
 
-DROP TRIGGER IF EXISTS trg_caja_ventas_modificado ON public.caja_ventas;
-CREATE TRIGGER trg_caja_ventas_modificado
-BEFORE UPDATE ON public.caja_ventas
-FOR EACH ROW
-EXECUTE FUNCTION public.set_modificado_timestamp();
-
-DROP TRIGGER IF EXISTS trg_categorias_productos_modificado ON public.categorias_productos;
-CREATE TRIGGER trg_categorias_productos_modificado
-BEFORE UPDATE ON public.categorias_productos
-FOR EACH ROW
-EXECUTE FUNCTION public.set_modificado_timestamp();
-
-DROP TRIGGER IF EXISTS trg_productos_modificado ON public.productos;
-CREATE TRIGGER trg_productos_modificado
-BEFORE UPDATE ON public.productos
-FOR EACH ROW
-EXECUTE FUNCTION public.set_modificado_timestamp();
-
 COMMIT;
 ```
 
 ## Storage: bucket de imagenes (pegar en SQL Editor)
 
 Bucket unico `imagenes` para todas las imagenes del sistema: avatares de empleados
-(`empleados/{id}/...`), logo e imagen de reservas del negocio (`negocio/...`) e
-imagenes de productos (`productos/{id}/...`). El backend lo resuelve por las
-variables `SUPABASE_IMAGES_BUCKET` / `SUPABASE_STORAGE_BUCKET` (default: `imagenes`).
+(`empleados/{id}/...`) y logo e imagen de reservas del negocio (`negocio/...`). El
+backend lo resuelve por las variables `SUPABASE_IMAGES_BUCKET` / `SUPABASE_STORAGE_BUCKET`
+(default: `imagenes`).
 
 ```sql
 BEGIN;
@@ -517,6 +419,29 @@ USING (bucket_id = 'imagenes');
 COMMIT;
 ```
 
+## Script de baja: Caja y Productos (solo si tu base ya tenia esas tablas)
+
+El alcance del proyecto quedo acotado a gestión de turnos: los módulos de Caja
+(punto de venta) y Productos (catálogo) se sacaron del código. Si tu base de
+datos viene de antes de este cambio, corré esto una sola vez en el SQL Editor
+de Supabase para eliminar esas tablas (el script único de arriba ya no las crea).
+
+```sql
+BEGIN;
+
+DROP TABLE IF EXISTS public.caja_ventas_items CASCADE;
+DROP TABLE IF EXISTS public.caja_ventas CASCADE;
+DROP TABLE IF EXISTS public.productos CASCADE;
+DROP TABLE IF EXISTS public.categorias_productos CASCADE;
+
+COMMIT;
+```
+
+`CASCADE` se lleva puestos los índices, triggers y FKs asociados a esas 4 tablas,
+así que no hace falta borrarlos a mano. `metodos_pago` (la usa `pagos` de turnos),
+`empleados.comision_pct` (comisión sobre turnos completados) y el bucket de
+Storage `imagenes` quedan sin cambios.
+
 ## Nota de uso
 
 - Para el primer acceso del dashboard con Supabase Auth, primero crea el administrador inicial llamando a `POST /api/v1/auth/bootstrap-admin` con `nombre`, `email` y `password`.
@@ -524,4 +449,5 @@ COMMIT;
 - La tabla `usuarios` no tiene `username` ni tokens de reset propios: el login y el reset de password los maneja Supabase Auth por email.
 - Los horarios del negocio, días no laborables y datos públicos (nombre, logo, redes, contacto, ubicación) se editan desde el dashboard y viven en `negocio_config`; no hay valores hardcodeados en el código. La validación de horario al completar turnos se activa con la variable de entorno `VALIDAR_HORARIO_AL_COMPLETAR_TURNO=true` en el backend.
 - `logs_auditoria` queda creada como tabla de auditoría; hoy el backend no escribe en ella.
+- El cron de recordatorios (`GET /api/v1/turnos/notificaciones/recordatorios`, sin sesión, autorizado por `REMINDERS_CRON_TOKEN` o el header de Vercel Cron) busca turnos reservados a 2hs o menos de empezar con `recordatorio_enviado = false` y, tras enviar cada email, marca esa columna en `true` para no reenviarlo en la próxima corrida.
 - Con estos dos scripts (schema + storage) alcanza para arrancar de cero; las migraciones incrementales viejas ya no existen en el repo porque este documento es la fuente única del schema.

@@ -11,6 +11,7 @@ const upload = multer({
 
 rutasApiEmpleados.get('/api/v1/empleados', autenticarSesion, controlador.obtenerEmpleados);
 rutasApiEmpleados.get('/api/v1/empleados/:id', autenticarSesion, controlador.obtenerUnEmpleado);
+rutasApiEmpleados.get('/api/v1/empleados/:id/turnos-reservados', autenticarSesion, controlador.obtenerTurnosReservadosEmpleado);
 rutasApiEmpleados.post('/api/v1/empleados/avatar/upload', autenticarSesion, upload.single('avatar'), controlador.subirAvatarEmpleado);
 rutasApiEmpleados.post('/api/v1/empleados', autenticarSesion, controlador.crearEmpleado);
 rutasApiEmpleados.put('/api/v1/empleados/:id', autenticarSesion, controlador.actualizarEmpleado);

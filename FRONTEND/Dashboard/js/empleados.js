@@ -1,6 +1,6 @@
 import { estado } from "./estado.js"
 import { showNotification, confirmarAccion, setBtnLoading, showPopupNotification, capturarValoresFormulario, restaurarValoresFormulario } from "./utilidades.js"
-import { fetchProfesionales, fetchServicios, createOrUpdateEmpleado, deleteEmpleado, cambiarEstadoEmpleado, fetchHistorial, fetchNegocioConfig, uploadEmpleadoAvatar } from "./api.js"
+import { fetchProfesionales, fetchServicios, createOrUpdateEmpleado, deleteEmpleado, cambiarEstadoEmpleado, fetchTurnosReservadosEmpleado, fetchHistorial, fetchNegocioConfig, uploadEmpleadoAvatar } from "./api.js"
 
 let empleadosFiltrados = []
 let historialTurnos = []
@@ -294,9 +294,33 @@ function renderizarEmpleados() {
   })
 
   listaEmpleados.querySelectorAll('.toggle-estado-empleado').forEach(toggle => {
-    toggle.addEventListener('change', () => {
+    toggle.addEventListener('change', async () => {
       const empleadoId = parseInt(toggle.dataset.empleadoId)
-      cambiarEstadoEmpleadoUI(empleadoId, toggle.checked)
+      const activar = toggle.checked
+
+      const ok = await confirmarAccion(
+        activar
+          ? '¿Estás seguro? El empleado volverá a estar disponible para asignarse a turnos.'
+          : '¿Estás seguro? El empleado dejará de estar disponible para nuevos turnos.',
+        activar ? 'Activar empleado' : 'Desactivar empleado',
+        activar ? 'Sí, activar' : 'Sí, desactivar'
+      )
+      if (!ok) {
+        toggle.checked = !activar
+        return
+      }
+
+      let cancelarTurnosIds = []
+      if (!activar) {
+        const resultado = await confirmarTurnosReservadosEmpleado(empleadoId)
+        if (resultado === null) {
+          toggle.checked = !activar
+          return
+        }
+        cancelarTurnosIds = resultado
+      }
+
+      cambiarEstadoEmpleadoUI(empleadoId, activar, cancelarTurnosIds)
     })
   })
 }
@@ -619,6 +643,27 @@ function _ocultarModalEmpleado() {
 export async function guardarEmpleado(e) {
   e.preventDefault()
 
+  const empleadoId = document.getElementById("empleado-id").value || null
+  const nombreIngresado = document.getElementById("empleado-nombre").value.trim()
+  const duplicado = estado.profesionales.find(
+    (emp) => emp.nombre.trim().toLowerCase() === nombreIngresado.toLowerCase() && String(emp.id) !== String(empleadoId)
+  )
+  if (duplicado) {
+    showNotification(`Ya existe un empleado llamado "${nombreIngresado}". Agregá el apellido u otra referencia para diferenciarlo.`, 'error')
+    return
+  }
+
+  const emailIngresado = document.getElementById("empleado-email").value.trim()
+  if (emailIngresado) {
+    const emailDuplicado = estado.profesionales.find(
+      (emp) => (emp.email || '').trim().toLowerCase() === emailIngresado.toLowerCase() && String(emp.id) !== String(empleadoId)
+    )
+    if (emailDuplicado) {
+      showNotification(`Ya existe un empleado con el email "${emailIngresado}"`, 'error')
+      return
+    }
+  }
+
   const btn = e.target.closest('form')?.querySelector('[type="submit"]') ||
                document.querySelector('#modal-empleado [type="submit"]')
   const restaurar = setBtnLoading(btn)
@@ -678,15 +723,49 @@ export async function guardarEmpleado(e) {
   }
 }
 
+function formatearFechaCorta(fecha) {
+  const [y, m, d] = fecha.split('-')
+  return `${d}/${m}/${y}`
+}
+
+// Antes de anular/desactivar un empleado, chequea si tiene turnos reservados
+// a futuro y le da al admin la opción de cancelarlos junto con la operación,
+// o de abortar todo (mismo patrón que "Negocio" al cerrar un horario).
+// Devuelve la lista de ids a cancelar (vacía si no hay turnos), o null si el
+// admin canceló la operación.
+async function confirmarTurnosReservadosEmpleado(empleadoId) {
+  const turnos = await fetchTurnosReservadosEmpleado(empleadoId)
+  if (!turnos || turnos.length === 0) return []
+
+  const MAX_LISTADOS = 8
+  const listado = turnos
+    .slice(0, MAX_LISTADOS)
+    .map((t) => `${formatearFechaCorta(t.fecha)} ${t.hora_inicio} — ${t.cliente} (${t.servicio})`)
+    .join('\n')
+  const extra = turnos.length > MAX_LISTADOS ? `\n...y ${turnos.length - MAX_LISTADOS} más` : ''
+
+  const confirmado = await confirmarAccion(
+    `${listado}${extra}`,
+    `${turnos.length} turno${turnos.length === 1 ? '' : 's'} reservado${turnos.length === 1 ? '' : 's'} a nombre de este empleado`,
+    'Cancelar turnos y continuar',
+    'Se le va a enviar un email de cancelación a cada cliente afectado.'
+  )
+
+  return confirmado ? turnos.map((t) => t.id) : null
+}
+
 export async function eliminarEmpleadoConfirm(empleadoId) {
   const ok = await confirmarAccion(
-    '¿Estás seguro? El empleado se va a eliminar: deja de aparecer en el sistema y no se puede reactivar desde acá.',
+    '¿Estás seguro? El empleado se va a eliminar y deja de aparecer en el sistema.',
     'Eliminar empleado',
     'Sí, eliminar'
   )
   if (!ok) return
 
-  const resultado = await deleteEmpleado(empleadoId)
+  const cancelarTurnosIds = await confirmarTurnosReservadosEmpleado(empleadoId)
+  if (cancelarTurnosIds === null) return // el admin canceló la operación
+
+  const resultado = await deleteEmpleado(empleadoId, cancelarTurnosIds)
   if (resultado) {
     showNotification("Empleado anulado correctamente", "success")
     await cargarEmpleados()
@@ -698,8 +777,8 @@ export async function eliminarEmpleadoConfirm(empleadoId) {
   }
 }
 
-async function cambiarEstadoEmpleadoUI(empleadoId, activo) {
-  const resultado = await cambiarEstadoEmpleado(empleadoId, activo)
+async function cambiarEstadoEmpleadoUI(empleadoId, activo, cancelarTurnosIds = []) {
+  const resultado = await cambiarEstadoEmpleado(empleadoId, activo, cancelarTurnosIds)
   if (resultado) {
     showNotification(`Empleado ${activo ? 'activado' : 'desactivado'} correctamente`, "success")
     await cargarEmpleados()

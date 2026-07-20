@@ -180,7 +180,7 @@ function cablearAccionesDetalle(turno) {
       `¿Cancelás el turno de ${turno.nombre_cliente}?`,
       'Cancelar turno',
       'Sí, cancelar',
-      'Motivo sugerido: el cliente canceló o no puede asistir.'
+      'el cliente canceló o no puede asistir.'
     );
     if (!confirmado) return;
     cambiarEstadoTurnoHistorial(turno, 'cancelado', document.getElementById('btnHistCancelar'));
@@ -569,28 +569,11 @@ import { inicializarClientes } from './clientes.js';
 import { inicializarServicios } from './servicios.js';
 import { inicializarEmpleados } from './empleados.js';
 import { inicializarUsuarios } from './usuarios.js';
-import { inicializarProductos } from './productos.js';
-import { inicializarCaja, refrescarCaja } from './caja.js';
 import { inicializarNegocio } from './negocio.js';
 
 const DURACION_MINIMA_SPLASH_MS = 3300;
 const DURACION_SALIDA_SPLASH_MS = 350;
 let splashInicioTs = 0;
-
-// El backend informa en /negocio/config si el modulo de ventas (Caja +
-// Productos) esta activo (env var MODULO_VENTAS_ENABLED). Si esta apagado se
-// ocultan las pestañas y no se inicializan esos modulos. Ante duda (config
-// no disponible), se asume activo.
-let moduloVentasActivo = true;
-
-function ocultarModuloVentas() {
-  // Saca el grupo entero del sidebar (título "Ventas" + botones Caja/Productos),
-  // no solo los botones: si no, queda el título de sección colgado sin nada abajo.
-  document.getElementById('grupo-navegacion-ventas')?.remove();
-  ['caja', 'productos'].forEach((tabId) => {
-    document.getElementById(tabId)?.remove();
-  });
-}
 
 function esperar(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -656,10 +639,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       api.fetchServicios().catch(() => []),
       api.fetchNegocioConfig().catch(() => null)
     ]);
-
-    moduloVentasActivo = configNegocio?.moduloVentas !== false;
-    estado.moduloVentasActivo = moduloVentasActivo;
-    if (!moduloVentasActivo) ocultarModuloVentas();
 
     // Ante duda (config no disponible) se asume apagado: es una capacidad que
     // relaja una validación de seguridad, así que por defecto queda cerrada.
@@ -814,6 +793,26 @@ function setupPrincipalEventListeners() {
         }
       })
     })
+
+    // Botón "Refrescar" del Dashboard
+    const btnRefrescarDashboard = document.getElementById('btnRefrescarDashboard')
+    if (btnRefrescarDashboard) {
+      btnRefrescarDashboard.addEventListener('click', async () => {
+        if (btnRefrescarDashboard.disabled) return
+        const icono = document.getElementById('iconoRefrescarDashboard')
+        btnRefrescarDashboard.disabled = true
+        if (icono) icono.classList.add('girando')
+        try {
+          estado.financialData = await api.fetchFinancialData(periodoActivo())
+          renderFinancialData(periodoActivo())
+        } catch (error) {
+          console.error('Error al refrescar el dashboard', error)
+        } finally {
+          btnRefrescarDashboard.disabled = false
+          if (icono) icono.classList.remove('girando')
+        }
+      })
+    }
   }
 
   // --- Listeners del Modal "Nuevo Turno" (legacy) ---
@@ -867,10 +866,6 @@ function setupPrincipalEventListeners() {
   inicializarClientes();
   inicializarServicios();
   inicializarEmpleados();
-  if (moduloVentasActivo) {
-    inicializarProductos();
-    inicializarCaja();
-  }
   inicializarNegocio();
   // inicializarUsuarios ya fue llamado al inicio del DOMContentLoaded
 }

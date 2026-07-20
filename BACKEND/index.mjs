@@ -6,11 +6,8 @@ import rutasApiEmpleados from './modulos/empleados/rutas.empleado.mjs';
 import rutasApiCliente from './modulos/clientes/rutas.cliente.mjs';
 import rutasReservas from './modulos/reservas/rutas.reserva.mjs';
 import rutasApiNegocio from './modulos/negocio/rutas.negocio.mjs';
-import rutasApiCaja from './modulos/caja/rutas.caja.mjs';
 import rutasApiIndicadores from './modulos/indicadores/rutas.indicadores.mjs';
-import rutasApiProductos from './modulos/productos/rutas.producto.mjs';
 import rutasAuth from './modulos/auth/rutas.auth.mjs';
-import { requiereModuloVentas } from './middleware/moduloVentas.mjs';
 import bodyParser from 'body-parser';
 import cors from 'cors';
 
@@ -55,20 +52,13 @@ app.use('/api/v1', (req, res, next) => {
 app.use(rutasReservas);
 app.use(rutasAuth);
 
-// Modulo de ventas (Productos + Caja): puede desactivarse por negocio con
-// MODULO_VENTAS_ENABLED=false. El guard corre antes que sus routers.
-app.use('/api/v1/caja', requiereModuloVentas);
-app.use('/api/v1/productos', requiereModuloVentas);
-
 // Rutas del back office (backoffice)
 app.use(rutasApiTurnos);
 app.use(rutasApiServicios);
 app.use(rutasApiEmpleados);
 app.use(rutasApiCliente);
 app.use(rutasApiNegocio);
-app.use(rutasApiCaja);
 app.use(rutasApiIndicadores);
-app.use(rutasApiProductos);
 
 // EXPORTACIÓN CLAVE PARA VERCELL
 export default app;

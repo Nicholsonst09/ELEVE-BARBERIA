@@ -1,10 +1,10 @@
 import sharp from 'sharp';
 import { supabaseAdmin } from '../db/supabaseClient.mjs';
 
-// Toda imagen que suba un admin (avatar de empleado, logo/foto del negocio,
-// foto de producto) se normaliza a WebP antes de guardarla en Supabase
-// Storage: pesa menos y carga más rápido en el dashboard y en la web de
-// reservas, sin depender de qué formato haya subido el usuario.
+// Toda imagen que suba un admin (avatar de empleado, logo/foto del negocio)
+// se normaliza a WebP antes de guardarla en Supabase Storage: pesa menos y
+// carga más rápido en el dashboard y en la web de reservas, sin depender de
+// qué formato haya subido el usuario.
 export async function convertirAWebp(buffer, calidad = 82) {
     return sharp(buffer).webp({ quality: calidad }).toBuffer();
 }

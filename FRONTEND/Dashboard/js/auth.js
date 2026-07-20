@@ -11,8 +11,8 @@ const LOGIN_URL        = 'login.html'
 
 // Módulos permitidos según rol
 const MODULOS_POR_ROL = {
-  admin:    ['agenda', 'financiero', 'clientes', 'servicios', 'caja', 'productos', 'negocio', 'empleados', 'usuarios'],
-  empleado: ['agenda', 'caja'],
+  admin:    ['agenda', 'financiero', 'clientes', 'servicios', 'negocio', 'empleados', 'usuarios'],
+  empleado: ['agenda'],
 }
 
 function _modulosParaRol(rol) {

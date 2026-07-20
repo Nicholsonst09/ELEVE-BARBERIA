@@ -31,7 +31,6 @@ export let estado = {
   empleados: [],
   isLoading: true,
   error: null,
-  moduloVentasActivo: true,
   permitirTurnosAtrasados: false,
   // Días de la semana (0=domingo...6=sábado) en que el negocio está cerrado,
   // según su horario semanal configurado. Se usa para no ofrecer esos días

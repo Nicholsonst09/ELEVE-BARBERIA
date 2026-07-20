@@ -642,17 +642,16 @@ async function registrarPagoTurno(req, res) {
     }
 }
 
+// Endpoint pensado para un cron EXTERNO (cron-job.org, Vercel Cron, etc.),
+// no para el panel: no lleva autenticarSesion en la ruta porque el cron no
+// tiene una sesion de usuario logueado. La autorizacion es el token por
+// query param (comparado contra REMINDERS_CRON_TOKEN), o el header propio de
+// Vercel Cron si en algun momento se migra a eso.
 async function procesarRecordatoriosTurnos(req, res) {
-    return res.status(200).json({
-        mensaje: 'Recordatorios por cron desactivados temporalmente.',
-        desactivado: true
-    });
-
-    /*
     const tokenConfigurado = (process.env.REMINDERS_CRON_TOKEN || '').trim();
-    const tokenRecibido = (req.query.token || '').trim();
+    const tokenRecibido = String(req.query.token || '').trim();
     const esCronVercel = Boolean(req.headers['x-vercel-cron']);
-    const tokenValido = tokenConfigurado && tokenRecibido && tokenConfigurado === tokenRecibido;
+    const tokenValido = Boolean(tokenConfigurado) && Boolean(tokenRecibido) && tokenConfigurado === tokenRecibido;
 
     if (!esCronVercel && !tokenValido) {
         return res.status(401).json({ mensaje: 'No autorizado para ejecutar recordatorios.' });
@@ -671,7 +670,6 @@ async function procesarRecordatoriosTurnos(req, res) {
             detalle: error.message
         });
     }
-    */
 }
 
 export default {

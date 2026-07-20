@@ -53,7 +53,7 @@ export const TOLERANCIA_ATRASO_ADMIN_MIN = 15;
 // Ventana de gracia para cargar turnos con fecha/hora ya pasada desde el panel
 // de gestión (ej: se olvidaron de registrar el turno y se dieron cuenta días
 // después). Se activa con la env var PERMITIR_REGISTRO_TURNOS_ATRASADOS=true
-// (default: false, mismo patron que MODULO_VENTAS_ENABLED). Nunca aplica a la
+// (default: false). Nunca aplica a la
 // web pública de reservas, que usa su propio controlador sin esta lógica.
 const VENTANA_REGISTRO_ATRASADO_HORAS = 24 * 7;
 

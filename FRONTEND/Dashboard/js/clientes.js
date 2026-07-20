@@ -4,6 +4,8 @@ import { fetchClientes, updateCliente, deleteCliente } from "./api.js"
 
 let clientesFiltrados = []
 let estadisticasClientes = null
+let paginaActualClientes = 1
+const CLIENTES_POR_PAGINA = 10
 
 // Borrador por cliente (clave = id, o 'nuevo' para el formulario de alta) para no perder
 // lo tipeado si el modal se cierra sin guardar (ej: para consultar otra cosa).
@@ -41,6 +43,7 @@ function setupClientesEventListeners() {
           (cliente.email || "").toLowerCase().includes(termino) ||
           (cliente.preferencias && cliente.preferencias.toLowerCase().includes(termino)),
       )
+      paginaActualClientes = 1
       renderizarClientes()
     })
   }
@@ -74,10 +77,17 @@ function renderizarClientes() {
 
   if (clientesFiltrados.length === 0) {
     listaClientes.innerHTML = '<p class="sin-resultados">No hay clientes registrados</p>'
+    renderizarPaginacionClientes()
     return
   }
 
-  listaClientes.innerHTML = clientesFiltrados.map(cliente => `
+  const totalPaginas = Math.max(1, Math.ceil(clientesFiltrados.length / CLIENTES_POR_PAGINA))
+  if (paginaActualClientes > totalPaginas) paginaActualClientes = totalPaginas
+
+  const inicio = (paginaActualClientes - 1) * CLIENTES_POR_PAGINA
+  const clientesPagina = clientesFiltrados.slice(inicio, inicio + CLIENTES_POR_PAGINA)
+
+  listaClientes.innerHTML = clientesPagina.map(cliente => `
     <div class="elemento-lista" data-id="${cliente.id}">
       <div class="info-elemento">
         <h4>${cliente.nombre}</h4>
@@ -104,6 +114,44 @@ function renderizarClientes() {
         eliminarClienteConfirm(clienteId)
       }
     })
+  })
+
+  renderizarPaginacionClientes()
+}
+
+function renderizarPaginacionClientes() {
+  const contenedor = document.getElementById('paginacion-clientes')
+  if (!contenedor) return
+
+  const totalPaginas = Math.ceil(clientesFiltrados.length / CLIENTES_POR_PAGINA)
+
+  if (totalPaginas <= 1) {
+    contenedor.innerHTML = ''
+    return
+  }
+
+  contenedor.innerHTML = `
+    <button class="boton-icono" id="pagina-anterior" title="Anterior" ${paginaActualClientes === 1 ? 'disabled' : ''}>
+      <i class="fas fa-chevron-left"></i>
+    </button>
+    <span class="paginacion-info">Página ${paginaActualClientes} de ${totalPaginas}</span>
+    <button class="boton-icono" id="pagina-siguiente" title="Siguiente" ${paginaActualClientes === totalPaginas ? 'disabled' : ''}>
+      <i class="fas fa-chevron-right"></i>
+    </button>
+  `
+
+  document.getElementById('pagina-anterior')?.addEventListener('click', () => {
+    if (paginaActualClientes > 1) {
+      paginaActualClientes--
+      renderizarClientes()
+    }
+  })
+
+  document.getElementById('pagina-siguiente')?.addEventListener('click', () => {
+    if (paginaActualClientes < totalPaginas) {
+      paginaActualClientes++
+      renderizarClientes()
+    }
   })
 }
 

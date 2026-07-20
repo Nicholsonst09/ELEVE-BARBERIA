@@ -149,9 +149,23 @@ function renderizarServicios() {
   })
 
   listaServicios.querySelectorAll('.toggle-estado-servicio').forEach(toggle => {
-    toggle.addEventListener('change', () => {
+    toggle.addEventListener('change', async () => {
       const servicioId = parseInt(toggle.dataset.servicioId)
-      cambiarEstadoServicioUI(servicioId, toggle.checked)
+      const activar = toggle.checked
+
+      const ok = await confirmarAccion(
+        activar
+          ? '¿Estás seguro? El servicio volverá a ofrecerse en nuevas reservas.'
+          : '¿Estás seguro? El servicio dejará de ofrecerse en nuevas reservas.',
+        activar ? 'Activar servicio' : 'Desactivar servicio',
+        activar ? 'Sí, activar' : 'Sí, desactivar'
+      )
+      if (!ok) {
+        toggle.checked = !activar
+        return
+      }
+
+      cambiarEstadoServicioUI(servicioId, activar)
     })
   })
 }

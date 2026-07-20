@@ -2,17 +2,6 @@ import { supabaseAdmin } from '../../db/supabaseClient.mjs';
 import modeloTurno from '../turnos/modelo.turno.mjs';
 import modeloNegocio from '../negocio/modelo.negocio.mjs';
 
-const SELECT_VENTA_INDICADORES = `
-    id,
-    empleado_id,
-    fecha_hora,
-    total,
-    estado,
-    empleados!caja_ventas_empleado_id_fkey(id, nombre, comision_pct),
-    metodos_pago!caja_ventas_metodo_pago_id_fkey(id, nombre),
-    caja_ventas_items(tipo_item, descripcion, cantidad, subtotal)
-`;
-
 const SELECT_TURNO_INDICADORES = `
     id,
     empleado_id,
@@ -20,24 +9,13 @@ const SELECT_TURNO_INDICADORES = `
     fecha,
     hora_inicio,
     estado_turno!estado_id(codigo),
-    empleados(id, nombre, comision_pct),
+    empleados(id, nombre, comision_pct, avatar_url),
     servicios(nombre),
     pagos(metodos_pago(nombre))
 `;
 
 function redondear(valor, decimales = 2) {
     return Number(Number(valor || 0).toFixed(decimales));
-}
-
-function claveHora(fechaISO) {
-    const fecha = new Date(fechaISO);
-    if (Number.isNaN(fecha.getTime())) return '00:00';
-    return fecha.toLocaleTimeString('es-AR', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-        timeZone: 'America/Argentina/Buenos_Aires'
-    });
 }
 
 function fechasEnRango(desdeISO, hastaISO) {
@@ -107,15 +85,6 @@ function calcularCapacidad(desdeISO, hastaISO, empleadosActivos, configNegocio) 
 
 async function obtenerIndicadoresFinancieros(filtros = {}) {
     try {
-        let queryVentas = supabaseAdmin
-            .from('caja_ventas')
-            .select(SELECT_VENTA_INDICADORES)
-            .order('fecha_hora', { ascending: true });
-
-        if (filtros.desde) queryVentas = queryVentas.gte('fecha_hora', filtros.desde);
-        if (filtros.hasta) queryVentas = queryVentas.lte('fecha_hora', filtros.hasta);
-        if (filtros.empleado_id) queryVentas = queryVentas.eq('empleado_id', Number(filtros.empleado_id));
-
         let queryTurnos = supabaseAdmin
             .from('turnos')
             .select(SELECT_TURNO_INDICADORES)
@@ -128,27 +97,20 @@ async function obtenerIndicadoresFinancieros(filtros = {}) {
 
         let queryEmpleados = supabaseAdmin
             .from('empleados')
-            .select('id, nombre, horarios_disponibles, estado_empleado!estado_id(codigo)');
+            .select('id, nombre, avatar_url, horarios_disponibles, estado_empleado!estado_id(codigo)');
         if (filtros.empleado_id) queryEmpleados = queryEmpleados.eq('id', Number(filtros.empleado_id));
 
         const [
-            { data: ventasData, error: errorVentas },
             { data: turnosData, error: errorTurnos },
             { data: empleadosData, error: errorEmpleados },
             configNegocio
         ] = await Promise.all([
-            queryVentas,
             queryTurnos,
             queryEmpleados,
             modeloNegocio.obtenerConfigNegocio()
         ]);
-        if (errorVentas) throw errorVentas;
         if (errorTurnos) throw errorTurnos;
         if (errorEmpleados) throw errorEmpleados;
-
-        const ventas = ventasData || [];
-        const registradas = ventas.filter(v => String(v.estado || '').toLowerCase() !== 'anulada');
-        const ventasAnuladasCaja = ventas.length - registradas.length;
 
         const turnosEnRango = turnosData || [];
         const turnos = turnosEnRango.filter(t =>
@@ -186,19 +148,17 @@ async function obtenerIndicadoresFinancieros(filtros = {}) {
                 return {
                     empleado_id: empleado.id,
                     nombre: empleado.nombre,
+                    avatar_url: empleado.avatar_url || null,
                     porcentaje: slots > 0 ? redondear((ocupados / slots) * 100, 1) : 0
                 };
             })
             .sort((a, b) => b.porcentaje - a.porcentaje);
 
-        const ingresosTurnos = turnosCompletados.reduce((acc, t) => acc + Number(t.precio || 0), 0);
-        const ingresosCaja = registradas.reduce((acc, v) => acc + Number(v.total || 0), 0);
-        const ingresosTotales = ingresosTurnos + ingresosCaja;
+        const ingresosTotales = turnosCompletados.reduce((acc, t) => acc + Number(t.precio || 0), 0);
 
-        const ventasTotales = turnosCompletados.length + registradas.length;
+        const ventasTotales = turnosCompletados.length;
         const ticketPromedio = ventasTotales > 0 ? ingresosTotales / ventasTotales : 0;
 
-        const operacionesTotales = turnos.length + registradas.length;
         const tasaCancelacionTurnos = turnos.length > 0 ? (turnosCancelados.length / turnos.length) * 100 : 0;
 
         const porEmpleadoMap = new Map();
@@ -206,12 +166,12 @@ async function obtenerIndicadoresFinancieros(filtros = {}) {
         const porHoraMap = new Map();
         const serviciosMap = new Map();
         const metodosPagoMap = new Map();
-        const tipoVentaMap = new Map();
 
-        function acumularEmpleado(empleadoId, nombreEmpleado, comisionPct, monto, comision) {
+        function acumularEmpleado(empleadoId, nombreEmpleado, avatarUrl, comisionPct, monto, comision) {
             const entrada = porEmpleadoMap.get(empleadoId) || {
                 empleado_id: empleadoId,
                 nombre: nombreEmpleado,
+                avatar_url: avatarUrl || null,
                 comisionPct,
                 ventas: 0,
                 ingresos: 0,
@@ -228,14 +188,16 @@ async function obtenerIndicadoresFinancieros(filtros = {}) {
             const empleado = turno.empleados || {};
             const empleadoId = Number(empleado.id ?? turno.empleado_id ?? 0);
             const nombreEmpleado = empleado.nombre || 'Sin asignar';
+            const avatarUrl = empleado.avatar_url || null;
             const comisionPct = Number(empleado.comision_pct ?? 0);
             const total = Number(turno.precio || 0);
             const comisionTurno = total * (comisionPct / 100);
 
-            acumularEmpleado(empleadoId, nombreEmpleado, comisionPct, total, comisionTurno);
+            acumularEmpleado(empleadoId, nombreEmpleado, avatarUrl, comisionPct, total, comisionTurno);
             serviciosPorEmpleadoMap.set(empleadoId, {
                 empleado_id: empleadoId,
                 nombre: nombreEmpleado,
+                avatar_url: avatarUrl,
                 cantidad: (serviciosPorEmpleadoMap.get(empleadoId)?.cantidad || 0) + 1
             });
 
@@ -247,44 +209,6 @@ async function obtenerIndicadoresFinancieros(filtros = {}) {
 
             const nombreServicio = turno.servicios?.nombre || 'Servicio';
             serviciosMap.set(nombreServicio, (serviciosMap.get(nombreServicio) || 0) + 1);
-            tipoVentaMap.set('Servicios', (tipoVentaMap.get('Servicios') || 0) + total);
-        }
-
-        // Ventas de Caja (productos y servicios vendidos por mostrador)
-        for (const venta of registradas) {
-            const empleado = venta.empleados || {};
-            const empleadoId = Number(empleado.id ?? venta.empleado_id ?? 0);
-            const nombreEmpleado = empleado.nombre || 'Sin asignar';
-            const comisionPct = Number(empleado.comision_pct ?? 0);
-            const total = Number(venta.total || 0);
-            const items = venta.caja_ventas_items || [];
-
-            const subtotalServicios = items
-                .filter(item => String(item.tipo_item || '').toLowerCase() === 'servicio')
-                .reduce((acc, item) => acc + Number(item.subtotal || 0), 0);
-            const comisionVenta = subtotalServicios > 0
-                ? subtotalServicios * (comisionPct / 100)
-                : total * (comisionPct / 100);
-
-            acumularEmpleado(empleadoId, nombreEmpleado, comisionPct, total, comisionVenta);
-
-            const hora = claveHora(venta.fecha_hora);
-            porHoraMap.set(hora, (porHoraMap.get(hora) || 0) + 1);
-
-            const metodoPago = venta.metodos_pago?.nombre || 'Sin definir';
-            metodosPagoMap.set(metodoPago, (metodosPagoMap.get(metodoPago) || 0) + total);
-
-            for (const item of items) {
-                const tipoItem = String(item.tipo_item || '').toLowerCase();
-                const descripcion = item.descripcion || (tipoItem === 'servicio' ? 'Servicio' : 'Producto');
-                const subtotal = Number(item.subtotal || 0);
-                if (tipoItem === 'servicio') {
-                    serviciosMap.set(descripcion, (serviciosMap.get(descripcion) || 0) + Number(item.cantidad || 1));
-                    tipoVentaMap.set('Servicios', (tipoVentaMap.get('Servicios') || 0) + subtotal);
-                } else if (tipoItem === 'producto') {
-                    tipoVentaMap.set('Productos', (tipoVentaMap.get('Productos') || 0) + subtotal);
-                }
-            }
         }
 
         const porEmpleado = Array.from(porEmpleadoMap.values())
@@ -318,10 +242,6 @@ async function obtenerIndicadoresFinancieros(filtros = {}) {
             .map(([nombre, monto]) => ({ nombre, monto: redondear(monto) }))
             .sort((a, b) => b.monto - a.monto);
 
-        const tipoVenta = Array.from(tipoVentaMap.entries())
-            .map(([nombre, monto]) => ({ nombre, monto: redondear(monto) }))
-            .sort((a, b) => b.monto - a.monto);
-
         return {
             rango: { desde: filtros.desde || null, hasta: filtros.hasta || null },
             resumen: {
@@ -343,7 +263,6 @@ async function obtenerIndicadoresFinancieros(filtros = {}) {
             porHora,
             serviciosPopulares,
             metodosPago,
-            tipoVenta,
             ocupacionPorEmpleado
         };
     } catch (error) {

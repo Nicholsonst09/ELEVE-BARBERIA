@@ -283,6 +283,16 @@ async function guardarUsuario(e) {
     return
   }
 
+  // Validar que el empleado no tenga ya otro usuario del sistema asignado
+  // (la lista `usuarios` solo trae activos, así que no hace falta filtrar eso acá).
+  if (empleado_id) {
+    const empleadoDuplicado = usuarios.find((u) => Number(u.empleado_id) === empleado_id && Number(u.id) !== Number(id || 0))
+    if (empleadoDuplicado) {
+      showNotification(`Ese empleado ya tiene un usuario del sistema asignado (${empleadoDuplicado.nombre})`, 'error')
+      return
+    }
+  }
+
   const esEdicion = Number.isInteger(id) && id > 0
 
   if (!esEdicion && !passwordNueva) {

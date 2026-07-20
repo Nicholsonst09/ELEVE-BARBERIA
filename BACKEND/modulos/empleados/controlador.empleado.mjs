@@ -1,9 +1,31 @@
 import modelo from './modelo.empleado.mjs';
 import modeloNegocio from '../negocio/modelo.negocio.mjs';
+import modeloTurno from '../turnos/modelo.turno.mjs';
+import notificacionesTurno from '../turnos/notificaciones.turno.mjs';
 import { supabaseAdmin } from '../../db/supabaseClient.mjs';
 import { randomUUID } from 'crypto';
 import { obtenerLimiteEmpleados } from '../../middleware/limiteEmpleados.mjs';
 import { convertirAWebp } from '../../config/imagen.mjs';
+
+// Cancela en lote los turnos reservados que el admin eligio descartar antes
+// de anular/desactivar un empleado, y le manda el email de cancelacion a
+// cada cliente afectado (mismo patron que "Negocio" al cerrar un horario).
+async function cancelarTurnosDelEmpleado(cancelarTurnosIds) {
+    if (!Array.isArray(cancelarTurnosIds) || cancelarTurnosIds.length === 0) return [];
+
+    const ids = cancelarTurnosIds.map(Number).filter(Number.isFinite);
+    const turnosCancelados = await modeloTurno.cancelarTurnosPorIds(ids);
+
+    for (const turnoId of turnosCancelados) {
+        try {
+            await notificacionesTurno.enviarCancelacion(turnoId);
+        } catch (error) {
+            console.error(`[notificaciones] Error enviando email de cancelación (turno ${turnoId}):`, error?.message || error);
+        }
+    }
+
+    return turnosCancelados;
+}
 
 const DIAS = [
     { key: 'domingo', label: 'Domingo', dia: 0 },
@@ -147,9 +169,14 @@ async function crearEmpleado(req, res) {
             }
         }
 
-        const duplicado = await modelo.buscarEmpleadoDuplicado({ nombre: String(nombre).trim(), email: email || null });
+        const duplicado = await modelo.buscarEmpleadoDuplicado({ nombre: String(nombre).trim() });
         if (duplicado) {
-            return res.status(409).json({ mensaje: 'Ya existe un empleado con ese nombre y email.' });
+            return res.status(409).json({ mensaje: 'Ya existe un empleado con ese nombre. Agregá el apellido u otra referencia para diferenciarlo.' });
+        }
+
+        const duplicadoEmail = await modelo.buscarEmpleadoPorEmailDuplicado({ email });
+        if (duplicadoEmail) {
+            return res.status(409).json({ mensaje: 'Ya existe un empleado con ese email.' });
         }
 
         const configNegocio = await modeloNegocio.obtenerConfigNegocio();
@@ -195,9 +222,14 @@ async function actualizarEmpleado(req, res) {
             return res.status(400).json({ mensaje: 'La comisión debe estar entre 0 y 100.' });
         }
 
-        const duplicado = await modelo.buscarEmpleadoDuplicado({ nombre: String(nombre).trim(), email: email || null, excluirId: id });
+        const duplicado = await modelo.buscarEmpleadoDuplicado({ nombre: String(nombre).trim(), excluirId: id });
         if (duplicado) {
-            return res.status(409).json({ mensaje: 'Ya existe un empleado con ese nombre y email.' });
+            return res.status(409).json({ mensaje: 'Ya existe un empleado con ese nombre. Agregá el apellido u otra referencia para diferenciarlo.' });
+        }
+
+        const duplicadoEmail = await modelo.buscarEmpleadoPorEmailDuplicado({ email, excluirId: id });
+        if (duplicadoEmail) {
+            return res.status(409).json({ mensaje: 'Ya existe un empleado con ese email.' });
         }
 
         const configNegocio = await modeloNegocio.obtenerConfigNegocio();
@@ -224,6 +256,22 @@ async function actualizarEmpleado(req, res) {
     }
 }
 
+async function obtenerTurnosReservadosEmpleado(req, res) {
+    const id = parseInt(req.params.id);
+
+    if (isNaN(id)) {
+        return res.status(400).json({ mensaje: 'ID inválido.' });
+    }
+
+    try {
+        const turnos = await modeloTurno.obtenerTurnosReservadosPorEmpleado(id);
+        res.status(200).json({ turnos });
+    } catch (error) {
+        console.error(`Error en controlador.obtenerTurnosReservadosEmpleado (ID: ${id}):`, error);
+        res.status(500).json({ mensaje: 'Error al verificar los turnos reservados del empleado.', detalle: error.message });
+    }
+}
+
 async function eliminarEmpleado(req, res) {
     const id = parseInt(req.params.id);
 
@@ -232,6 +280,7 @@ async function eliminarEmpleado(req, res) {
     }
 
     try {
+        await cancelarTurnosDelEmpleado(req.body?.cancelarTurnosIds);
         await modelo.eliminarEmpleado(id);
         res.status(204).send();
     } catch (error) {
@@ -252,6 +301,10 @@ async function cambiarEstadoEmpleado(req, res) {
     }
 
     try {
+        // Solo tiene sentido cancelar turnos al desactivar; al reactivar no hay nada que limpiar.
+        if (!req.body.activo) {
+            await cancelarTurnosDelEmpleado(req.body?.cancelarTurnosIds);
+        }
         const empleado = await modelo.cambiarEstadoEmpleado(id, req.body.activo ? 'activo' : 'inactivo');
         res.status(200).json(empleado);
     } catch (error) {
@@ -328,5 +381,6 @@ export default{
     actualizarEmpleado,
     eliminarEmpleado,
     cambiarEstadoEmpleado,
+    obtenerTurnosReservadosEmpleado,
     subirAvatarEmpleado
 }

@@ -20,11 +20,29 @@ function manejarErrorFetch(mensaje, error) {
 // el panel de gestión, nunca en login.html.
 let sesionExpiradaEnCurso = false;
 
+// Muestra la pantalla de "Sesión Expirada" (overlay-sesion-expirada en el
+// HTML) y deja que sea el usuario quien decida ir al login, en vez de
+// redirigirlo de golpe y hacerle perder de vista lo que estaba mirando.
+function mostrarOverlaySesionExpirada() {
+  const overlay = document.getElementById('overlay-sesion-expirada');
+  if (!overlay) {
+    // Fallback por si esta página no tiene el markup del overlay.
+    showNotification('Tu sesión expiró. Iniciá sesión de nuevo.', 'warning');
+    setTimeout(() => cerrarSesion(), 1500);
+    return;
+  }
+
+  overlay.classList.add('activo');
+  document.body.style.overflow = 'hidden';
+
+  const btnIrLogin = document.getElementById('btn-ir-login-sesion-expirada');
+  btnIrLogin?.addEventListener('click', () => cerrarSesion(), { once: true });
+}
+
 function manejarSesionExpirada() {
   if (sesionExpiradaEnCurso) return;
   sesionExpiradaEnCurso = true;
-  showNotification('Tu sesión expiró. Iniciá sesión de nuevo.', 'warning');
-  setTimeout(() => cerrarSesion(), 1500);
+  mostrarOverlaySesionExpirada();
 }
 
 const fetchOriginal = window.fetch.bind(window);
@@ -220,78 +238,6 @@ export async function fetchServicios() {
   }
 }
 
-export async function fetchProductos() {
-  try {
-    const response = await fetch(`${API_BASE_URL}/productos`, {
-      headers: construirHeadersSimple(),
-    });
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-    const data = await response.json();
-    return {
-      productos: data.productos || [],
-      categorias: data.categorias || [],
-    };
-  } catch (error) {
-    manejarErrorFetch('No se pudieron cargar los productos', error);
-    return { productos: [], categorias: [] };
-  }
-}
-
-export async function createOrUpdateProducto(productoData) {
-  const esEdicion = !!productoData.id;
-  const url = esEdicion ? `${API_BASE_URL}/productos/${productoData.id}` : `${API_BASE_URL}/productos`;
-  const method = esEdicion ? 'PUT' : 'POST';
-
-  try {
-    const response = await fetch(url, {
-      method,
-      headers: construirHeadersJSON(),
-      body: JSON.stringify(productoData),
-    });
-
-    if (!response.ok) {
-      let detalle = `HTTP error! status: ${response.status}`;
-      try {
-        const body = await response.json();
-        detalle = body?.detalle || body?.mensaje || detalle;
-      } catch (_) {
-        // noop
-      }
-      throw new Error(detalle);
-    }
-
-    return await response.json();
-  } catch (error) {
-    manejarErrorFetch(`No se pudo ${esEdicion ? 'actualizar' : 'crear'} el producto`, error);
-    return null;
-  }
-}
-
-export async function deleteProducto(productoId) {
-  try {
-    const response = await fetch(`${API_BASE_URL}/productos/${productoId}`, {
-      method: 'DELETE',
-      headers: construirHeadersSimple(),
-    });
-
-    if (!response.ok) {
-      let detalle = `HTTP error! status: ${response.status}`;
-      try {
-        const body = await response.json();
-        detalle = body?.detalle || body?.mensaje || detalle;
-      } catch (_) {
-        // noop
-      }
-      throw new Error(detalle);
-    }
-
-    return await response.json();
-  } catch (error) {
-    manejarErrorFetch('No se pudo eliminar el producto', error);
-    return null;
-  }
-}
-
 function normalizarEstadoTurno(estadoTurno) {
   const valor = String(estadoTurno || '').toLowerCase();
   return valor;
@@ -388,7 +334,7 @@ function construirRespuestaFinancieraVacia(periodo) {
     turnosPorHora: { [periodo]: [] },
     serviciosPopularesDona: [],
     metodosPagoDona: [],
-    tipoVentaDona: [],
+    ingresosPorEmpleadoDona: [],
   };
 }
 
@@ -469,16 +415,16 @@ export async function fetchFinancialData(periodo = 'week') {
       : (ingresosTotales > 0 ? 100 : 0);
 
     const ventasPorEmpleado = actual.porEmpleado
-      .map((empleado) => ({ nombre: empleado.nombre, monto: redondearNumero(empleado.ingresos) }))
+      .map((empleado) => ({ nombre: empleado.nombre, avatar_url: empleado.avatar_url || null, monto: redondearNumero(empleado.ingresos) }))
       .slice(0, 5);
 
     const comisionesPorEmpleado = [...actual.porEmpleado]
       .sort((a, b) => b.comision - a.comision)
-      .map((empleado) => ({ nombre: empleado.nombre, monto: redondearNumero(empleado.comision) }))
+      .map((empleado) => ({ nombre: empleado.nombre, avatar_url: empleado.avatar_url || null, monto: redondearNumero(empleado.comision) }))
       .slice(0, 5);
 
     const cantidadServiciosPorEmpleado = (actual.serviciosPorEmpleado || [])
-      .map((empleado) => ({ nombre: empleado.nombre, cantidad: empleado.cantidad }))
+      .map((empleado) => ({ nombre: empleado.nombre, avatar_url: empleado.avatar_url || null, cantidad: empleado.cantidad }))
       .slice(0, 5);
 
     const colores = ['#1a1a1a', '#404040', '#737373', '#a3a3a3', '#d4d4d4'];
@@ -490,12 +436,12 @@ export async function fetchFinancialData(periodo = 'week') {
       .slice(0, 5)
       .map((metodo, index) => ({ nombre: metodo.nombre, cantidad: redondearNumero(metodo.monto), color: colores[index % colores.length] }));
 
-    const tipoVentaDona = (actual.tipoVenta || [])
+    const ingresosPorEmpleadoDona = (actual.porEmpleado || [])
       .slice(0, 5)
-      .map((tipo, index) => ({ nombre: tipo.nombre, cantidad: redondearNumero(tipo.monto), color: colores[index % colores.length] }));
+      .map((empleado, index) => ({ nombre: empleado.nombre, cantidad: redondearNumero(empleado.ingresos), color: colores[index % colores.length] }));
 
     const ocupacionPorEmpleado = (actual.ocupacionPorEmpleado || [])
-      .map((empleado) => ({ nombre: empleado.nombre, cantidad: redondearNumero(empleado.porcentaje, 1) }));
+      .map((empleado) => ({ nombre: empleado.nombre, avatar_url: empleado.avatar_url || null, cantidad: redondearNumero(empleado.porcentaje, 1) }));
 
     const servicioMasSolicitado = actual.serviciosPopulares?.[0]?.nombre || null;
 
@@ -533,7 +479,7 @@ export async function fetchFinancialData(periodo = 'week') {
       turnosPorHora: { [periodo]: actual.porHora || [] },
       serviciosPopularesDona,
       metodosPagoDona,
-      tipoVentaDona,
+      ingresosPorEmpleadoDona,
       meta: {
         inicio: inicio.toISOString().slice(0, 10),
         fin: fin.toISOString().slice(0, 10),
@@ -543,85 +489,6 @@ export async function fetchFinancialData(periodo = 'week') {
   } catch (error) {
     manejarErrorFetch('No se pudieron cargar los datos financieros', error);
     return construirRespuestaFinancieraVacia(periodo);
-  }
-}
-
-export async function fetchCajaVentas(filtros = {}) {
-  try {
-    const params = new URLSearchParams();
-    if (filtros.desde) params.set('desde', filtros.desde);
-    if (filtros.hasta) params.set('hasta', filtros.hasta);
-    if (filtros.usuario_id) params.set('usuario_id', filtros.usuario_id);
-    if (filtros.empleado_id) params.set('empleado_id', filtros.empleado_id);
-    if (filtros.estado) params.set('estado', filtros.estado);
-    if (filtros.limite) params.set('limite', filtros.limite);
-    if (filtros.offset) params.set('offset', filtros.offset);
-
-    const response = await fetch(`${API_BASE_URL}/caja/ventas?${params.toString()}`, {
-      headers: construirHeadersSimple(),
-    });
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-    const data = await response.json();
-    return data.ventas || [];
-  } catch (error) {
-    manejarErrorFetch('No se pudieron cargar las ventas de caja', error);
-    return [];
-  }
-}
-
-export async function createCajaVenta(ventaData) {
-  try {
-    const usuarioIdSesion = obtenerUsuarioIdSesion();
-    const payload = {
-      ...ventaData,
-      usuario_id: Number.isFinite(Number(ventaData?.usuario_id)) ? Number(ventaData.usuario_id) : usuarioIdSesion,
-    };
-
-    const response = await fetch(`${API_BASE_URL}/caja/ventas`, {
-      method: 'POST',
-      headers: construirHeadersJSON(),
-      body: JSON.stringify(payload),
-    });
-    if (!response.ok) {
-      let detalle = '';
-      try {
-        const errData = await response.json();
-        detalle = errData?.detalle || errData?.mensaje || '';
-      } catch (_) {}
-      throw new Error(detalle || `HTTP error! status: ${response.status}`);
-    }
-    return await response.json();
-  } catch (error) {
-    manejarErrorFetch('No se pudo registrar la venta de caja', error);
-    return null;
-  }
-}
-
-export async function anularCajaVenta(ventaId) {
-  try {
-    const response = await fetch(`${API_BASE_URL}/caja/ventas/${ventaId}/anular`, {
-      method: 'PATCH',
-      headers: construirHeadersSimple(),
-    });
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-    return await response.json();
-  } catch (error) {
-    manejarErrorFetch('No se pudo anular la venta', error);
-    return null;
-  }
-}
-
-export async function reactivarCajaVenta(ventaId) {
-  try {
-    const response = await fetch(`${API_BASE_URL}/caja/ventas/${ventaId}/reactivar`, {
-      method: 'PATCH',
-      headers: construirHeadersSimple(),
-    });
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-    return await response.json();
-  } catch (error) {
-    manejarErrorFetch('No se pudo registrar la venta nuevamente', error);
-    return null;
   }
 }
 
@@ -1029,38 +896,6 @@ export async function uploadEmpleadoAvatar(file, empleadoId = null) {
   }
 }
 
-export async function uploadProductoImagen(file, productoId = null) {
-  try {
-    const formData = new FormData()
-    formData.append('imagen', file)
-    if (productoId) formData.append('producto_id', String(productoId))
-
-    const response = await fetch(`${API_BASE_URL}/productos/imagen/upload`, {
-      method: 'POST',
-      headers: construirHeadersSimple(),
-      body: formData,
-    })
-
-    if (!response.ok) {
-      let detalle = `HTTP error! status: ${response.status}`
-      try {
-        const body = await response.json()
-        detalle = body?.detalle || body?.mensaje || detalle
-      } catch (_) {
-        // noop
-      }
-      throw new Error(detalle)
-    }
-
-    return await response.json()
-  } catch (error) {
-    manejarErrorFetch('No se pudo subir la imagen del producto', error)
-    return {
-      error: error?.message || 'Error desconocido al subir la imagen'
-    }
-  }
-}
-
 export async function uploadNegocioImagen(file, tipo = 'logo') {
   try {
     const formData = new FormData()
@@ -1093,11 +928,26 @@ export async function uploadNegocioImagen(file, tipo = 'logo') {
   }
 }
 
-export async function deleteEmpleado(empleadoId) {
+export async function fetchTurnosReservadosEmpleado(empleadoId) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/empleados/${empleadoId}/turnos-reservados`, {
+      headers: construirHeadersSimple(),
+    })
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+    const data = await response.json()
+    return data.turnos || []
+  } catch (error) {
+    manejarErrorFetch("No se pudieron verificar los turnos reservados del empleado", error)
+    return null
+  }
+}
+
+export async function deleteEmpleado(empleadoId, cancelarTurnosIds = []) {
   try {
     const response = await fetch(`${API_BASE_URL}/empleados/${empleadoId}`, {
       method: "DELETE",
-      headers: construirHeadersSimple(),
+      headers: construirHeadersJSON(),
+      body: JSON.stringify({ cancelarTurnosIds }),
     })
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
     if (response.status === 204) {
@@ -1110,12 +960,12 @@ export async function deleteEmpleado(empleadoId) {
   }
 }
 
-export async function cambiarEstadoEmpleado(empleadoId, activo) {
+export async function cambiarEstadoEmpleado(empleadoId, activo, cancelarTurnosIds = []) {
   try {
     const response = await fetch(`${API_BASE_URL}/empleados/${empleadoId}/estado`, {
       method: "PATCH",
       headers: construirHeadersJSON(),
-      body: JSON.stringify({ activo }),
+      body: JSON.stringify({ activo, cancelarTurnosIds }),
     })
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
     return await response.json()

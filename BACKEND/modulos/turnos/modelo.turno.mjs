@@ -1014,12 +1014,22 @@ async function obtenerTurnoParaNotificacion(id) {
     }
 }
 
-async function obtenerTurnosReservadosEnVentanaRecordatorio(desdeISO, hastaISO) {
+// Turnos reservados a los que todavia no se les mando el recordatorio y ya
+// estan a `horasAntes` (o menos) de empezar. A diferencia de una ventana fija
+// de 5 minutos, esto se apoya en la columna `recordatorio_enviado` (no en el
+// timing exacto de cuando corre el cron): si una corrida se pierde, la
+// siguiente igual encuentra el turno pendiente y no lo duplica porque ya
+// filtramos por `recordatorio_enviado = false`.
+async function obtenerTurnosPendientesDeRecordatorio(horasAntes = 2) {
     try {
-        const desde = new Date(desdeISO);
-        const hasta = new Date(hastaISO);
-        const fechaDesde = desde.toISOString().split('T')[0];
-        const fechaHasta = hasta.toISOString().split('T')[0];
+        const estados = await obtenerEstadosTurnoMap();
+        const reservadoId = estados['reservado']?.id;
+        if (!reservadoId) throw new Error('No se encontro el estado "reservado" en estado_turno.');
+
+        const ahora = new Date();
+        const limite = new Date(ahora.getTime() + horasAntes * 60 * 60000);
+        const fechaHoy = ahora.toISOString().split('T')[0];
+        const fechaLimite = limite.toISOString().split('T')[0];
 
         const { data: turnos, error } = await supabaseAdmin
             .from('turnos')
@@ -1030,13 +1040,14 @@ async function obtenerTurnosReservadosEnVentanaRecordatorio(desdeISO, hastaISO) 
                 hora_fin,
                 creado,
                 precio,
-                estado_turno!estado_id(codigo),
                 clientes!inner(nombre, email),
                 empleados!inner(nombre, email, avatar_url),
                 servicios!inner(nombre)
             `)
-            .gte('fecha', fechaDesde)
-            .lte('fecha', fechaHasta)
+            .eq('estado_id', reservadoId)
+            .eq('recordatorio_enviado', false)
+            .gte('fecha', fechaHoy)
+            .lte('fecha', fechaLimite)
             .order('fecha', { ascending: true })
             .order('hora_inicio', { ascending: true });
 
@@ -1044,21 +1055,36 @@ async function obtenerTurnosReservadosEnVentanaRecordatorio(desdeISO, hastaISO) 
 
         return (turnos || [])
             .map(mapearTurnoNotificacion)
-            .filter(t => t.estado === 'reservado')
             .filter(t => {
                 if (!t.email_cliente) return false;
                 const hora = (t.hora_inicio || '').substring(0, 5);
                 const inicioTurno = new Date(`${t.fecha}T${hora}:00`);
                 const creadoTurno = new Date(t.creado);
 
-                const estaEnVentana = inicioTurno > desde && inicioTurno <= hasta;
-                if (!estaEnVentana) return false;
+                const faltaPoco = inicioTurno > ahora && inicioTurno <= limite;
+                if (!faltaPoco) return false;
 
+                // No mandar recordatorio si el turno se reservo con menos
+                // anticipacion que la ventana del recordatorio: el email de
+                // confirmacion que ya recibio hace de recordatorio en ese caso.
                 const minutosAnticipacionAlCrear = (inicioTurno - creadoTurno) / 60000;
-                return minutosAnticipacionAlCrear >= 60;
+                return minutosAnticipacionAlCrear >= horasAntes * 60;
             });
     } catch (error) {
-        console.error('Error en modelo.obtenerTurnosReservadosEnVentanaRecordatorio:', error.message);
+        console.error('Error en modelo.obtenerTurnosPendientesDeRecordatorio:', error.message);
+        throw error;
+    }
+}
+
+async function marcarRecordatorioEnviado(turnoId) {
+    try {
+        const { error } = await supabaseAdmin
+            .from('turnos')
+            .update({ recordatorio_enviado: true })
+            .eq('id', turnoId);
+        if (error) throw error;
+    } catch (error) {
+        console.error(`Error en modelo.marcarRecordatorioEnviado (turno ${turnoId}):`, error.message);
         throw error;
     }
 }
@@ -1099,6 +1125,46 @@ async function cancelarTurnosPorIds(ids) {
     }
 }
 
+// Turnos reservados a futuro de un empleado especifico. Se usa antes de
+// anular o desactivar un empleado, para poder ofrecerle al admin cancelarlos
+// en el mismo paso (en vez de dejarlos huerfanos con un profesional inactivo).
+async function obtenerTurnosReservadosPorEmpleado(empleadoId) {
+    try {
+        const estados = await obtenerEstadosTurnoMap();
+        const reservadoId = estados['reservado']?.id;
+        if (!reservadoId) throw new Error('No se encontro el estado "reservado" en estado_turno.');
+
+        const hoy = new Date().toISOString().slice(0, 10);
+
+        const { data: turnos, error } = await supabaseAdmin
+            .from('turnos')
+            .select(`
+                id, fecha, hora_inicio, hora_fin,
+                clientes(nombre),
+                servicios(nombre)
+            `)
+            .eq('empleado_id', empleadoId)
+            .eq('estado_id', reservadoId)
+            .gte('fecha', hoy)
+            .order('fecha', { ascending: true })
+            .order('hora_inicio', { ascending: true });
+
+        if (error) throw error;
+
+        return (turnos || []).map((turno) => ({
+            id: turno.id,
+            fecha: turno.fecha,
+            hora_inicio: String(turno.hora_inicio || '').slice(0, 5),
+            hora_fin: String(turno.hora_fin || '').slice(0, 5),
+            cliente: turno.clientes?.nombre || 'Cliente',
+            servicio: turno.servicios?.nombre || 'Servicio',
+        }));
+    } catch (error) {
+        console.error(`Error en modelo.obtenerTurnosReservadosPorEmpleado (empleado ${empleadoId}):`, error.message);
+        throw error;
+    }
+}
+
 export default {
     obtenerTurnos,
     obtenerUnTurno,
@@ -1115,6 +1181,7 @@ export default {
     cancelarReservadosVencidos,
     cancelarTurnosPorIds,
     obtenerTurnoParaNotificacion,
+    obtenerTurnosReservadosPorEmpleado,
     // Helpers puros de horarios, reutilizados por el modulo de indicadores para
     // calcular la tasa de ocupacion agregada de un rango de fechas.
     obtenerHorarioDiaDesdeConfigBD,
@@ -1124,5 +1191,6 @@ export default {
     obtenerHoraMenor,
     convertirHoraAMinutos,
     INTERVALO_GRILLA_MIN,
-    obtenerTurnosReservadosEnVentanaRecordatorio
+    obtenerTurnosPendientesDeRecordatorio,
+    marcarRecordatorioEnviado
 };

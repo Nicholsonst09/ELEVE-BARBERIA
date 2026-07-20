@@ -289,27 +289,26 @@ async function enviarRecordatorioTurno(turno) {
     const html = htmlBase({
         tipo: 'recordatorio',
         titulo: 'Recordatorio de turno',
-        subtitulo: 'Falta aproximadamente 1 hora para tu turno.',
+        subtitulo: 'Falta aproximadamente 2 horas para tu turno.',
         detalleHtml: 'Si no podes asistir, avisanos cuanto antes para reprogramarlo.',
         turno
     });
     return enviarEmail({ to, subject, html });
 }
 
-async function procesarRecordatorios() {
-    const ahora = new Date();
-    const inicioVentana = new Date(ahora.getTime() + 55 * 60000);
-    const finVentana = new Date(ahora.getTime() + 60 * 60000);
+const HORAS_ANTES_RECORDATORIO = 2;
 
-    const turnos = await modeloTurno.obtenerTurnosReservadosEnVentanaRecordatorio(
-        inicioVentana.toISOString(),
-        finVentana.toISOString()
-    );
+async function procesarRecordatorios() {
+    const turnos = await modeloTurno.obtenerTurnosPendientesDeRecordatorio(HORAS_ANTES_RECORDATORIO);
 
     let enviados = 0;
     for (const turno of turnos) {
         try {
             await enviarRecordatorioTurno(turno);
+            // Se marca inmediatamente despues de cada envio exitoso (no al
+            // final del lote): si el proceso se corta a mitad de camino, los
+            // que ya se mandaron no se vuelven a mandar en la proxima corrida.
+            await modeloTurno.marcarRecordatorioEnviado(turno.id);
             enviados += 1;
         } catch (error) {
             console.error(`[notificaciones] Error enviando recordatorio turno ${turno.id}:`, error?.message || error);
@@ -317,10 +316,7 @@ async function procesarRecordatorios() {
     }
 
     return {
-        ventana: {
-            desde: inicioVentana.toISOString(),
-            hasta: finVentana.toISOString()
-        },
+        horasAntes: HORAS_ANTES_RECORDATORIO,
         evaluados: turnos.length,
         enviados
     };

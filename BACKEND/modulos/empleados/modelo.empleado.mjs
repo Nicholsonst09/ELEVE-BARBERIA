@@ -79,21 +79,40 @@ async function cambiarEstadoEmpleado(id, codigo) {
 }
 
 // Un empleado se considera duplicado cuando otro (no anulado) tiene el
-// mismo nombre y el mismo email. Los anulados quedan afuera a propósito:
+// mismo nombre, sin importar el email: dos personas no pueden compartir
+// el mismo nombre visible en el sistema (hay que diferenciarlas con
+// apellido u otra referencia). Los anulados quedan afuera a propósito:
 // si diste de baja a alguien, tiene que poder volver a cargarse con los
 // mismos datos sin chocar contra "ya existe".
-async function buscarEmpleadoDuplicado({ nombre, email = null, excluirId = null }) {
+async function buscarEmpleadoDuplicado({ nombre, excluirId = null }) {
     const nombreNorm = String(nombre || '').trim();
     if (!nombreNorm) return null;
 
-    let query = supabaseAdmin
+    const { data, error } = await supabaseAdmin
         .from('empleados')
-        .select('id, nombre, email, estado_empleado!estado_id(codigo)')
+        .select('id, nombre, estado_empleado!estado_id(codigo)')
         .ilike('nombre', nombreNorm);
 
-    query = email ? query.ilike('email', String(email).trim()) : query.is('email', null);
+    if (error) throw error;
 
-    const { data, error } = await query;
+    return (data || []).find((fila) =>
+        fila.estado_empleado?.codigo !== 'anulado' &&
+        (excluirId === null || Number(fila.id) !== Number(excluirId))
+    ) || null;
+}
+
+// Chequeo independiente del de nombre: dos empleados (no anulados) tampoco
+// pueden compartir email. El email es opcional, así que si no se manda no
+// hay nada que validar (varios empleados sin email no son "duplicados").
+async function buscarEmpleadoPorEmailDuplicado({ email, excluirId = null }) {
+    const emailNorm = String(email || '').trim();
+    if (!emailNorm) return null;
+
+    const { data, error } = await supabaseAdmin
+        .from('empleados')
+        .select('id, email, estado_empleado!estado_id(codigo)')
+        .ilike('email', emailNorm);
+
     if (error) throw error;
 
     return (data || []).find((fila) =>
@@ -280,5 +299,6 @@ export default{
     actualizarEmpleado,
     eliminarEmpleado,
     cambiarEstadoEmpleado,
-    buscarEmpleadoDuplicado
+    buscarEmpleadoDuplicado,
+    buscarEmpleadoPorEmailDuplicado
 }

@@ -32,11 +32,9 @@ Módulos de `BACKEND/modulos/`:
 - **turnos** — CRUD de turnos, grilla de disponibilidad, estados (reservado/completado/cancelado/anulado), pagos del turno y notificaciones por email (confirmación, recordatorios vía cron).
 - **servicios / empleados / clientes** — ABMs de las entidades principales. Empleados incluye avatar (Storage) y comisión.
 - **negocio** — Configuración del negocio en BD (`negocio_config`): horarios por día, días no laborables y datos públicos (nombre, logo, redes, contacto, ubicación). Nada de esto está hardcodeado en el código.
-- **caja** — Ventas de caja simplificada (sin apertura/cierre de sesión): venta con items de tipo servicio o producto, métodos de pago, anulación.
-- **productos** — Catálogo de productos y categorías, con imagen en Storage. Descuenta stock al vender por caja.
-- **indicadores** — Métricas para la pantalla de finanzas del dashboard (facturación, turnos, comisiones).
+- **indicadores** — Métricas para la pantalla de finanzas del dashboard (turnos, comisiones sobre turnos completados, ocupación).
 
-> **Módulo Ventas activable/desactivable:** el módulo de ventas — **Productos + Caja** — se apaga con la variable de entorno `MODULO_VENTAS_ENABLED=false` según lo que contrate cada negocio (ausente o `true` = activo). Con el módulo desactivado, el backend rechaza los endpoints `/api/v1/caja/*` y `/api/v1/productos/*` con 403, y el dashboard oculta las pestañas Caja y Productos (lee el flag `moduloVentas` que devuelve `GET /api/v1/negocio/config`). El resto del sistema (turnos, agenda, clientes, etc.) funciona igual.
+> El sistema no incluye módulo de caja/punto de venta ni catálogo de productos: el alcance del proyecto es gestión de turnos.
 
 ### FRONTEND/Reservas — página pública de reservas
 
@@ -53,9 +51,7 @@ Web estática (HTML/CSS/JS vanilla) para administradores y empleados, con login 
 | Archivo | Sección / rol |
 |---|---|
 | `agenda.js` | Agenda del día: turnos por empleado, carga y cambio de estado |
-| `caja.js` | Caja: registro de ventas (servicios y productos) |
-| `productos.js` | ABM de productos y categorías |
-| `finanzas.js` | Indicadores: facturación, comisiones, métricas |
+| `finanzas.js` | Indicadores: turnos, comisiones, métricas |
 | `clientes.js`, `empleados.js`, `servicios.js` | ABMs de las entidades |
 | `usuarios.js` | Gestión de usuarios del dashboard (roles administrador/empleado) |
 | `negocio.js` | Configuración del negocio: horarios, días no laborables, datos públicos |
@@ -101,7 +97,6 @@ En local se cargan con `dotenv` desde `BACKEND/.env`; en producción se configur
 | `PORT` | Puerto del servidor en local (default: 3000) |
 | `REMINDERS_CRON_TOKEN` | Token que autoriza al cron externo a disparar el endpoint de recordatorios de turnos |
 | `VALIDAR_HORARIO_AL_COMPLETAR_TURNO` | `true`/`false` (default: `false`) — con `true`, un turno solo puede marcarse como completado dentro de su ventana horaria (no antes de su inicio ni pasadas 24 hs) |
-| `MODULO_VENTAS_ENABLED` | `true`/`false` (default: `true`) — con `false` se desactiva el módulo de ventas: el backend rechaza los endpoints de Caja y Productos y el dashboard oculta esas pestañas |
 | `LIMITE_EMPLEADOS` | Número entero (default: sin límite) — tope de empleados (activos + inactivos, sin contar los dados de baja) que se pueden crear; pensado para limitar el uso según el plan contratado por cada negocio |
 | `PERMITIR_REGISTRO_TURNOS_ATRASADOS` | `true`/`false` (default: `false`) — con `true`, el panel de gestión (admin/empleado logueado) puede cargar un turno con fecha/hora de hasta 24 hs atrás, para no perder uno que no se llegó a registrar a tiempo. Solo aplica al panel: la web pública de reservas nunca admite fechas pasadas |
 | `WHATSAPP_CONTACT_NUMBER` | Número de contacto que figura en los emails al cliente |
@@ -114,7 +109,7 @@ En local se cargan con `dotenv` desde `BACKEND/.env`; en producción se configur
 
 | Servicio | Rol en el sistema |
 |---|---|
-| **Supabase** | Base de datos Postgres (schema en [sql-supabase-negocio-nuevo.md](sql-supabase-negocio-nuevo.md)), **Auth** (login y reset de contraseña de los usuarios del dashboard) y **Storage** (bucket `imagenes`: avatares, logo, imagen de reservas, fotos de productos) |
+| **Supabase** | Base de datos Postgres (schema en [sql-supabase-negocio-nuevo.md](sql-supabase-negocio-nuevo.md)), **Auth** (login y reset de contraseña de los usuarios del dashboard) y **Storage** (bucket `imagenes`: avatares, logo, imagen de reservas) |
 | **Resend** | Envío de emails transaccionales: confirmación de reserva, notificación al negocio y recordatorios de turno |
 | **Vercel** | Hosting serverless del backend (y deploy de los frontends estáticos) |
 | **Cron externo** | Job programado que llama al endpoint de recordatorios con `REMINDERS_CRON_TOKEN` (ej: cron-job.org o Vercel Cron) |

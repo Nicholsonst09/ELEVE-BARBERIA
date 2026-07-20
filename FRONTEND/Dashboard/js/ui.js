@@ -2,7 +2,6 @@
 import { estado } from './estado.js';
 import { formatCurrency, generateTimeSlots } from './utilidades.js';
 import { fetchDashboardStats } from './api.js';
-import { refrescarCaja } from './caja.js';
 
 // --- Selectores del Modal Legacy ---
 const modalCita = document.getElementById("appointment-modal");
@@ -97,10 +96,6 @@ export function switchTab(tabId) {
   }
   if (typeof window.scrollTo === 'function') {
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  if (tabId === 'caja') {
-    refrescarCaja();
   }
 
   cerrarMenuMobile();
