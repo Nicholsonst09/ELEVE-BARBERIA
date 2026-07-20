@@ -3,6 +3,8 @@
 
 <head>
     <meta charset="UTF-8">
+    <base href="/Dashboard/">
+
     <!-- Redirige de inmediato si ya hay una sesión guardada, antes de pintar el formulario -->
     <script>
         (function () {
@@ -12,7 +14,7 @@
                 if (sesion && sesion.accessToken) {
                     window.location.replace('index.html');
                 }
-            } catch (e) {}
+            } catch (e) { }
         })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -45,8 +47,8 @@
                 <form id="form-login" class="login-form" autocomplete="off">
                     <div class="grupo-formulario">
                         <label class="form-label" for="login-usuario">Correo electrónico</label>
-                        <input type="email" id="login-usuario" class="form-input" placeholder="tu@mail.com"
-                            required autocomplete="email">
+                        <input type="email" id="login-usuario" class="form-input" placeholder="tu@mail.com" required
+                            autocomplete="email">
                     </div>
                     <div class="grupo-formulario">
                         <label class="form-label" for="login-password">Contraseña</label>

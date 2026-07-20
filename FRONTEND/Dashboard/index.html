@@ -3,6 +3,8 @@
 
 <head>
     <meta charset="UTF-8">
+
+    <base href="/Dashboard/">
     <!-- Redirige de inmediato si no hay sesión guardada, antes de pintar el panel -->
     <script>
         (function () {
@@ -25,7 +27,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-</head> 
+</head>
 
 <body>
     <div id="pantalla-carga" class="pantalla-carga" aria-hidden="true">
@@ -67,8 +69,12 @@
             <nav class="navegacion" aria-label="Navegación principal">
                 <div class="grupo-navegacion">
                     <button class="boton-navegacion activo" data-tab="agenda">
-                        <svg class="icono-svg-calendario" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                            <path d="M3 9H21M17 13.0014L7 13M10.3333 17.0005L7 17M7 3V5M17 3V5M6.2 21H17.8C18.9201 21 19.4802 21 19.908 20.782C20.2843 20.5903 20.5903 20.2843 20.782 19.908C21 19.4802 21 18.9201 21 17.8V8.2C21 7.07989 21 6.51984 20.782 6.09202C20.5903 5.71569 20.2843 5.40973 19.908 5.21799C19.4802 5 18.9201 5 17.8 5H6.2C5.0799 5 4.51984 5 4.09202 5.21799C3.71569 5.40973 3.40973 5.71569 3.21799 6.09202C3 6.51984 3 7.07989 3 8.2V17.8C3 18.9201 3 19.4802 3.21799 19.908C3.40973 20.2843 3.71569 20.5903 4.09202 20.782C4.51984 21 5.07989 21 6.2 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                        <svg class="icono-svg-calendario" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                            xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                            <path
+                                d="M3 9H21M17 13.0014L7 13M10.3333 17.0005L7 17M7 3V5M17 3V5M6.2 21H17.8C18.9201 21 19.4802 21 19.908 20.782C20.2843 20.5903 20.5903 20.2843 20.782 19.908C21 19.4802 21 18.9201 21 17.8V8.2C21 7.07989 21 6.51984 20.782 6.09202C20.5903 5.71569 20.2843 5.40973 19.908 5.21799C19.4802 5 18.9201 5 17.8 5H6.2C5.0799 5 4.51984 5 4.09202 5.21799C3.71569 5.40973 3.40973 5.71569 3.21799 6.09202C3 6.51984 3 7.07989 3 8.2V17.8C3 18.9201 3 19.4802 3.21799 19.908C3.40973 20.2843 3.71569 20.5903 4.09202 20.782C4.51984 21 5.07989 21 6.2 21Z"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            </path>
                         </svg>
                         Agenda
                     </button>
@@ -131,7 +137,10 @@
                     </div>
                     <div class="acciones-pagina">
                         <button class="boton-secundario" id="btnHistorial">
-                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:15px;height:15px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:15px;height:15px;">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
                             Historial
                         </button>
                         <button class="boton-primario" id="btnNuevoTurno">
@@ -144,8 +153,12 @@
                 <div class="cuadricula-estadisticas">
                     <div class="tarjeta-estadistica">
                         <div class="icono-estadistica azul">
-                            <svg class="icono-svg-calendario" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                                <path d="M3 9H21M17 13.0014L7 13M10.3333 17.0005L7 17M7 3V5M17 3V5M6.2 21H17.8C18.9201 21 19.4802 21 19.908 20.782C20.2843 20.5903 20.5903 20.2843 20.782 19.908C21 19.4802 21 18.9201 21 17.8V8.2C21 7.07989 21 6.51984 20.782 6.09202C20.5903 5.71569 20.2843 5.40973 19.908 5.21799C19.4802 5 18.9201 5 17.8 5H6.2C5.0799 5 4.51984 5 4.09202 5.21799C3.71569 5.40973 3.40973 5.71569 3.21799 6.09202C3 6.51984 3 7.07989 3 8.2V17.8C3 18.9201 3 19.4802 3.21799 19.908C3.40973 20.2843 3.71569 20.5903 4.09202 20.782C4.51984 21 5.07989 21 6.2 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                            <svg class="icono-svg-calendario" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                                xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                <path
+                                    d="M3 9H21M17 13.0014L7 13M10.3333 17.0005L7 17M7 3V5M17 3V5M6.2 21H17.8C18.9201 21 19.4802 21 19.908 20.782C20.2843 20.5903 20.5903 20.2843 20.782 19.908C21 19.4802 21 18.9201 21 17.8V8.2C21 7.07989 21 6.51984 20.782 6.09202C20.5903 5.71569 20.2843 5.40973 19.908 5.21799C19.4802 5 18.9201 5 17.8 5H6.2C5.0799 5 4.51984 5 4.09202 5.21799C3.71569 5.40973 3.40973 5.71569 3.21799 6.09202C3 6.51984 3 7.07989 3 8.2V17.8C3 18.9201 3 19.4802 3.21799 19.908C3.40973 20.2843 3.71569 20.5903 4.09202 20.782C4.51984 21 5.07989 21 6.2 21Z"
+                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round"></path>
                             </svg>
                         </div>
                         <div class="informacion-estadistica">
@@ -228,24 +241,34 @@
                                 </button>
 
                                 <div class="selector-fecha-agenda">
-                                    <button type="button" class="boton-icono" id="btnElegirFechaAgenda" title="Elegir fecha específica">
+                                    <button type="button" class="boton-icono" id="btnElegirFechaAgenda"
+                                        title="Elegir fecha específica">
                                         <svg class="icono" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke-width="2" />
-                                            <line x1="16" y1="2" x2="16" y2="6" stroke-width="2" stroke-linecap="round" />
+                                            <line x1="16" y1="2" x2="16" y2="6" stroke-width="2"
+                                                stroke-linecap="round" />
                                             <line x1="8" y1="2" x2="8" y2="6" stroke-width="2" stroke-linecap="round" />
                                             <line x1="3" y1="10" x2="21" y2="10" stroke-width="2" />
-                                            <line x1="8" y1="14" x2="8" y2="14" stroke-width="2.5" stroke-linecap="round" />
-                                            <line x1="12" y1="14" x2="12" y2="14" stroke-width="2.5" stroke-linecap="round" />
-                                            <line x1="16" y1="14" x2="16" y2="14" stroke-width="2.5" stroke-linecap="round" />
+                                            <line x1="8" y1="14" x2="8" y2="14" stroke-width="2.5"
+                                                stroke-linecap="round" />
+                                            <line x1="12" y1="14" x2="12" y2="14" stroke-width="2.5"
+                                                stroke-linecap="round" />
+                                            <line x1="16" y1="14" x2="16" y2="14" stroke-width="2.5"
+                                                stroke-linecap="round" />
                                         </svg>
                                     </button>
-                                    <input type="date" id="inputFechaAgenda" class="input-fecha-agenda-oculto" aria-label="Elegir fecha específica" tabindex="-1">
+                                    <input type="date" id="inputFechaAgenda" class="input-fecha-agenda-oculto"
+                                        aria-label="Elegir fecha específica" tabindex="-1">
                                 </div>
 
-                                <button type="button" class="boton-icono" id="btnRefrescarAgenda" title="Actualizar agenda">
-                                    <svg class="icono" id="iconoRefrescarAgenda" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path d="M4 4v5h5M20 20v-5h-5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                                        <path d="M4.5 15a8 8 0 0014.9 2.5M19.5 9A8 8 0 004.6 6.5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                <button type="button" class="boton-icono" id="btnRefrescarAgenda"
+                                    title="Actualizar agenda">
+                                    <svg class="icono" id="iconoRefrescarAgenda" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
+                                        <path d="M4 4v5h5M20 20v-5h-5" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" />
+                                        <path d="M4.5 15a8 8 0 0014.9 2.5M19.5 9A8 8 0 004.6 6.5" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" />
                                     </svg>
                                 </button>
                             </div>
@@ -293,10 +316,14 @@
                             <button class="btn-periodo activo" data-periodo="week">Semana</button>
                             <button class="btn-periodo" data-periodo="month">Mes</button>
                         </div>
-                        <button type="button" class="boton-icono" id="btnRefrescarDashboard" title="Actualizar dashboard">
-                            <svg class="icono" id="iconoRefrescarDashboard" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path d="M4 4v5h5M20 20v-5h-5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                                <path d="M4.5 15a8 8 0 0014.9 2.5M19.5 9A8 8 0 004.6 6.5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        <button type="button" class="boton-icono" id="btnRefrescarDashboard"
+                            title="Actualizar dashboard">
+                            <svg class="icono" id="iconoRefrescarDashboard" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path d="M4 4v5h5M20 20v-5h-5" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" />
+                                <path d="M4.5 15a8 8 0 0014.9 2.5M19.5 9A8 8 0 004.6 6.5" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round" />
                             </svg>
                         </button>
                     </div>
@@ -403,7 +430,8 @@
                         <div class="encabezado-grafico">
                             <i class="fas fa-clock"></i>
                             <h4>Turnos por Hora</h4>
-                            <span class="tendencia-metrica neutral" id="hora-pico-badge" style="margin-left:auto;">Pico: --:--</span>
+                            <span class="tendencia-metrica neutral" id="hora-pico-badge" style="margin-left:auto;">Pico:
+                                --:--</span>
                         </div>
                         <div class="contenedor-grafico">
                             <div class="grafico-barras-contenedor" id="grafico-turnos-hora-contenedor"></div>
@@ -493,8 +521,8 @@
 
                 <div class="tarjeta">
                     <div class="contenido-tarjeta">
-                        <input type="search" id="buscador-clientes" name="filtro-clientes" class="entrada-busqueda buscador-lista"
-                            placeholder="Buscar clientes..." autocomplete="off">
+                        <input type="search" id="buscador-clientes" name="filtro-clientes"
+                            class="entrada-busqueda buscador-lista" placeholder="Buscar clientes..." autocomplete="off">
                         <div id="lista-clientes" class="lista-elementos"></div>
                         <div id="paginacion-clientes" class="paginacion"></div>
                     </div>
@@ -556,8 +584,9 @@
 
                 <div class="tarjeta">
                     <div class="contenido-tarjeta">
-                        <input type="search" id="buscador-servicios" name="filtro-servicios" class="entrada-busqueda buscador-lista"
-                            placeholder="Buscar servicios..." autocomplete="off">
+                        <input type="search" id="buscador-servicios" name="filtro-servicios"
+                            class="entrada-busqueda buscador-lista" placeholder="Buscar servicios..."
+                            autocomplete="off">
                         <div id="lista-servicios" class="lista-elementos"></div>
                     </div>
                 </div>
@@ -575,18 +604,18 @@
                 <div class="layout-negocio">
                     <nav class="negocio-subnav-scroll">
                         <nav class="negocio-subnav" aria-label="Secciones de configuración">
-                        <button type="button" class="activo" data-seccion-negocio="general">
-                            <i class="fas fa-building"></i> General
-                        </button>
-                        <button type="button" data-seccion-negocio="redes">
-                            <i class="fas fa-share-alt"></i> Redes
-                        </button>
-                        <button type="button" data-seccion-negocio="ubicacion">
-                            <i class="fas fa-map-marker-alt"></i> Ubicación
-                        </button>
-                        <button type="button" data-seccion-negocio="horarios">
-                            <i class="fas fa-clock"></i> Horarios
-                        </button>
+                            <button type="button" class="activo" data-seccion-negocio="general">
+                                <i class="fas fa-building"></i> General
+                            </button>
+                            <button type="button" data-seccion-negocio="redes">
+                                <i class="fas fa-share-alt"></i> Redes
+                            </button>
+                            <button type="button" data-seccion-negocio="ubicacion">
+                                <i class="fas fa-map-marker-alt"></i> Ubicación
+                            </button>
+                            <button type="button" data-seccion-negocio="horarios">
+                                <i class="fas fa-clock"></i> Horarios
+                            </button>
                         </nav>
                     </nav>
 
@@ -622,15 +651,19 @@
                                         <input type="text" id="negocio-nombre" class="form-input" required>
                                     </div>
                                     <div class="grupo-formulario">
-                                        <label for="negocio-reserva-imagen">Foto del formulario de reservas (URL)</label>
+                                        <label for="negocio-reserva-imagen">Foto del formulario de reservas
+                                            (URL)</label>
                                         <input type="url" id="negocio-reserva-imagen" class="form-input"
                                             placeholder="https://.../foto-reservas.jpg">
-                                        <small class="ayuda-formulario">Esta imagen se mostrará en el panel izquierdo de la página de Reservas.</small>
+                                        <small class="ayuda-formulario">Esta imagen se mostrará en el panel izquierdo de
+                                            la página de Reservas.</small>
                                     </div>
                                     <div class="grupo-formulario">
                                         <label for="negocio-reserva-imagen-input">Subir imagen para Reservas</label>
-                                        <input type="file" id="negocio-reserva-imagen-input" class="form-input" accept="image/png,image/jpeg,image/webp,image/gif">
-                                        <small class="ayuda-formulario">Se actualiza automáticamente en la página de Reservas.</small>
+                                        <input type="file" id="negocio-reserva-imagen-input" class="form-input"
+                                            accept="image/png,image/jpeg,image/webp,image/gif">
+                                        <small class="ayuda-formulario">Se actualiza automáticamente en la página de
+                                            Reservas.</small>
                                     </div>
                                     <button type="submit" class="boton-primario">Guardar</button>
                                 </form>
@@ -638,7 +671,8 @@
 
                             <div id="negocio-panel-redes" class="negocio-seccion-panel tarjeta">
                                 <h3>Contacto y redes</h3>
-                                <p class="form-help-text">Estos datos se reflejan automáticamente en la página pública de Reservas.</p>
+                                <p class="form-help-text">Estos datos se reflejan automáticamente en la página pública
+                                    de Reservas.</p>
                                 <form id="form-negocio-redes">
                                     <div class="grupo-formulario">
                                         <label for="negocio-telefono"><i class="fas fa-phone"></i> Teléfono</label>
@@ -649,15 +683,19 @@
                                         <input type="email" id="negocio-email" class="form-input">
                                     </div>
                                     <div class="grupo-formulario">
-                                        <label for="negocio-whatsapp"><i class="fab fa-whatsapp"></i> WhatsApp (número sin +)</label>
-                                        <input type="text" id="negocio-whatsapp" class="form-input" placeholder="5491112345678">
+                                        <label for="negocio-whatsapp"><i class="fab fa-whatsapp"></i> WhatsApp (número
+                                            sin +)</label>
+                                        <input type="text" id="negocio-whatsapp" class="form-input"
+                                            placeholder="5491112345678">
                                     </div>
                                     <div class="grupo-formulario">
-                                        <label for="negocio-instagram"><i class="fab fa-instagram"></i> Instagram URL</label>
+                                        <label for="negocio-instagram"><i class="fab fa-instagram"></i> Instagram
+                                            URL</label>
                                         <input type="url" id="negocio-instagram" class="form-input">
                                     </div>
                                     <div class="grupo-formulario">
-                                        <label for="negocio-facebook"><i class="fab fa-facebook"></i> Facebook URL</label>
+                                        <label for="negocio-facebook"><i class="fab fa-facebook"></i> Facebook
+                                            URL</label>
                                         <input type="url" id="negocio-facebook" class="form-input">
                                     </div>
                                     <button type="submit" class="boton-primario">Guardar</button>
@@ -680,7 +718,8 @@
                                         <textarea id="negocio-maps-embed" class="form-input" rows="4"
                                             placeholder="Pegá acá el src del iframe o el iframe completo de Google Maps"></textarea>
                                     </div>
-                                    <p class="form-help-text">Con solo el link de Google Maps, el sistema genera automáticamente el iframe para la vista de Reservas.</p>
+                                    <p class="form-help-text">Con solo el link de Google Maps, el sistema genera
+                                        automáticamente el iframe para la vista de Reservas.</p>
                                     <button type="submit" class="boton-primario">Guardar</button>
                                 </form>
                             </div>
@@ -688,7 +727,8 @@
                             <div id="negocio-panel-horarios" class="negocio-seccion-panel tarjeta">
                                 <h3>Horarios de atención</h3>
                                 <div id="tabla-horarios-negocio" class="tabla-horarios-negocio"></div>
-                                <button type="button" class="boton-primario" id="btn-guardar-horarios">Guardar horarios</button>
+                                <button type="button" class="boton-primario" id="btn-guardar-horarios">Guardar
+                                    horarios</button>
 
                                 <hr class="negocio-separador">
 
@@ -777,8 +817,9 @@
                 <!-- Lista de empleados -->
                 <div class="tarjeta">
                     <div class="contenido-tarjeta">
-                        <input type="search" id="buscador-empleados" name="filtro-empleados" class="entrada-busqueda buscador-lista"
-                            placeholder="Buscar empleados..." autocomplete="off">
+                        <input type="search" id="buscador-empleados" name="filtro-empleados"
+                            class="entrada-busqueda buscador-lista" placeholder="Buscar empleados..."
+                            autocomplete="off">
                         <div id="lista-empleados" class="lista-elementos"></div>
                     </div>
                 </div>
@@ -841,8 +882,8 @@
                 <!-- Lista de usuarios -->
                 <div class="tarjeta">
                     <div class="contenido-tarjeta">
-                        <input type="search" id="buscador-usuarios" name="filtro-usuarios" class="entrada-busqueda buscador-lista"
-                            placeholder="Buscar usuarios..." autocomplete="off">
+                        <input type="search" id="buscador-usuarios" name="filtro-usuarios"
+                            class="entrada-busqueda buscador-lista" placeholder="Buscar usuarios..." autocomplete="off">
                         <div id="lista-usuarios" class="lista-elementos"></div>
                     </div>
                 </div>
@@ -923,7 +964,7 @@
                             <label>Profesionales asignados</label>
                             <span id="contador-pros-servicio" class="pill-contador-pros vacio">Sin asignados</span>
                         </div>
-            
+
                         <div id="selector-profesionales-servicio" class="selector-profesionales">
                             <p class="sin-pros-mensaje"><i class="fas fa-spinner fa-spin"></i> Cargando...</p>
                         </div>
@@ -970,22 +1011,26 @@
                         <input type="hidden" id="empleado-avatar-url">
                         <div class="avatar-uploader">
                             <div class="avatar-preview-wrap" id="avatar-preview-wrap">
-                                <img id="empleado-avatar-preview" class="avatar-preview-img" alt="Vista previa de avatar" hidden>
+                                <img id="empleado-avatar-preview" class="avatar-preview-img"
+                                    alt="Vista previa de avatar" hidden>
                                 <i class="fas fa-user avatar-preview-placeholder" id="avatar-preview-placeholder"></i>
                             </div>
                             <div class="avatar-uploader-info">
                                 <label for="empleado-avatar-file" class="boton-secundario boton-subir-logo">
-                                    <i class="fas fa-image"></i> <span id="avatar-uploader-label-text">Seleccionar imagen</span>
+                                    <i class="fas fa-image"></i> <span id="avatar-uploader-label-text">Seleccionar
+                                        imagen</span>
                                 </label>
                                 <p class="form-help-text">JPG, PNG, WEBP o GIF.</p>
                             </div>
-                            <input type="file" id="empleado-avatar-file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+                            <input type="file" id="empleado-avatar-file"
+                                accept="image/png,image/jpeg,image/webp,image/gif" hidden>
                         </div>
                     </div>
                     <div class="grupo-formulario formulario-empleado-full">
                         <div class="label-pros-header">
                             <label>Servicios que realiza</label>
-                            <span id="contador-servicios-empleado" class="pill-contador-pros vacio">0 seleccionados</span>
+                            <span id="contador-servicios-empleado" class="pill-contador-pros vacio">0
+                                seleccionados</span>
                         </div>
                         <div id="selector-servicios-empleado" class="selector-profesionales">
                             <p class="sin-pros-mensaje"><i class="fas fa-spinner fa-spin"></i> Cargando...</p>
@@ -996,7 +1041,8 @@
                             <label>Horario laboral</label>
                             <span id="pill-horario-empleado" class="pill-contador-pros vacio">Sin configurar</span>
                         </div>
-                        <p class="form-help-text">Cada día permite definir un descanso dentro del horario del barbero.</p>
+                        <p class="form-help-text">Cada día permite definir un descanso dentro del horario del barbero.
+                        </p>
                         <div class="horario-semanal" id="horario-semanal-empleado"></div>
                     </div>
                 </form>
@@ -1028,7 +1074,8 @@
 
                     <div class="grupo-formulario">
                         <label for="usuario-email">Email</label>
-                        <input type="email" id="usuario-email" placeholder="usuario@eleve.com" required autocomplete="email">
+                        <input type="email" id="usuario-email" placeholder="usuario@eleve.com" required
+                            autocomplete="email">
                     </div>
 
                     <div class="grupo-formulario">
@@ -1050,8 +1097,8 @@
                     <div class="grupo-formulario" id="grupo-password-actual-usuario" style="display: none;">
                         <label for="usuario-password-actual">Contraseña actual</label>
                         <div class="input-password-wrapper">
-                            <input type="password" id="usuario-password-actual" placeholder="Ingresá la contraseña actual"
-                                autocomplete="current-password">
+                            <input type="password" id="usuario-password-actual"
+                                placeholder="Ingresá la contraseña actual" autocomplete="current-password">
                             <button type="button" id="toggle-password-actual-usuario" class="btn-toggle-password"
                                 title="Mostrar contraseña actual">
                                 <i class="fas fa-eye"></i>
@@ -1086,7 +1133,8 @@
                 <i class="fas fa-clock"></i>
             </div>
             <h3>Tu sesión expiró</h3>
-            <p>Por seguridad cerramos tu sesión luego de un tiempo de inactividad. Iniciá sesión de nuevo para continuar.</p>
+            <p>Por seguridad cerramos tu sesión luego de un tiempo de inactividad. Iniciá sesión de nuevo para
+                continuar.</p>
             <button type="button" class="boton-primario" id="btn-ir-login-sesion-expirada">
                 <i class="fas fa-sign-in-alt"></i>
                 Ir al login
@@ -1117,39 +1165,45 @@
     <script src="./js/main.js?v=2" type="module"></script>
 
     <!-- Modal Historial -->
-    <div id="modalHistorial" class="historial-overlay" role="dialog" aria-modal="true" aria-labelledby="tituloHistorial" hidden>
-      <div class="historial-panel">
-        <div class="historial-cabecera">
-          <h3 id="tituloHistorial">Historial de turnos</h3>
-          <button type="button" class="historial-cerrar" id="btnCerrarHistorial" aria-label="Cerrar historial">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px;height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-          </button>
-        </div>
-        <div class="historial-tabs" id="historialTabs" role="tablist">
-          <button class="historial-tab activo" data-tab="listado" type="button" role="tab">Listado</button>
-          <button class="historial-tab" data-tab="notificaciones" type="button" role="tab">
-            Notificaciones <span class="historial-tab-badge" id="historialNotifBadge" hidden>0</span>
-          </button>
-        </div>
-        <div class="historial-filtros" id="historialFiltros" role="group" aria-label="Filtrar por estado">
-          <button class="chip-filtro activo" data-estado="todos">Todos</button>
-          <button class="chip-filtro" data-estado="completado">Completados</button>
-          <button class="chip-filtro" data-estado="cancelado">Cancelados</button>
-          <button class="chip-filtro" data-estado="anulado">Eliminados</button>
-        </div>
-                <div class="historial-busqueda-fila" id="historialBusquedaFila">
-                    <div class="historial-input-icono">
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35m1.6-4.15a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                        </svg>
-                        <input type="search" id="historialBuscar" class="historial-input" placeholder="Buscar cliente, servicio o barbero..." aria-label="Buscar en historial">
-                    </div>
-                    <input type="date" id="historialFecha" class="historial-fecha" aria-label="Filtrar historial por fecha">
+    <div id="modalHistorial" class="historial-overlay" role="dialog" aria-modal="true" aria-labelledby="tituloHistorial"
+        hidden>
+        <div class="historial-panel">
+            <div class="historial-cabecera">
+                <h3 id="tituloHistorial">Historial de turnos</h3>
+                <button type="button" class="historial-cerrar" id="btnCerrarHistorial" aria-label="Cerrar historial">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px;height:16px;">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="historial-tabs" id="historialTabs" role="tablist">
+                <button class="historial-tab activo" data-tab="listado" type="button" role="tab">Listado</button>
+                <button class="historial-tab" data-tab="notificaciones" type="button" role="tab">
+                    Notificaciones <span class="historial-tab-badge" id="historialNotifBadge" hidden>0</span>
+                </button>
+            </div>
+            <div class="historial-filtros" id="historialFiltros" role="group" aria-label="Filtrar por estado">
+                <button class="chip-filtro activo" data-estado="todos">Todos</button>
+                <button class="chip-filtro" data-estado="completado">Completados</button>
+                <button class="chip-filtro" data-estado="cancelado">Cancelados</button>
+                <button class="chip-filtro" data-estado="anulado">Eliminados</button>
+            </div>
+            <div class="historial-busqueda-fila" id="historialBusquedaFila">
+                <div class="historial-input-icono">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 21l-4.35-4.35m1.6-4.15a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <input type="search" id="historialBuscar" class="historial-input"
+                        placeholder="Buscar cliente, servicio o barbero..." aria-label="Buscar en historial">
                 </div>
-        <div class="historial-cuerpo" id="historialCuerpo">
-          <p class="historial-cargando">Cargando...</p>
+                <input type="date" id="historialFecha" class="historial-fecha" aria-label="Filtrar historial por fecha">
+            </div>
+            <div class="historial-cuerpo" id="historialCuerpo">
+                <p class="historial-cargando">Cargando...</p>
+            </div>
         </div>
-      </div>
     </div>
 </body>
 
