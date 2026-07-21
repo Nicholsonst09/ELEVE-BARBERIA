@@ -3,9 +3,9 @@ import modeloNegocio from '../negocio/modelo.negocio.mjs';
 import { enviarEmail, obtenerEmailAdmin } from '../../integraciones/resend/resendClient.mjs';
 
 const WHATSAPP_FALLBACK = String(process.env.WHATSAPP_CONTACT_NUMBER || '3518524236').replace(/\D/g, '');
-const LOGO_URL = process.env.EMAIL_LOGO_URL || 'https://admin.elevebarberia.surweb.com.ar/img/logo-eleve-02.jpg';
-const PANEL_URL = process.env.ADMIN_PANEL_URL || 'https://admin.elevebarberia.surweb.com.ar';
-const RESERVAS_URL = process.env.RESERVAS_URL || 'https://elevebarberia.surweb.com.ar';
+const LOGO_URL = process.env.EMAIL_LOGO_URL || 'https://eleve-barberia-app.vercel.app/Dashboard/img/logo-eleve-02.jpg';
+const PANEL_URL = process.env.ADMIN_PANEL_URL || 'https://eleve-barberia-app.vercel.app/Dashboard';
+const RESERVAS_URL = process.env.RESERVAS_URL || 'https://eleve-barberia-app.vercel.app/Reservas';
 
 function escaparHtml(valor) {
         return String(valor ?? '')
