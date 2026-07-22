@@ -85,6 +85,21 @@ async function actualizarCliente(req, res) {
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).json({ mensaje: 'ID inválido.' });
     try {
+        const email = String(req.body?.email || '').trim();
+        if (email) {
+            const { supabaseAdmin } = await import('../../db/supabaseClient.mjs');
+            const { data: clienteExistente, error: errorConsulta } = await supabaseAdmin
+                .from('clientes')
+                .select('id')
+                .eq('email', email)
+                .maybeSingle();
+
+            if (errorConsulta) throw errorConsulta;
+            if (clienteExistente && Number(clienteExistente.id) !== id) {
+                return res.status(409).json({ mensaje: 'El email ingresado ya pertenece a otro cliente.' });
+            }
+        }
+
         const cliente = await modeloCliente.actualizarCliente(id, req.body);
         res.status(200).json(cliente);
     } catch (error) {

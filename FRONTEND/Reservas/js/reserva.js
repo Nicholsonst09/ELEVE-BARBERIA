@@ -291,7 +291,7 @@ async function cargarServicios() {
   const contenedor = document.getElementById('servicios-container');
   contenedor.innerHTML = '<p style="font-size:0.8rem;color:var(--color-text-muted)">Cargando servicios...</p>';
   try {
-    const res = await fetchConReintento(`${API_BASE_URL}/servicios`);
+    const res = await fetchConReintento(`${API_BASE_URL}/reservas/servicios`);
     if (!res.ok) throw new Error(res.statusText);
     const servicios = await res.json();
 

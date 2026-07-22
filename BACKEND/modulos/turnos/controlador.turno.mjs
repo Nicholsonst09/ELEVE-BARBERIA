@@ -623,7 +623,8 @@ async function registrarPagoTurno(req, res) {
     try {
         const resultado = await modelo.registrarPagoTurno(turnoId, {
             metodo: String(metodo).toLowerCase(),
-            monto
+            monto,
+            registrado_por: req.auth?.id ?? null
         });
 
         return res.status(200).json({

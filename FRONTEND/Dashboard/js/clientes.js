@@ -229,7 +229,7 @@ export async function guardarCliente(e) {
     renderizarClientes()
     actualizarMetricasClientes()
   } else {
-    showNotification("Error al guardar cliente", "error")
+    showNotification(estado.error || "Error al guardar cliente", "error")
   }
 }
 

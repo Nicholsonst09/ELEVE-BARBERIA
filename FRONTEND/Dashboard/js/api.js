@@ -769,10 +769,17 @@ export async function updateCliente(clienteData) {
       headers: construirHeadersJSON(),
       body: JSON.stringify(clienteData),
     })
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+    if (!response.ok) {
+      let detalle = ''
+      try {
+        const dataError = await response.json()
+        detalle = dataError?.mensaje || dataError?.detalle || ''
+      } catch (_) {}
+      throw new Error(detalle || `HTTP error! status: ${response.status}`)
+    }
     return await response.json()
   } catch (error) {
-    manejarErrorFetch(`No se pudo ${esEdicion ? "actualizar" : "crear"} el cliente`, error)
+    manejarErrorFetch(error.message || `No se pudo ${esEdicion ? "actualizar" : "crear"} el cliente`, error)
     return null
   }
 }
