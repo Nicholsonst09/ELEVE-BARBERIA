@@ -2,7 +2,8 @@ import { supabaseAdmin } from "../../db/supabaseClient.mjs";
 import modeloNegocio from '../negocio/modelo.negocio.mjs';
 import {
     obtenerFechaDeHoy, obtenerMinutosDesdeMedianoche, TOLERANCIA_ATRASO_ADMIN_MIN,
-    permitirRegistroTurnosAtrasados, excedeVentanaRegistroAtrasado
+    permitirRegistroTurnosAtrasados, excedeVentanaRegistroAtrasado,
+    obtenerInstanteDesdeFechaHora
 } from '../../config/fechaHoraNegocio.mjs';
 
 const NOMBRES_DIA = ['Domingo', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado'];
@@ -1016,10 +1017,10 @@ async function obtenerTurnosPendientesDeRecordatorio(horasAntes = 2) {
         const reservadoId = estados['reservado']?.id;
         if (!reservadoId) throw new Error('No se encontro el estado "reservado" en estado_turno.');
 
-        const ahora = new Date();
-        const limite = new Date(ahora.getTime() + horasAntes * 60 * 60000);
-        const fechaHoy = ahora.toISOString().split('T')[0];
-        const fechaLimite = limite.toISOString().split('T')[0];
+        const ahoraMs = Date.now();
+        const limiteMs = ahoraMs + horasAntes * 60 * 60000;
+        const fechaHoy = obtenerFechaDeHoy(new Date(ahoraMs));
+        const fechaLimite = obtenerFechaDeHoy(new Date(limiteMs));
 
         const { data: turnos, error } = await supabaseAdmin
             .from('turnos')
@@ -1048,16 +1049,16 @@ async function obtenerTurnosPendientesDeRecordatorio(horasAntes = 2) {
             .filter(t => {
                 if (!t.email_cliente) return false;
                 const hora = (t.hora_inicio || '').substring(0, 5);
-                const inicioTurno = new Date(`${t.fecha}T${hora}:00`);
-                const creadoTurno = new Date(t.creado);
+                const inicioTurnoMs = obtenerInstanteDesdeFechaHora(t.fecha, hora);
+                const creadoTurnoMs = new Date(t.creado).getTime();
 
-                const faltaPoco = inicioTurno > ahora && inicioTurno <= limite;
+                const faltaPoco = inicioTurnoMs > ahoraMs && inicioTurnoMs <= limiteMs;
                 if (!faltaPoco) return false;
 
                 // No mandar recordatorio si el turno se reservo con menos
                 // anticipacion que la ventana del recordatorio: el email de
                 // confirmacion que ya recibio hace de recordatorio en ese caso.
-                const minutosAnticipacionAlCrear = (inicioTurno - creadoTurno) / 60000;
+                const minutosAnticipacionAlCrear = (inicioTurnoMs - creadoTurnoMs) / 60000;
                 return minutosAnticipacionAlCrear >= horasAntes * 60;
             });
     } catch (error) {
