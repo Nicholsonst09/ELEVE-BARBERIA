@@ -1,6 +1,6 @@
 // 1. Importar Estado y Utilidades
 import { estado } from './estado.js';
-import { formatearFechaParaAPI, showNotification, confirmarAccion, setBtnLoading } from './utilidades.js';
+import { formatearFechaParaAPI, showNotification, confirmarAccion, setBtnLoading, puedeMostrarCompletarTurno } from './utilidades.js';
 import { inicializarAuth, obtenerSesion } from './auth.js';
 
 // 2. Importar Servicios API
@@ -92,11 +92,11 @@ async function cambiarEstadoTurnoHistorial(turno, nuevoEstado, btn, camposExtra 
       showNotification('Turno actualizado correctamente.', 'success');
       renderizarDetalleHistorial(turnoActualizado);
     } else {
-      showNotification('No se pudo actualizar el turno.', 'error');
+      showNotification(estado.error || 'No se pudo actualizar el turno.', 'error');
     }
   } catch (error) {
     restaurar();
-    showNotification('Error al actualizar el turno.', 'error');
+    showNotification(error?.message || estado.error || 'Error al actualizar el turno.', 'error');
   }
 }
 
@@ -134,9 +134,11 @@ let _historialCompletarPendiente = false;
 // para estados finales se maneja desde el combo de la fila "Estado".
 function renderizarAccionesDetalle(turno) {
   if (turno.estado !== 'reservado') return '';
-  const esAdmin = obtenerSesion()?.rol === 'admin';
+  const sesion = obtenerSesion();
+  const esAdmin = sesion?.rol === 'admin';
+  const puedeCompletar = puedeMostrarCompletarTurno(turno, sesion?.rol);
 
-  const bloquePago = turno.metodoPago
+  const bloquePago = !puedeCompletar ? '' : turno.metodoPago
     ? `<button type="button" class="boton-primario" id="btnHistCompletar">Marcar como completado</button>`
     : `<div class="historial-pago-form">
         <p class="historial-pago-aviso">Para completar el turno primero registrá el pago.</p>
@@ -253,7 +255,8 @@ function cablearFilaEstado(turno, esAdmin) {
   });
 }
 
-function renderizarBloquePagoParaCompletar() {
+function renderizarBloquePagoParaCompletar(turno) {
+  if (!puedeMostrarCompletarTurno(turno, obtenerSesion()?.rol)) return '';
   return `
     <div class="historial-detalle-acciones" id="historialDetalleAcciones">
       <div class="historial-pago-form">
@@ -305,11 +308,11 @@ async function completarDesdeEstadoFinalConPago(turno, metodo, btn) {
       showNotification('Turno completado correctamente.', 'success');
       renderizarDetalleHistorial(turnoActualizado);
     } else {
-      showNotification('Pago registrado, pero no se pudo completar el turno.', 'error');
+      showNotification(estado.error || 'Pago registrado, pero no se pudo completar el turno.', 'error');
     }
   } catch (error) {
     restaurar();
-    showNotification('Error al completar el turno.', 'error');
+    showNotification(error?.message || estado.error || 'Error al completar el turno.', 'error');
   }
 }
 
@@ -449,7 +452,7 @@ function renderizarDetalleHistorial(turno) {
       ${turno.precio ? `<div class="historial-detalle-fila"><span>Precio</span><strong>$ ${Number(turno.precio).toLocaleString('es-AR')}</strong></div>` : ''}
       ${turno.observaciones ? `<div class="historial-detalle-fila"><span>Notas</span><span>${turno.observaciones}</span></div>` : ''}
     </div>
-    ${_historialCompletarPendiente ? renderizarBloquePagoParaCompletar() : renderizarAccionesDetalle(turno)}`;
+    ${_historialCompletarPendiente ? renderizarBloquePagoParaCompletar(turno) : renderizarAccionesDetalle(turno)}`;
 
   document.getElementById('btnVolverHistorial').addEventListener('click', () => {
     _historialCompletarPendiente = false;

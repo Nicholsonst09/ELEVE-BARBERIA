@@ -312,3 +312,61 @@ export function showPopupNotification(
     document.addEventListener('keydown', onKey)
   })
 }
+
+// ─── Horario del negocio (America/Argentina/Buenos_Aires) ───────────────────
+// Espejo de BACKEND/config/fechaHoraNegocio.mjs para la UI del dashboard.
+
+const ZONA_HORARIA_NEGOCIO = 'America/Argentina/Buenos_Aires'
+
+function obtenerPartesFechaHoraNegocio(fecha = new Date()) {
+  const formateador = new Intl.DateTimeFormat('en-CA', {
+    timeZone: ZONA_HORARIA_NEGOCIO,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+  const partes = {}
+  for (const { type, value } of formateador.formatToParts(fecha)) {
+    partes[type] = value
+  }
+  return partes
+}
+
+export function obtenerInstanteDesdeFechaHora(fecha, hora) {
+  const [anio, mes, dia] = String(fecha).slice(0, 10).split('-').map(Number)
+  const [hh, mm] = String(hora).slice(0, 5).split(':').map(Number)
+  const aproximacion = Date.UTC(anio, mes - 1, dia, hh, mm)
+  const { year, month, day, hour, minute } = obtenerPartesFechaHoraNegocio(new Date(aproximacion))
+  const aproximacionLeidaComoUTC = Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute))
+  const offsetMs = aproximacionLeidaComoUTC - aproximacion
+  return aproximacion - offsetMs
+}
+
+function normalizarHoraTurno(turno) {
+  const raw = turno?.hora || turno?.hora_inicio || ''
+  return String(raw).slice(0, 5)
+}
+
+/**
+ * Indica si el dashboard debe mostrar la acción "Completar turno".
+ * Futuro: nadie. Pasado >24h: solo admin. Ventana normal: todos los que pueden gestionar.
+ */
+export function puedeMostrarCompletarTurno(turno, rol) {
+  if (!turno?.fecha) return false
+  const horaNorm = normalizarHoraTurno(turno)
+  if (!/^\d{2}:\d{2}$/.test(horaNorm)) return false
+
+  const instanteInicio = obtenerInstanteDesdeFechaHora(String(turno.fecha).slice(0, 10), horaNorm)
+  const ahora = Date.now()
+
+  if (ahora < instanteInicio) return false
+
+  const esAdmin = rol === 'admin' || rol === 'administrador'
+  if (esAdmin) return true
+
+  const diffHoras = (ahora - instanteInicio) / (1000 * 60 * 60)
+  return diffHoras <= 24
+}
