@@ -184,7 +184,7 @@ async function buscarOCrearCliente(nombre, telefono = null, email = null) {
                     estado_id: estadoActivoId,
                     modificado: new Date().toISOString()
                 };
-                if (email && !clientePorTel.email) actualizacion.email = email;
+                if (email) actualizacion.email = email;
 
                 await supabaseAdmin.from('clientes').update(actualizacion).eq('id', clientePorTel.id);
                 return clientePorTel.id;
