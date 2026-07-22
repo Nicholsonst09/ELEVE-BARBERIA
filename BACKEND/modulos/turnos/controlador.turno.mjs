@@ -4,7 +4,8 @@ import modeloCliente from '../clientes/modelo.cliente.mjs';
 import notificacionesTurno from './notificaciones.turno.mjs';
 import {
     obtenerFechaDeHoy, obtenerMinutosDesdeMedianoche, TOLERANCIA_ATRASO_ADMIN_MIN,
-    permitirRegistroTurnosAtrasados, excedeVentanaRegistroAtrasado
+    permitirRegistroTurnosAtrasados, excedeVentanaRegistroAtrasado,
+    obtenerInstanteDesdeFechaHora
 } from '../../config/fechaHoraNegocio.mjs';
 
 // ─── MÁQUINA DE ESTADOS ───────────────────────────────────────────────────────
@@ -236,7 +237,6 @@ async function modificarTurno(req, res) {
         const turnoId = parseInt(req.params.id);
         const { cliente_id, empleado_id, servicio_id, fecha, hora_inicio, hora_fin, estado, precio } = req.body;
         const rolUsuario = String(req.headers['x-user-role'] || '').toLowerCase();
-        const politicasNegocio = await modelo.obtenerPoliticasNegocio();
 
         if (isNaN(turnoId)) {
             return res.status(400).json({ mensaje: 'El ID del turno no es válido. Debe ser un número.' });
@@ -312,19 +312,22 @@ async function modificarTurno(req, res) {
             return res.status(403).json({ mensaje: 'Solo un administrador puede anular turnos.' });
         }
 
-        // Validacion opcional por config: al marcar como completado, validar ventana horaria.
-        // El admin puede completar turnos sin límite de antigüedad; la ventana solo rige para empleado.
-        if (estadoNormalizado === 'completado' && politicasNegocio.validarHorarioAlCompletarTurno
-            && !['admin', 'administrador'].includes(rolUsuario)) {
-            const ahora = new Date();
-            const horaInicioStr = (turnoExistente.hora_inicio || '').substring(0, 5);
-            const fechaTurno = new Date(`${turnoExistente.fecha}T${horaInicioStr}:00`);
-            if (ahora < fechaTurno) {
-                return res.status(400).json({ mensaje: 'No se puede marcar el turno como completado antes de su hora de inicio.' });
+        // Al marcar como completado: nadie puede cerrar un turno futuro; empleados
+        // solo dentro de 24 h desde el inicio; admin puede corregir pasados sin tope.
+        if (estadoNormalizado === 'completado') {
+            const fechaNorm = String(turnoExistente.fecha).slice(0, 10);
+            const horaNorm = String(turnoExistente.hora_inicio || '').slice(0, 5);
+            const instanteInicio = obtenerInstanteDesdeFechaHora(fechaNorm, horaNorm);
+            const ahora = Date.now();
+
+            if (ahora < instanteInicio) {
+                return res.status(400).json({ mensaje: 'No se puede completar un turno que aún no ocurrió.' });
             }
-            const diffHoras = (ahora - fechaTurno) / (1000 * 60 * 60);
-            if (diffHoras > 24) {
-                return res.status(400).json({ mensaje: 'No se puede marcar como completado un turno con mas de 24 horas de antiguedad.' });
+            if (!esAdmin) {
+                const diffHoras = (ahora - instanteInicio) / (1000 * 60 * 60);
+                if (diffHoras > 24) {
+                    return res.status(400).json({ mensaje: 'No se puede marcar como completado un turno con más de 24 horas de antigüedad.' });
+                }
             }
         }
         // ────────────────────────────────────────────────────────────────────

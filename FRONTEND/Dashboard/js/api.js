@@ -578,10 +578,17 @@ export async function createOrUpdateTurno(turnoData) {
       headers: construirHeadersJSON(),
       body: JSON.stringify(turnoData)
     });
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    if (!response.ok) {
+      let detalle = '';
+      try {
+        const dataError = await response.json();
+        detalle = dataError?.mensaje || dataError?.detalle || '';
+      } catch (_) {}
+      throw new Error(detalle || `HTTP error! status: ${response.status}`);
+    }
     return await response.json();
   } catch (error) {
-    manejarErrorFetch(`No se pudo ${esEdicion ? 'actualizar' : 'crear'} el turno`, error);
+    manejarErrorFetch(error.message || `No se pudo ${esEdicion ? 'actualizar' : 'crear'} el turno`, error);
     return null;
   }
 }

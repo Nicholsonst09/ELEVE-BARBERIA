@@ -44,16 +44,6 @@ function obtenerHorarioDiaDesdeConfigBD(horarios = [], diaSemana) {
     };
 }
 
-// Politica por variable de entorno (mismo patron que EMAIL_NOTIFICATIONS_ENABLED):
-// con VALIDAR_HORARIO_AL_COMPLETAR_TURNO=true, un turno solo puede marcarse como
-// completado dentro de su ventana horaria; apagada o ausente, no se valida.
-async function obtenerPoliticasNegocio() {
-    return {
-        validarHorarioAlCompletarTurno:
-            String(process.env.VALIDAR_HORARIO_AL_COMPLETAR_TURNO || 'false').toLowerCase() === 'true'
-    };
-}
-
 // ─── Cache de estados de turno ────────────────────────────────────────────────
 // Evita consultar estado_turno en cada operación. Se invalida nunca (son datos
 // de catálogo que no cambian en runtime).
@@ -1176,7 +1166,6 @@ export default {
     obtenerTurnosConDetalles,
     registrarPagoTurno,
     eliminarPagoDeTurno,
-    obtenerPoliticasNegocio,
     verificarSolapamiento,
     cancelarReservadosVencidos,
     cancelarTurnosPorIds,

@@ -23,7 +23,8 @@ import {
   formatearFechaParaAPI,
   setBtnLoading,
   formatCurrency,
-  confirmarAccion
+  confirmarAccion,
+  puedeMostrarCompletarTurno
 } from './utilidades.js';
 import { obtenerSesion } from './auth.js';
 
@@ -468,6 +469,10 @@ export function renderizarModal() {
     || estado.clientes.find(c => String(c.id) === String(turno.cliente_id))?.email
     || '';
 
+  if (estado.modoRegistrarPago && !puedeMostrarCompletarTurno(turno, sesion?.rol)) {
+    estado.modoRegistrarPago = false;
+  }
+
   // --- MODO 1: CREAR NUEVO TURNO ---
   if (estado.modoCreacion) {
     tituloModal.textContent = "Programar Nuevo Turno";
@@ -723,6 +728,7 @@ export function renderizarModal() {
     // se intente saltear el frontend.
     const puedeGestionarTurno = esAdmin
       || (sesion?.rol === 'empleado' && (!sesion.empleadoId || String(turno.empleado_id) === String(sesion.empleadoId)));
+    const puedeCompletarTurno = puedeMostrarCompletarTurno(turno, sesion?.rol);
     const profesional = { nombre: turno.nombre_empleado };
     const servicio = { nombre: turno.nombre_servicio };
     const cliente = { nombre: turno.nombre_cliente, telefono: turno.telefono_cliente };
@@ -781,7 +787,7 @@ export function renderizarModal() {
       </div>
       <div class="pie-modal pie-modal--detalles">
         ${!puedeGestionarTurno ? '' : esEstadoReservado(turno.estado) ? `
-          <button type="button" class="boton-primario pie-modal__btn-full" id="btnCompletarTurno">Completar turno</button>
+          ${puedeCompletarTurno ? `<button type="button" class="boton-primario pie-modal__btn-full" id="btnCompletarTurno">Completar turno</button>` : ''}
           <button type="button" class="boton-secundario pie-modal__btn-full" id="btnModificar">Modificar turno</button>
           <div class="pie-modal__zona-peligro" role="group" aria-label="Acciones de cancelación">
             <button type="button" class="btn-ghost-peligro btn-ghost-cancelar" id="btnCancelarEstado"
@@ -1010,7 +1016,7 @@ function setupModalPagoListeners(turno) {
         recargarTurnosYAgenda();
         _recargarDashboardStats();
       } else {
-        showNotification('Pago registrado, pero no se pudo completar el turno.', 'error');
+        showNotification(estado.error || 'Pago registrado, pero no se pudo completar el turno.', 'error');
       }
     } catch (error) {
       restaurar();
