@@ -1,4 +1,5 @@
 import modeloCliente from "./modelo.cliente.mjs";
+import { esEmailValido, esTelefonoValido } from '../../utilidades/validadores.mjs';
 
 //función para manejar la solicitud de todos los clientes
 async function obtenerClientes(req, res){
@@ -46,6 +47,13 @@ async function obtenerOCrear(req, res) {
             return res.status(400).json({ mensaje: "Se requiere al menos teléfono o email." });
         }
 
+        if (email && !esEmailValido(email)) {
+            return res.status(400).json({ mensaje: "El formato del email es inválido." });
+        }
+        if (telefono && !esTelefonoValido(telefono)) {
+            return res.status(400).json({ mensaje: "El formato del teléfono es inválido." });
+        }
+
         const cliente_id = await modeloCliente.buscarOCrearCliente(nombre, telefono || null, email || null);
 
         res.status(200).json({
@@ -71,6 +79,12 @@ async function crearCliente(req, res) {
     if (!nombre || !telefono) {
         return res.status(400).json({ mensaje: 'Nombre y teléfono son requeridos.' });
     }
+    if (!esTelefonoValido(telefono)) {
+        return res.status(400).json({ mensaje: 'El formato del teléfono es inválido.' });
+    }
+    if (email && !esEmailValido(email)) {
+        return res.status(400).json({ mensaje: 'El formato del email es inválido.' });
+    }
     try {
         const cliente = await modeloCliente.crearCliente({ nombre, telefono, email, preferencias });
         res.status(201).json(cliente);
@@ -86,6 +100,15 @@ async function actualizarCliente(req, res) {
     if (isNaN(id)) return res.status(400).json({ mensaje: 'ID inválido.' });
     try {
         const email = String(req.body?.email || '').trim();
+        const telefono = String(req.body?.telefono || '').trim();
+
+        if (email && !esEmailValido(email)) {
+            return res.status(400).json({ mensaje: 'El formato del email es inválido.' });
+        }
+        if (telefono && !esTelefonoValido(telefono)) {
+            return res.status(400).json({ mensaje: 'El formato del teléfono es inválido.' });
+        }
+
         if (email) {
             const { supabaseAdmin } = await import('../../db/supabaseClient.mjs');
             const { data: clienteExistente, error: errorConsulta } = await supabaseAdmin

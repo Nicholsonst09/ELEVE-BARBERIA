@@ -1,5 +1,33 @@
 // js/utilidades.js
 
+const REGEX_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const REGEX_TELEFONO_CARACTERES = /^[0-9\s()+-]+$/;
+
+/**
+ * Formato de email, no obligatoriedad: el campo puede estar vacío, pero si
+ * tiene contenido debe tener pinta de email real.
+ * @param {string} email
+ * @returns {boolean}
+ */
+export function esEmailValido(email) {
+  if (typeof email !== 'string') return false;
+  return REGEX_EMAIL.test(email.trim());
+}
+
+/**
+ * Formato de teléfono, no obligatoriedad: acepta dígitos, espacios,
+ * paréntesis, guiones y un "+" inicial; exige entre 8 y 15 dígitos.
+ * @param {string} telefono
+ * @returns {boolean}
+ */
+export function esTelefonoValido(telefono) {
+  if (typeof telefono !== 'string') return false;
+  const valor = telefono.trim();
+  if (!REGEX_TELEFONO_CARACTERES.test(valor)) return false;
+  const digitos = valor.replace(/\D/g, '');
+  return digitos.length >= 8 && digitos.length <= 15;
+}
+
 /**
  * Formatea un monto numérico como moneda ARS.
  * @param {number} amount - El monto a formatear.
