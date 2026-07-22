@@ -1,5 +1,5 @@
 import { estado } from "./estado.js"
-import { showNotification, confirmarAccion, setBtnLoading, capturarValoresFormulario, restaurarValoresFormulario } from "./utilidades.js"
+import { showNotification, confirmarAccion, setBtnLoading, capturarValoresFormulario, restaurarValoresFormulario, esEmailValido, esTelefonoValido } from "./utilidades.js"
 import { fetchClientes, updateCliente, deleteCliente } from "./api.js"
 
 let clientesFiltrados = []
@@ -217,6 +217,17 @@ export async function guardarCliente(e) {
     telefono: document.getElementById("cliente-telefono").value.trim(),
     email: document.getElementById("cliente-email").value.trim(),
     preferencias: document.getElementById("cliente-notas").value.trim(),
+  }
+
+  if (clienteData.telefono && !esTelefonoValido(clienteData.telefono)) {
+    showNotification("El formato del teléfono no es válido.", "error")
+    restaurar()
+    return
+  }
+  if (clienteData.email && !esEmailValido(clienteData.email)) {
+    showNotification("El formato del email no es válido.", "error")
+    restaurar()
+    return
   }
 
   const resultado = await updateCliente(clienteData)

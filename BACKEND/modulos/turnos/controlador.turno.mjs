@@ -7,6 +7,7 @@ import {
     permitirRegistroTurnosAtrasados, excedeVentanaRegistroAtrasado,
     obtenerInstanteDesdeFechaHora
 } from '../../config/fechaHoraNegocio.mjs';
+import { esEmailValido, esTelefonoValido } from '../../utilidades/validadores.mjs';
 
 // ─── MÁQUINA DE ESTADOS ───────────────────────────────────────────────────────
 const TRANSICIONES_VALIDAS = {
@@ -150,6 +151,15 @@ async function agregarTurno(req, res) {
     // Validar que haya cliente_id O datos del cliente
     if (!cliente_id && !nombre_cliente) {
         return res.status(400).json({ mensaje: "Se requiere cliente_id o al menos el nombre del cliente." });
+    }
+
+    // Teléfono y email del cliente son opcionales, pero si se cargan deben
+    // tener formato válido.
+    if (email_cliente && !esEmailValido(email_cliente)) {
+        return res.status(400).json({ mensaje: "El formato del email del cliente es inválido." });
+    }
+    if (telefono_cliente && !esTelefonoValido(telefono_cliente)) {
+        return res.status(400).json({ mensaje: "El formato del teléfono del cliente es inválido." });
     }
 
     // ── Validación: fecha no pasada y mínimo de anticipación ──────────────

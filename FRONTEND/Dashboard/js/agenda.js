@@ -24,7 +24,9 @@ import {
   setBtnLoading,
   formatCurrency,
   confirmarAccion,
-  puedeMostrarCompletarTurno
+  puedeMostrarCompletarTurno,
+  esEmailValido,
+  esTelefonoValido
 } from './utilidades.js';
 import { obtenerSesion } from './auth.js';
 
@@ -1299,6 +1301,16 @@ function setupModalCreacionListeners() {
       restaurar();
       return;
     }
+    if (telefono && !esTelefonoValido(telefono)) {
+      showNotification("El formato del teléfono no es válido.", "error");
+      restaurar();
+      return;
+    }
+    if (email && !esEmailValido(email)) {
+      showNotification("El formato del email no es válido.", "error");
+      restaurar();
+      return;
+    }
 
     // --- PASO 1: OBTENER O CREAR EL CLIENTE (si tiene teléfono o email) ---
     let cliente_id = null;
@@ -1387,6 +1399,16 @@ function setupModalEdicionClienteListener(turno) {
 
     if (!nombre || !telefono || !email) {
       showNotification('Nombre, teléfono y email son obligatorios.', 'error');
+      restaurar();
+      return;
+    }
+    if (!esTelefonoValido(telefono)) {
+      showNotification('El formato del teléfono no es válido.', 'error');
+      restaurar();
+      return;
+    }
+    if (!esEmailValido(email)) {
+      showNotification('El formato del email no es válido.', 'error');
       restaurar();
       return;
     }
@@ -1653,6 +1675,16 @@ function setupModalEdicionListeners(turno) {
     if (!nombreCliente) {
       restaurar();
       showNotification("El nombre del cliente es obligatorio.", "error");
+      return;
+    }
+    if (telefonoCliente && !esTelefonoValido(telefonoCliente)) {
+      restaurar();
+      showNotification("El formato del teléfono no es válido.", "error");
+      return;
+    }
+    if (emailCliente && !esEmailValido(emailCliente)) {
+      restaurar();
+      showNotification("El formato del email no es válido.", "error");
       return;
     }
 
